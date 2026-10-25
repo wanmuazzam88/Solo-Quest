@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>THE SYSTEM // Solo Leveling Habit, Workout &amp; Focus Gate</title>
+  <meta name="description" content="Gamified self-improvement, workout tracker, and deep-focus application modeled after the System from Solo Leveling. Daily quests, 22 hunter tiers, Focus Gates, and the Penalty Zone.">
+  <meta name="theme-color" content="#04060A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Atmospheric Scanlines & Particle Canvas -->
+  <div class="scanlines" aria-hidden="true"></div>
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <!-- SVG Glow Filter Definition -->
+  <svg width="0" height="0" style="position:absolute; pointer-events:none;" aria-hidden="true">
+    <defs>
+      <filter id="system-glow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="3" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- Dark Lock Grace Warning Banner -->
+  <div class="grace-warning-banner" id="grace-banner">
+    [FOCUS TELEMETRY WARNING] WINDOW BLURRED // RETURN WITHIN 15 SECONDS OR SUFFER GATE BREACH
+  </div>
+
+  <!-- App Root Shell -->
+  <div id="app-root">
+    <!-- Tactical Topbar -->
+    <header class="system-topbar" id="system-topbar">
+      <div class="topbar-left">
+        <h1 class="system-badge" id="system-brand">
+          <svg class="ico ico-glow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 1.8 21 7v10l-9 5.2L3 17V7z"/><path d="M12 4.6l6.6 3.8v7.2L12 19.4l-6.6-3.8V8.4z" opacity=".45"/><path d="M12 6.8l1.5 1.5L12 14l-1.5-5.7z" fill="currentColor" stroke="none"/><path d="M12 15.4l1.1 1.1-1.1 1.1-1.1-1.1z" fill="currentColor" stroke="none"/></svg>
+          [SYSTEM HUD]
+        </h1>
+        <div class="stat-pill" id="top-rank-badge" style="font-weight:700;">E-IV</div>
+      </div>
+
+      <!-- Desktop Navigation -->
+      <nav class="desktop-nav" id="desktop-nav" aria-label="Main Navigation">
+        <button class="nav-btn active" data-view="quests" id="nav-btn-quests">
+          <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 2.5h14v19H5z"/><path d="M8 7.5h1.2M11 7.5h5M8 12h1.2M11 12h5M8 16.5h1.2M11 16.5h5"/><path d="M9 2.5v-1h6v1"/></svg>
+          QUESTS
+        </button>
+        <button class="nav-btn" data-view="status" id="nav-btn-status">
+          <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l8.5 5v10L12 22l-8.5-5V7z"/><circle cx="12" cy="10" r="3"/><path d="M7 17.3c1-2.4 3-3.5 5-3.5s4 1.1 5 3.5"/></svg>
+          STATUS
+        </button>
+        <button class="nav-btn" data-view="gate" id="nav-btn-gate">
+          <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9.2"/><circle cx="12" cy="12" r="5.6" stroke-dasharray="2 1.6"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M12 1v3.2M12 19.8V23M1 12h3.2M19.8 12H23"/></svg>
+          DUNGEON GATE
+        </button>
+        <button class="nav-btn" data-view="vault" id="nav-btn-vault">
+          <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9h18v11.5H3z"/><path d="M3 9l2-5h14l2 5"/><path d="M10 12h4v3.5h-4z"/></svg>
+          VAULT
+        </button>
+        <button class="nav-btn" data-view="rank" id="nav-btn-rank">
+          <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 18 2 7l5.5 4L12 4l4.5 7L22 7l-1.5 11z"/><path d="M3.5 21h17"/></svg>
+          RANKINGS
+        </button>
+        <button class="nav-btn" data-view="settings" id="nav-btn-settings">
+          <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="6.6"/><path d="M12 2v3.4M12 18.6V22M2 12h3.4M18.6 12H22"/></svg>
+          SETTINGS
+        </button>
+      </nav>
+
+      <!-- Player Currencies & Streak -->
+      <div class="topbar-right">
+        <div class="topbar-stats">
+          <div class="stat-pill streak" id="pill-streak" title="Daily Streak">
+            <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l3 6 3-2v7.5a6 6 0 0 1-12 0V9l3 2z"/><path d="M12 13l2 3a2 2 0 0 1-4 0z" fill="currentColor" stroke="none"/></svg>
+            <span id="top-streak">0D</span>
+          </div>
+          <div class="stat-pill gold" id="pill-gold" title="Hunter Gold">
+            <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2.8l7.8 4.5v9.4L12 21.2l-7.8-4.5V7.3z"/><path d="M12 7l4.3 2.5v5L12 17l-4.3-2.5v-5z"/></svg>
+            <span id="top-gold">100</span>
+          </div>
+          <div class="stat-pill essence" id="pill-essence" title="Essence Stones">
+            <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l5.2 6.2L12 22 6.8 8.2z"/><path d="M6.8 8.2h10.4M12 2v20" opacity=".55"/></svg>
+            <span id="top-essence">0</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Viewport -->
+    <main class="main-viewport" id="view-container">
+      <!-- Dynamic view content injected here by js/ui.js -->
+    </main>
+
+    <!-- Mobile Bottom Navigation Dock -->
+    <nav class="mobile-dock" id="mobile-dock" aria-label="Mobile Navigation">
+      <button class="dock-btn active" data-view="quests" id="dock-btn-quests">
+        <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 2.5h14v19H5z"/><path d="M8 7.5h1.2M11 7.5h5M8 12h1.2M11 12h5M8 16.5h1.2M11 16.5h5"/><path d="M9 2.5v-1h6v1"/></svg>
+        <span>Quests</span>
+      </button>
+      <button class="dock-btn" data-view="status" id="dock-btn-status">
+        <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l8.5 5v10L12 22l-8.5-5V7z"/><circle cx="12" cy="10" r="3"/><path d="M7 17.3c1-2.4 3-3.5 5-3.5s4 1.1 5 3.5"/></svg>
+        <span>Status</span>
+      </button>
+      <button class="dock-btn" data-view="gate" id="dock-btn-gate">
+        <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9.2"/><circle cx="12" cy="12" r="5.6" stroke-dasharray="2 1.6"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M12 1v3.2M12 19.8V23M1 12h3.2M19.8 12H23"/></svg>
+        <span>Gate</span>
+      </button>
+      <button class="dock-btn" data-view="vault" id="dock-btn-vault">
+        <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9h18v11.5H3z"/><path d="M3 9l2-5h14l2 5"/><path d="M10 12h4v3.5h-4z"/></svg>
+        <span>Vault</span>
+      </button>
+      <button class="dock-btn" data-view="rank" id="dock-btn-rank">
+        <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 18 2 7l5.5 4L12 4l4.5 7L22 7l-1.5 11z"/><path d="M3.5 21h17"/></svg>
+        <span>Rank</span>
+      </button>
+      <button class="dock-btn" data-view="settings" id="dock-btn-settings">
+        <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="6.6"/><path d="M12 2v3.4M12 18.6V22M2 12h3.4M18.6 12H22"/></svg>
+        <span>Config</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- System Modal Container -->
+  <div class="modal-overlay" id="system-modal" role="dialog" aria-modal="true">
+    <div class="modal-panel" id="modal-content">
+      <!-- Modal contents injected here dynamically -->
+    </div>
+  </div>
+
+  <!-- Toast Notices Container -->
+  <aside id="toast-container" aria-live="polite" aria-atomic="true"></aside>
+
+  <!-- Application Logic Scripts -->
+  <script src="js/icons.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/gate.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
