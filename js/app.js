@@ -99,6 +99,7 @@ window.SYS = window.SYS || {};
   document.addEventListener('DOMContentLoaded', function () {
     if (S.audio) S.audio.init();
     if (S.gateMgr) S.gateMgr.init();
+    if (S.tracker) S.tracker.init();
     if (S.ui) S.ui.init();
 
     initParticles();

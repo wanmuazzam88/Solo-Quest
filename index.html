@@ -9,6 +9,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/leaflet.css">
 </head>
 <body>
   <!-- Atmospheric Scanlines & Particle Canvas -->
@@ -58,6 +59,10 @@
         <button class="nav-btn" data-view="gate" id="nav-btn-gate">
           <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9.2"/><circle cx="12" cy="12" r="5.6" stroke-dasharray="2 1.6"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M12 1v3.2M12 19.8V23M1 12h3.2M19.8 12H23"/></svg>
           DUNGEON GATE
+        </button>
+        <button class="nav-btn" data-view="run" id="nav-btn-run">
+          <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+          GPS RUN
         </button>
         <button class="nav-btn" data-view="vault" id="nav-btn-vault">
           <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9h18v11.5H3z"/><path d="M3 9l2-5h14l2 5"/><path d="M10 12h4v3.5h-4z"/></svg>
@@ -111,6 +116,10 @@
         <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9.2"/><circle cx="12" cy="12" r="5.6" stroke-dasharray="2 1.6"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M12 1v3.2M12 19.8V23M1 12h3.2M19.8 12H23"/></svg>
         <span>Gate</span>
       </button>
+      <button class="dock-btn" data-view="run" id="dock-btn-run">
+        <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+        <span>Run</span>
+      </button>
       <button class="dock-btn" data-view="vault" id="dock-btn-vault">
         <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9h18v11.5H3z"/><path d="M3 9l2-5h14l2 5"/><path d="M10 12h4v3.5h-4z"/></svg>
         <span>Vault</span>
@@ -141,6 +150,8 @@
   <script src="js/data.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/audio.js"></script>
+  <script src="js/leaflet.js"></script>
+  <script src="js/tracker.js"></script>
   <script src="js/gate.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>

@@ -1017,3 +1017,406 @@ body.grace-countdown-active .grace-warning-banner {
 .flex-between { display: flex; align-items: center; justify-content: space-between; }
 .gap-6 { gap: 6px; }
 .gap-10 { gap: 10px; }
+
+/* ==========================================================================
+   THE SYSTEM // Tactical GPS & Step Run Tracker (Strava OpenStreetMap HUD)
+   ========================================================================== */
+.run-view-layout {
+  max-width: 980px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* --- GPS Status Badge --- */
+.gps-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  clip-path: var(--clip-chamfer-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+}
+.gps-badge::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+.gps-badge.locked {
+  color: #39FF88;
+  background: rgba(57, 255, 136, 0.12);
+  border: 1px solid rgba(57, 255, 136, 0.4);
+}
+.gps-badge.simulated {
+  color: #00E5FF;
+  background: rgba(0, 229, 255, 0.12);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  animation: pulse-border 2s infinite ease-in-out;
+}
+.gps-badge.searching,
+.gps-badge.fair,
+.gps-badge.standby {
+  color: #FFB703;
+  background: rgba(255, 183, 3, 0.12);
+  border: 1px solid rgba(255, 183, 3, 0.4);
+}
+.gps-badge.weak,
+.gps-badge.denied,
+.gps-badge.unavailable {
+  color: #FF003C;
+  background: rgba(255, 0, 60, 0.12);
+  border: 1px solid rgba(255, 0, 60, 0.4);
+}
+
+/* --- Quest Link Dropdown --- */
+.run-quest-link-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  clip-path: var(--clip-chamfer-sm);
+  margin-bottom: 14px;
+}
+.run-quest-link-row select {
+  flex: 1;
+  max-width: 450px;
+}
+
+/* --- Big 4 Primary Strava Metrics --- */
+.run-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+@media (max-width: 820px) {
+  .run-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .run-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.run-metric-card {
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  clip-path: var(--clip-chamfer-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 104px;
+  transition: all 0.2s ease;
+}
+.run-metric-card.primary {
+  border-color: rgba(0, 229, 255, 0.4);
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.1);
+  background: linear-gradient(135deg, rgba(10, 20, 38, 0.8) 0%, rgba(14, 28, 54, 0.8) 100%);
+}
+.run-metric-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.run-metric-value-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 4px 0;
+}
+.run-metric-huge {
+  font-family: var(--font-mono);
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+.run-metric-huge.text-accent {
+  color: var(--accent-core);
+  text-shadow: 0 0 16px rgba(0, 229, 255, 0.5);
+}
+.run-metric-unit {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.run-metric-subtext {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* --- Secondary Telemetry Bar --- */
+.run-secondary-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  clip-path: var(--clip-chamfer-sm);
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  text-align: center;
+}
+@media (max-width: 600px) {
+  .run-secondary-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.run-secondary-bar span {
+  color: var(--text-muted);
+}
+.run-secondary-bar strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+/* --- Tactical Leaflet Map Canvas --- */
+.run-map-wrapper {
+  position: relative;
+  width: 100%;
+  height: 420px;
+  background: #04060A;
+  border: 1px solid var(--sys-border);
+  box-shadow: 0 0 25px rgba(0, 229, 255, 0.15);
+  clip-path: var(--clip-chamfer);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+@media (max-width: 600px) {
+  .run-map-wrapper {
+    height: 310px;
+  }
+}
+.run-map-canvas {
+  width: 100%;
+  height: 100%;
+  background: #04060A;
+}
+
+/* Leaflet Dark Aesthetic Overrides */
+.leaflet-container {
+  background: #04060A !important;
+  font-family: var(--font-sans) !important;
+}
+.leaflet-bar {
+  border: 1px solid rgba(0, 229, 255, 0.35) !important;
+  clip-path: var(--clip-chamfer-sm) !important;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.8) !important;
+}
+.leaflet-bar a {
+  background-color: rgba(10, 17, 31, 0.9) !important;
+  color: var(--accent-core) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.leaflet-bar a:hover {
+  background-color: rgba(20, 36, 68, 0.95) !important;
+  color: #FFFFFF !important;
+}
+.leaflet-control-attribution {
+  background: rgba(4, 6, 10, 0.75) !important;
+  color: var(--text-muted) !important;
+  font-size: 9px !important;
+  font-family: var(--font-mono) !important;
+}
+.leaflet-control-attribution a {
+  color: var(--accent-core) !important;
+  text-decoration: none;
+}
+
+/* Hunter Beacon Radar Marker */
+.hunter-leaflet-marker {
+  background: transparent !important;
+  border: none !important;
+}
+.hunter-gps-beacon {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.beacon-core {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #00E5FF;
+  border: 2.5px solid #FFFFFF;
+  box-shadow: 0 0 12px #00E5FF, 0 0 24px rgba(0, 229, 255, 0.8);
+  z-index: 5;
+}
+.radar-pulse {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 229, 255, 0.85);
+  animation: radar-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+@keyframes radar-ping {
+  0% { transform: scale(0.35); opacity: 1; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+.beacon-heading {
+  position: absolute;
+  top: -8px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 10px solid #00E5FF;
+  filter: drop-shadow(0 0 4px #00E5FF);
+  transform-origin: center 26px;
+  transition: transform 0.25s ease;
+  z-index: 4;
+  opacity: 0;
+}
+
+/* Start Point Badge on Map */
+.start-marker-icon {
+  background: transparent !important;
+  border: none !important;
+}
+.start-point-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  color: #39FF88;
+  background: rgba(4, 6, 10, 0.9);
+  border: 1px solid #39FF88;
+  box-shadow: 0 0 10px rgba(57, 255, 136, 0.4);
+  padding: 2px 6px;
+  clip-path: var(--clip-chamfer-sm);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Floating Map Overlay Controls */
+.run-map-overlay-controls {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  z-index: 400;
+  display: flex;
+  gap: 8px;
+}
+.map-ctrl-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: rgba(10, 17, 31, 0.88);
+  border: 1px solid var(--sys-border);
+  clip-path: var(--clip-chamfer-sm);
+  padding: 8px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+  transition: all 0.15s ease;
+}
+.map-ctrl-btn:hover {
+  background: rgba(20, 36, 68, 0.95);
+  border-color: var(--accent-core);
+  color: var(--accent-core);
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
+}
+
+/* --- Run Control Action Buttons --- */
+.run-controls-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+/* --- Splits Table --- */
+.splits-table-wrap {
+  overflow-x: auto;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  clip-path: var(--clip-chamfer-sm);
+}
+.splits-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.splits-table th {
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 10px;
+  text-align: left;
+  letter-spacing: 0.08em;
+}
+.splits-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+}
+
+/* --- Past Run History Cards --- */
+.run-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.run-history-card {
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  clip-path: var(--clip-chamfer-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.run-history-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+@media (max-width: 550px) {
+  .run-history-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.run-history-metrics span {
+  display: block;
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.run-history-metrics strong {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+

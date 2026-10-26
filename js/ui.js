@@ -136,6 +136,9 @@ window.SYS = window.SYS || {};
         case 'gate':
           UI.renderGateView(container);
           break;
+        case 'run':
+          UI.renderRunView(container);
+          break;
         case 'vault':
           UI.renderVaultView(container);
           break;
@@ -428,13 +431,18 @@ window.SYS = window.SYS || {};
           '</div>';
         } else {
           // Reps / KM Counter mode fast logging buttons
-          var isKm = q.unit === 'KM';
-          progressControls = '<div class="fast-log-row">' +
-            (!isKm ? '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="1">+1</button>' : '') +
-            '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="' + (isKm ? '1' : '5') + '">+' + (isKm ? '1' : '5') + '</button>' +
-            '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="' + (isKm ? '2' : '10') + '">+' + (isKm ? '2' : '10') + '</button>' +
-            '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="' + (isKm ? '5' : '25') + '">+' + (isKm ? '5' : '25') + '</button>' +
-            '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="MAX">MAX</button>' +
+          var isKm = q.unit === 'KM' || q.category === 'RUNNING';
+          var runGpsBtn = isKm ? '<button class="sys-btn sm primary btn-start-run" data-quest-id="' + q.id + '" style="margin-bottom:6px; width:100%;">' + I('gps', 14) + ' OPEN GPS RUN TRACKER (STRAVA)</button>' : '';
+
+          progressControls = '<div style="display:flex; flex-direction:column; width:100%;">' +
+            runGpsBtn +
+            '<div class="fast-log-row">' +
+              (!isKm ? '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="1">+1</button>' : '') +
+              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="' + (isKm ? '1' : '5') + '">+' + (isKm ? '1' : '5') + '</button>' +
+              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="' + (isKm ? '2' : '10') + '">+' + (isKm ? '2' : '10') + '</button>' +
+              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="' + (isKm ? '5' : '25') + '">+' + (isKm ? '5' : '25') + '</button>' +
+              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="MAX">MAX</button>' +
+            '</div>' +
           '</div>';
         }
       } else {
@@ -491,6 +499,17 @@ window.SYS = window.SYS || {};
             UI.pendingLinkedQuestId = id;
           }
           UI.setView('gate');
+        });
+      });
+
+      // Start GPS Run
+      col.querySelectorAll('.btn-start-run').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.getAttribute('data-quest-id');
+          if (S.tracker) {
+            S.tracker.linkedQuestId = id;
+          }
+          UI.setView('run');
         });
       });
 
@@ -1118,6 +1137,282 @@ window.SYS = window.SYS || {};
         S.startExam();
         UI.setView('quests');
       });
+    },
+
+    /* ======================================================================
+       VIEW: TACTICAL GPS & STEP RUN TRACKER (STRAVA SATELLITE HUD)
+       ====================================================================== */
+    renderRunView: function (container) {
+      var tr = S.tracker;
+      var st = tr ? tr.getState() : {
+        isActive: false, isPaused: false, distanceKm: 0, movingSeconds: 0,
+        currentPaceStr: "--'--\"", avgPaceStr: "--'--\"", currentSpeedKmh: 0,
+        maxSpeedKmh: 0, totalSteps: 0, cadenceSpm: 0, caloriesBurned: 0,
+        elevationGain: 0, gpsStatus: 'STANDBY', splits: []
+      };
+
+      var quests = S.state.quests;
+      var activeQuest = st.linkedQuestId ? S.getQuest(st.linkedQuestId) : null;
+      var runningQuests = quests.filter(function (q) {
+        return (q.category === 'RUNNING' || q.unit === 'KM' || q.preset === 'running') && !q.isCompleted;
+      });
+
+      var targetKm = activeQuest ? activeQuest.targetProgress : 10;
+      var currentKm = activeQuest ? activeQuest.currentProgress : 0;
+      var runPct = activeQuest ? Math.min(100, Math.floor(((currentKm + st.distanceKm) / targetKm) * 100)) : 0;
+
+      var questOptions = '<option value="">-- FREERUN SATELLITE (UNLINKED) --</option>' +
+        runningQuests.map(function (q) {
+          return '<option value="' + q.id + '" ' + (st.linkedQuestId === q.id ? 'selected' : '') + '>' +
+            U.esc(q.title) + ' (' + q.currentProgress + ' / ' + q.targetProgress + ' KM)' +
+          '</option>';
+        }).join('');
+
+      var splitsHtml = '';
+      if (st.splits && st.splits.length) {
+        splitsHtml = '<div style="margin-top:16px;">' +
+          '<div class="panel-header" style="margin-bottom:8px;">' +
+            '<div class="panel-title" style="font-size:12px;">' + I('pace', 14) + ' KILOMETER SPLITS</div>' +
+            '<div class="font-mono text-muted" style="font-size:11px;">' + st.splits.length + ' SPLITS CLEARED</div>' +
+          '</div>' +
+          '<div class="splits-table-wrap">' +
+            '<table class="splits-table font-mono">' +
+              '<thead><tr><th>KM</th><th>SPLIT TIME</th><th>PACE /KM</th><th>TOTAL TIME</th></tr></thead>' +
+              '<tbody>' +
+                st.splits.map(function (sp) {
+                  return '<tr>' +
+                    '<td class="text-accent font-bold">' + sp.km + '</td>' +
+                    '<td>' + U.hms(sp.splitTimeSec * 1000) + '</td>' +
+                    '<td class="text-gold">' + sp.paceStr + '</td>' +
+                    '<td>' + U.hms(sp.totalTimeSec * 1000) + '</td>' +
+                  '</tr>';
+                }).join('') +
+              '</tbody>' +
+            '</table>' +
+          '</div>' +
+        '</div>';
+      }
+
+      var historyHtml = '';
+      if (tr && tr.history && tr.history.length) {
+        historyHtml = '<div style="margin-top:20px;">' +
+          '<div class="panel-header" style="margin-bottom:8px;">' +
+            '<div class="panel-title" style="font-size:12px;">' + I('status', 14) + ' HUNTER SERVICE RECORD // PAST RUNS</div>' +
+            '<div class="font-mono text-muted" style="font-size:11px;">' + tr.history.length + ' LOGGED</div>' +
+          '</div>' +
+          '<div class="run-history-list">' +
+            tr.history.slice(0, 8).map(function (h) {
+              var d = new Date(h.date);
+              var dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              return '<div class="run-history-card">' +
+                '<div class="flex-between">' +
+                  '<div class="font-mono text-accent" style="font-weight:700; font-size:14px;">' + h.distanceKm.toFixed(2) + ' KM</div>' +
+                  '<div class="font-mono text-muted" style="font-size:11px;">' + dateStr + '</div>' +
+                '</div>' +
+                '<div class="run-history-metrics">' +
+                  '<div><span>TIME</span><strong>' + U.hms(h.movingSec * 1000) + '</strong></div>' +
+                  '<div><span>AVG PACE</span><strong class="text-gold">' + h.avgPaceStr + '</strong></div>' +
+                  '<div><span>STEPS</span><strong>' + U.fmt(h.totalSteps) + '</strong></div>' +
+                  '<div><span>CALORIES</span><strong>' + h.calories + ' KCAL</strong></div>' +
+                '</div>' +
+              '</div>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+      }
+
+      var actionControls = '';
+      if (!st.isActive) {
+        actionControls = '<div class="run-controls-row">' +
+          '<button class="sys-btn lg primary" id="btn-run-start" style="flex:2;">' + I('play', 20) + ' START GPS RUN</button>' +
+          '<button class="sys-btn lg" id="btn-run-demo" style="flex:1;" title="Simulate realistic GPS jog with steps">' + I('radar', 16) + ' DEMO SIMULATION</button>' +
+        '</div>';
+      } else if (!st.isPaused) {
+        actionControls = '<div class="run-controls-row">' +
+          '<button class="sys-btn lg warning" id="btn-run-pause" style="flex:1;">' + I('pause', 18) + ' PAUSE</button>' +
+          '<button class="sys-btn lg primary" id="btn-run-finish" style="flex:2;">' + I('check', 18) + ' FINISH & LOG QUEST</button>' +
+        '</div>';
+      } else {
+        actionControls = '<div class="run-controls-row">' +
+          '<button class="sys-btn lg primary" id="btn-run-resume" style="flex:2;">' + I('play', 18) + ' RESUME RUN</button>' +
+          '<button class="sys-btn lg primary" id="btn-run-finish" style="flex:2;">' + I('check', 18) + ' FINISH & LOG QUEST</button>' +
+          '<button class="sys-btn lg danger" id="btn-run-discard" style="flex:1;">' + I('trash', 16) + ' DISCARD</button>' +
+        '</div>';
+      }
+
+      container.innerHTML = '<div class="run-view-layout">' +
+        '<div class="system-panel">' +
+          '<div class="panel-header">' +
+            '<div class="panel-title">' + I('gps', 18) + ' [TACTICAL RUN TRACKER // STRAVA SATELLITE HUD]</div>' +
+            '<div class="gps-badge ' + st.gpsStatus.toLowerCase() + '" id="run-stat-gps-status">' +
+              st.gpsStatus + (st.accuracyMeters ? ' (±' + st.accuracyMeters + 'M)' : '') +
+            '</div>' +
+          '</div>' +
+
+          // Quest Association Selector
+          '<div class="run-quest-link-row">' +
+            '<div class="font-mono" style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">' +
+              I('boot', 14) + ' LINK TO RUNNING QUEST:' +
+            '</div>' +
+            '<select class="sys-select" id="select-linked-quest" ' + (st.isActive ? 'disabled' : '') + '>' +
+              questOptions +
+            '</select>' +
+          '</div>' +
+
+          (activeQuest ?
+            '<div style="margin-bottom:14px;">' +
+              '<div class="flex-between font-mono" style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">' +
+                '<span>QUEST TARGET PROGRESS</span>' +
+                '<span class="text-accent">' + (currentKm + st.distanceKm).toFixed(2) + ' / ' + targetKm + ' KM (' + runPct + '%)</span>' +
+              '</div>' +
+              '<div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:' + runPct + '%"></div></div>' +
+            '</div>' : '') +
+
+          // Big 4 Primary Strava Metrics Grid
+          '<div class="run-metrics-grid">' +
+            // Distance
+            '<div class="run-metric-card primary">' +
+              '<div class="run-metric-label">' + I('boot', 14) + ' DISTANCE</div>' +
+              '<div class="run-metric-value-wrap">' +
+                '<span class="run-metric-huge text-accent" id="run-stat-distance">' + st.distanceKm.toFixed(2) + '</span>' +
+                '<span class="run-metric-unit">KM</span>' +
+              '</div>' +
+              '<div class="run-metric-subtext">TOTAL DISPLACEMENT</div>' +
+            '</div>' +
+
+            // Pace
+            '<div class="run-metric-card">' +
+              '<div class="run-metric-label">' + I('pace', 14) + ' CURRENT PACE</div>' +
+              '<div class="run-metric-value-wrap">' +
+                '<span class="run-metric-huge" id="run-stat-pace">' + st.currentPaceStr + '</span>' +
+                '<span class="run-metric-unit">/KM</span>' +
+              '</div>' +
+              '<div class="run-metric-subtext">AVG: <strong class="text-gold" id="run-stat-avg-pace">' + st.avgPaceStr + '</strong></div>' +
+            '</div>' +
+
+            // Moving Time
+            '<div class="run-metric-card">' +
+              '<div class="run-metric-label">' + I('clock', 14) + ' TIME</div>' +
+              '<div class="run-metric-value-wrap">' +
+                '<span class="run-metric-huge font-mono" id="run-stat-time">' + U.hms(st.movingSeconds * 1000) + '</span>' +
+              '</div>' +
+              '<div class="run-metric-subtext">MOVING DURATION</div>' +
+            '</div>' +
+
+            // Steps & Cadence
+            '<div class="run-metric-card">' +
+              '<div class="run-metric-label">' + I('steps', 14) + ' STEPS</div>' +
+              '<div class="run-metric-value-wrap">' +
+                '<span class="run-metric-huge text-gold" id="run-stat-steps">' + U.fmt(st.totalSteps) + '</span>' +
+                '<span class="run-metric-unit">STEPS</span>' +
+              '</div>' +
+              '<div class="run-metric-subtext">CADENCE: <strong id="run-stat-cadence">' + st.cadenceSpm + '</strong> SPM</div>' +
+            '</div>' +
+          '</div>' +
+
+          // Secondary Telemetry Bar
+          '<div class="run-secondary-bar font-mono">' +
+            '<div><span>SPEED:</span> <strong id="run-stat-speed">' + st.currentSpeedKmh.toFixed(1) + '</strong> KM/H</div>' +
+            '<div><span>ENERGY:</span> <strong id="run-stat-calories">' + Math.round(st.caloriesBurned) + '</strong> KCAL</div>' +
+            '<div><span>ELEVATION:</span> <strong>+' + Math.round(st.elevationGain) + '</strong> M</div>' +
+            '<div><span>SPLITS:</span> <strong>' + st.splits.length + '</strong> KM</div>' +
+          '</div>' +
+
+          // Tactical OpenStreetMap Leaflet Map
+          '<div class="run-map-wrapper">' +
+            '<div id="run-map-canvas" class="run-map-canvas"></div>' +
+            '<div class="run-map-overlay-controls">' +
+              '<button class="map-ctrl-btn" id="btn-map-recenter">' + I('compass', 14) + ' RECENTER</button>' +
+            '</div>' +
+          '</div>' +
+
+          // Action Controls Bar
+          actionControls +
+
+          // Splits Breakdown
+          splitsHtml +
+
+          // Past Run History
+          historyHtml +
+        '</div>' +
+      '</div>';
+
+      // Mount Map Canvas with Leaflet
+      setTimeout(function () {
+        var mapEl = document.getElementById('run-map-canvas');
+        if (mapEl && tr) tr.mountMap(mapEl);
+      }, 50);
+
+      // Bind Run View Events
+      UI.bindRunEvents(container);
+    },
+
+    bindRunEvents: function (container) {
+      var tr = S.tracker;
+      if (!tr) return;
+
+      var selQuest = container.querySelector('#select-linked-quest');
+      if (selQuest) {
+        selQuest.addEventListener('change', function () {
+          tr.linkedQuestId = selQuest.value || null;
+        });
+      }
+
+      var btnStart = container.querySelector('#btn-run-start');
+      if (btnStart) {
+        btnStart.addEventListener('click', function () {
+          var qId = selQuest ? selQuest.value : null;
+          tr.start(qId, false);
+        });
+      }
+
+      var btnDemo = container.querySelector('#btn-run-demo');
+      if (btnDemo) {
+        btnDemo.addEventListener('click', function () {
+          var qId = selQuest ? selQuest.value : null;
+          tr.start(qId, true);
+        });
+      }
+
+      var btnPause = container.querySelector('#btn-run-pause');
+      if (btnPause) {
+        btnPause.addEventListener('click', function () {
+          tr.pause();
+        });
+      }
+
+      var btnResume = container.querySelector('#btn-run-resume');
+      if (btnResume) {
+        btnResume.addEventListener('click', function () {
+          tr.resume();
+        });
+      }
+
+      var btnFinish = container.querySelector('#btn-run-finish');
+      if (btnFinish) {
+        btnFinish.addEventListener('click', function () {
+          var rec = tr.finish();
+          if (rec) {
+            UI.showToast('[RUN RECORD SECURED]', rec.distanceKm + ' KM logged // ' + rec.avgPaceStr + ' pace // ' + rec.totalSteps + ' steps.', 'cyan');
+          }
+        });
+      }
+
+      var btnDiscard = container.querySelector('#btn-run-discard');
+      if (btnDiscard) {
+        btnDiscard.addEventListener('click', function () {
+          if (confirm('Discard current run telemetry without logging?')) {
+            tr.discard();
+          }
+        });
+      }
+
+      var btnRecenter = container.querySelector('#btn-map-recenter');
+      if (btnRecenter) {
+        btnRecenter.addEventListener('click', function () {
+          tr.recenterMap();
+        });
+      }
     },
 
     /* ======================================================================
