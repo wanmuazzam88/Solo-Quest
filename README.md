@@ -63,7 +63,7 @@ A dark-futuristic, tactical manhwa-styled web application modeled directly after
    - Native **Web Audio API** procedural synthesizer (no external audio files required).
 
 9. **Progressive Web App (PWA) & Offline Ready:**
-   - **Standalone Installable:** Complete Web App Manifest (`manifest.json`) with bespoke 192px/512px tactical manhwa System crest icons, maskable formats, theme color `#04060A`, and 4 app shortcuts (`Quests`, `Run`, `Gate`, `Status`).
+   - **Standalone Installable:** Complete Web App Manifest (`manifest.json`) with bespoke 192px/512px tactical Shadow Monarch Sovereign Sword crest icons, maskable formats, theme color `#04060A`, and 4 app shortcuts (`Quests`, `Run`, `Gate`, `Status`).
    - **Offline-First Service Worker (`sw.js`):** Pre-caches 19 core shell assets, scripts, styles, and fonts with a Stale-While-Revalidate caching strategy, dynamic OpenStreetMap tile caching, and offline fallback.
    - **Native Install Prompt:** Top-bar holographic `INSTALL APP` button dynamically unhides upon `beforeinstallprompt` event and registers standalone launch upon installation.
 
