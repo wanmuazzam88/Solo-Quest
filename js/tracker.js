@@ -46,7 +46,9 @@ window.SYS = window.SYS || {};
     cadenceSpm: 0,
     stepTimestamps: [],    // rolling timestamps for SPM
     caloriesBurned: 0,
-    gpsStatus: 'STANDBY',  // STANDBY, SEARCHING, LOCKED, WEAK, DENIED, SIMULATED
+    gpsStatus: 'STANDBY',  // STANDBY, SEARCHING, LOCKED, WEAK, DENIED, SIMULATED, UNAVAILABLE
+    permissionStatus: 'prompt', // 'prompt', 'granted', 'denied', 'unsupported'
+    permissionChecked: false,
     accuracyMeters: null,
 
     // Internal handles
@@ -78,9 +80,12 @@ window.SYS = window.SYS || {};
         tracker.history = [];
       }
 
-      // Initial check for geolocation availability
+      // Initial check for geolocation availability & permissions
       if (!('geolocation' in navigator)) {
         tracker.gpsStatus = 'UNAVAILABLE';
+        tracker.permissionStatus = 'unsupported';
+      } else {
+        tracker.queryPermissionStatus();
       }
     },
 
@@ -93,14 +98,217 @@ window.SYS = window.SYS || {};
     },
 
     /* ======================================================================
+       Device Location Permissions & Initial Coordinate Fix
+       ====================================================================== */
+    queryPermissionStatus: function (callback) {
+      if (!('geolocation' in navigator)) {
+        tracker.permissionStatus = 'unsupported';
+        tracker.gpsStatus = 'UNAVAILABLE';
+        if (callback) callback('unsupported');
+        return;
+      }
+
+      if (navigator.permissions && typeof navigator.permissions.query === 'function') {
+        navigator.permissions.query({ name: 'geolocation' }).then(function (result) {
+          tracker.permissionStatus = result.state; // 'granted', 'prompt', 'denied'
+          tracker.permissionChecked = true;
+          if (result.state === 'granted') {
+            if (!tracker.isActive) {
+              tracker.gpsStatus = tracker.currentPosition ? 'LOCKED' : 'STANDBY';
+              if (!tracker.currentPosition) {
+                tracker.acquireInitialFix(false);
+              }
+            }
+          } else if (result.state === 'denied') {
+            tracker.gpsStatus = 'DENIED';
+          }
+
+          result.onchange = function () {
+            tracker.permissionStatus = result.state;
+            if (result.state === 'granted') {
+              tracker.gpsStatus = 'LOCKED';
+              tracker.acquireInitialFix(true);
+            } else if (result.state === 'denied') {
+              tracker.gpsStatus = 'DENIED';
+            }
+            if (S.ui && S.ui.renderRunView) S.ui.render();
+          };
+
+          if (callback) callback(result.state);
+        }).catch(function () {
+          tracker.permissionStatus = 'prompt';
+          if (callback) callback('prompt');
+        });
+      } else {
+        tracker.permissionStatus = 'prompt';
+        if (callback) callback('prompt');
+      }
+    },
+
+    acquireInitialFix: function (interactive, callback) {
+      if (!('geolocation' in navigator)) return;
+      var options = { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 };
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          var crd = pos.coords;
+          tracker.permissionStatus = 'granted';
+          tracker.permissionChecked = true;
+          tracker.accuracyMeters = Math.round(crd.accuracy || 10);
+          tracker.gpsStatus = tracker.accuracyMeters <= 20 ? 'LOCKED' : 'FAIR';
+          tracker.currentPosition = {
+            lat: crd.latitude,
+            lng: crd.longitude,
+            accuracy: crd.accuracy,
+            altitude: crd.altitude,
+            heading: crd.heading || 0,
+            speed: crd.speed,
+            timestamp: Date.now()
+          };
+
+          if (tracker.map) {
+            tracker.map.flyTo([crd.latitude, crd.longitude], 16, { animate: true, duration: 1 });
+            tracker.updateMapHunterOnly(crd.latitude, crd.longitude, crd.accuracy, crd.heading || 0);
+          }
+          if (interactive && S.ui) {
+            S.ui.showToast('[GPS SATELLITE LOCKED]', 'Location fix acquired (±' + tracker.accuracyMeters + 'm precision).', 'cyan');
+            if (S.audio && S.audio.windowOpen) S.audio.windowOpen();
+          }
+          if (S.ui && S.ui.renderRunView) S.ui.render();
+          if (callback) callback(null, tracker.currentPosition);
+        },
+        function (err) {
+          if (err.code === 1) { // PERMISSION_DENIED
+            tracker.permissionStatus = 'denied';
+            tracker.gpsStatus = 'DENIED';
+          }
+          if (callback) callback(err);
+        },
+        options
+      );
+    },
+
+    requestLocationPermission: function (interactive, callback) {
+      if (!('geolocation' in navigator)) {
+        tracker.permissionStatus = 'unsupported';
+        tracker.gpsStatus = 'UNAVAILABLE';
+        if (interactive && S.ui) {
+          S.ui.showToast('[GPS NOT SUPPORTED]', 'This device/browser does not support geolocation.', 'crimson');
+        }
+        if (callback) callback(new Error('Geolocation unsupported'));
+        return;
+      }
+
+      // iOS Safari Motion Sensor Permission request inside user gesture
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission().then(function (state) {
+          if (state === 'granted') {
+            console.log('[SENSORS] iOS motion sensor access authorized.');
+          }
+        }).catch(function () {});
+      }
+
+      tracker.gpsStatus = 'SEARCHING';
+      if (S.ui && S.ui.renderRunView) S.ui.render();
+
+      var options = {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
+      };
+
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          var crd = pos.coords;
+          tracker.permissionStatus = 'granted';
+          tracker.permissionChecked = true;
+          tracker.accuracyMeters = Math.round(crd.accuracy || 10);
+          tracker.gpsStatus = tracker.accuracyMeters <= 20 ? 'LOCKED' : (tracker.accuracyMeters <= 40 ? 'FAIR' : 'WEAK');
+          tracker.currentPosition = {
+            lat: crd.latitude,
+            lng: crd.longitude,
+            accuracy: crd.accuracy,
+            altitude: crd.altitude,
+            heading: crd.heading || 0,
+            speed: crd.speed,
+            timestamp: Date.now()
+          };
+
+          if (tracker.map) {
+            tracker.map.flyTo([crd.latitude, crd.longitude], 16, { animate: true, duration: 1.2 });
+            tracker.updateMapHunterOnly(crd.latitude, crd.longitude, crd.accuracy, crd.heading || 0);
+          }
+
+          if (interactive) {
+            if (S.audio && S.audio.windowOpen) S.audio.windowOpen();
+            if (S.ui) S.ui.showToast('[GPS SATELLITE LOCKED]', 'Location acquired (±' + tracker.accuracyMeters + 'm precision).', 'cyan');
+          }
+
+          if (S.ui && S.ui.renderRunView) S.ui.render();
+          if (callback) callback(null, tracker.currentPosition);
+        },
+        function (err) {
+          tracker.permissionChecked = true;
+          if (err.code === 1) { // PERMISSION_DENIED
+            tracker.permissionStatus = 'denied';
+            tracker.gpsStatus = 'DENIED';
+            if (interactive && S.ui && S.ui.showLocationPermissionHelp) {
+              S.ui.showLocationPermissionHelp(err);
+            }
+          } else if (err.code === 2) { // POSITION_UNAVAILABLE
+            tracker.gpsStatus = 'UNAVAILABLE';
+            if (interactive && S.ui) {
+              S.ui.showToast('[GPS SATELLITE UNREACHABLE]', 'Device location could not be determined. Check GPS switch.', 'crimson');
+            }
+          } else { // TIMEOUT
+            tracker.gpsStatus = 'WEAK';
+            if (interactive && S.ui) {
+              S.ui.showToast('[GPS SEARCH TIMEOUT]', 'Satellite query timed out. Retrying search...', 'gold');
+            }
+          }
+          if (S.ui && S.ui.renderRunView) S.ui.render();
+          if (callback) callback(err);
+        },
+        options
+      );
+    },
+
+    /* ======================================================================
        Run Control Lifecycle
        ====================================================================== */
     start: function (questId, demoMode) {
       if (tracker.isActive) return;
 
+      if (demoMode) {
+        tracker._beginRunSession(questId, true);
+        return;
+      }
+
+      // Live GPS Run: Check / Request device location permission first
+      if (tracker.permissionStatus === 'denied') {
+        if (S.ui && S.ui.showLocationPermissionHelp) {
+          S.ui.showLocationPermissionHelp({ code: 1, message: 'Permission previously denied' });
+        }
+        return;
+      }
+
+      if (tracker.permissionStatus !== 'granted') {
+        // Explicitly ask user for permission and proceed upon grant
+        tracker.requestLocationPermission(true, function (err) {
+          if (!err) {
+            tracker._beginRunSession(questId, false);
+          }
+        });
+        return;
+      }
+
+      // Permission is already granted
+      tracker._beginRunSession(questId, false);
+    },
+
+    _beginRunSession: function (questId, isDemo) {
       tracker.isActive = true;
       tracker.isPaused = false;
-      tracker.isDemo = !!demoMode;
+      tracker.isDemo = !!isDemo;
       tracker.linkedQuestId = questId || tracker.findActiveRunningQuestId();
 
       // Reset metrics
@@ -156,6 +364,7 @@ window.SYS = window.SYS || {};
       S.emit('trackerStarted', tracker.getState());
       if (S.ui && S.ui.renderRunView) S.ui.render();
     },
+
 
     pause: function () {
       if (!tracker.isActive || tracker.isPaused) return;
@@ -708,6 +917,8 @@ window.SYS = window.SYS || {};
         tracker.renderStartMarker(tracker.coordinates[0]);
         tracker.polylineGlow.setLatLngs(tracker.coordinates);
         tracker.polylineCore.setLatLngs(tracker.coordinates);
+      } else if (!tracker.currentPosition && tracker.permissionStatus === 'granted') {
+        tracker.acquireInitialFix(false);
       }
     },
 
@@ -805,6 +1016,8 @@ window.SYS = window.SYS || {};
         isPaused: tracker.isPaused,
         isDemo: tracker.isDemo,
         linkedQuestId: tracker.linkedQuestId,
+        permissionStatus: tracker.permissionStatus,
+        permissionChecked: tracker.permissionChecked,
         distanceKm: tracker.totalDistanceMeters / 1000,
         distanceMeters: tracker.totalDistanceMeters,
         elapsedSeconds: tracker.elapsedSeconds,
