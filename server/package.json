@@ -1,0 +1,12 @@
+{
+  "name": "solo-quest-server",
+  "version": "1.0.0",
+  "description": "PROJECT: ARISE — The System Dedicated Authentication & Cloud Database Server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["solo-leveling", "authentication", "leaderboard", "database"],
+  "author": "Wan Muazzam",
+  "license": "MIT"
+}
