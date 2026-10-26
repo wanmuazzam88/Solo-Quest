@@ -1,16 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
     <!-- Background Gradient -->
-    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#0E1A30"/>
-      <stop offset="70%" stop-color="#070D18"/>
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#0E1A32"/>
+      <stop offset="60%" stop-color="#070D1A"/>
       <stop offset="100%" stop-color="#04060A"/>
     </radialGradient>
 
-    <!-- Neon Glow Filter -->
+    <!-- Neon Cyan Glow Filter -->
     <filter id="neonGlow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="8" result="blur1"/>
-      <feGaussianBlur stdDeviation="18" result="blur2"/>
+      <feGaussianBlur stdDeviation="6" result="blur1"/>
+      <feGaussianBlur stdDeviation="15" result="blur2"/>
       <feMerge>
         <feMergeNode in="blur2"/>
         <feMergeNode in="blur1"/>
@@ -18,11 +18,39 @@
       </feMerge>
     </filter>
 
-    <!-- Core Blue Gradient -->
-    <linearGradient id="coreCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- Intense Blade Core Glow -->
+    <filter id="bladeGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Luminous Blade Gradients -->
+    <linearGradient id="bladeLeft" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#7DF9FF"/>
-      <stop offset="50%" stop-color="#00E5FF"/>
-      <stop offset="100%" stop-color="#0066FF"/>
+      <stop offset="70%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#0077FF"/>
+    </linearGradient>
+
+    <linearGradient id="bladeRight" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="40%" stop-color="#C0F5FE"/>
+      <stop offset="100%" stop-color="#38B6FF"/>
+    </linearGradient>
+
+    <linearGradient id="bladeCore" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="30%" stop-color="#7DF9FF"/>
+      <stop offset="75%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#0052CC"/>
+    </linearGradient>
+
+    <linearGradient id="guardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#142848"/>
+      <stop offset="50%" stop-color="#0A1424"/>
+      <stop offset="100%" stop-color="#050A12"/>
     </linearGradient>
 
     <!-- Gold Accent Gradient -->
@@ -30,46 +58,98 @@
       <stop offset="0%" stop-color="#FFE066"/>
       <stop offset="100%" stop-color="#FFB703"/>
     </linearGradient>
+
+    <!-- Wing Dagger Gradients -->
+    <linearGradient id="daggerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7DF9FF" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#0055D4" stop-opacity="0.25"/>
+    </linearGradient>
   </defs>
 
-  <!-- Background Canvas -->
+  <!-- Background Base -->
   <rect width="512" height="512" fill="url(#bgGrad)"/>
 
-  <!-- Subtle Tactical Grid Ring -->
-  <circle cx="256" cy="256" r="210" fill="none" stroke="#00E5FF" stroke-width="1.5" stroke-opacity="0.2" stroke-dasharray="6 6"/>
-  <circle cx="256" cy="256" r="150" fill="none" stroke="#00E5FF" stroke-width="1.5" stroke-opacity="0.15"/>
+  <!-- Tactical Radar Rings & Coordinate Reticle -->
+  <circle cx="256" cy="256" r="215" fill="none" stroke="#00E5FF" stroke-width="1.5" stroke-opacity="0.18" stroke-dasharray="6 6"/>
+  <circle cx="256" cy="256" r="165" fill="none" stroke="#00E5FF" stroke-width="1" stroke-opacity="0.12"/>
+  <circle cx="256" cy="256" r="115" fill="none" stroke="#00E5FF" stroke-width="1.5" stroke-opacity="0.15" stroke-dasharray="4 8"/>
 
-  <!-- Outer Hexagonal Chamfered Crest -->
-  <polygon points="256,48 440,154 440,358 256,464 72,358 72,154" 
-           fill="#0A111F" fill-opacity="0.85" 
-           stroke="url(#coreCyan)" stroke-width="8" 
+  <!-- Diagonal Mana Wings / Crossed Energy Blades in Background -->
+  <path d="M120,380 L180,260 L230,285 L165,395 Z" fill="url(#daggerGrad)" stroke="#00E5FF" stroke-width="1.5" stroke-opacity="0.4"/>
+  <path d="M392,380 L332,260 L282,285 L347,395 Z" fill="url(#daggerGrad)" stroke="#00E5FF" stroke-width="1.5" stroke-opacity="0.4"/>
+
+  <!-- Tactical Hexagonal Shield Crest -->
+  <polygon points="256,36 448,146 448,366 256,476 64,366 64,146" 
+           fill="#080E1C" fill-opacity="0.88" 
+           stroke="url(#bladeCore)" stroke-width="6" 
            filter="url(#neonGlow)"/>
 
-  <!-- Inner Concentric Hexagon -->
-  <polygon points="256,86 404,171 404,341 256,426 108,341 108,171" 
+  <!-- Inner Concentric Bevel Hexagon -->
+  <polygon points="256,66 422,162 422,350 256,446 90,350 90,162" 
            fill="none" 
-           stroke="#00E5FF" stroke-width="2" stroke-opacity="0.4"/>
+           stroke="#00E5FF" stroke-width="2" stroke-opacity="0.35"/>
 
-  <!-- Central Monarch Eye / Arise Core -->
-  <!-- Upper & Lower Tactical Arcs -->
-  <path d="M140,256 C170,180 342,180 372,256 C342,332 170,332 140,256 Z" 
-        fill="#040812" 
-        stroke="url(#coreCyan)" stroke-width="7" 
-        filter="url(#neonGlow)"/>
+  <!-- Chamfer Corner Energy Nodes -->
+  <polygon points="256,44 264,56 248,56" fill="url(#goldGrad)"/>
+  <polygon points="256,468 264,456 248,456" fill="url(#goldGrad)"/>
+  <polygon points="74,152 86,152 80,140" fill="url(#goldGrad)"/>
+  <polygon points="438,152 426,152 432,140" fill="url(#goldGrad)"/>
 
-  <!-- Center Glowing Iris Core -->
-  <circle cx="256" cy="256" r="48" fill="url(#coreCyan)" filter="url(#neonGlow)"/>
-  <circle cx="256" cy="256" r="24" fill="#FFFFFF"/>
-  <circle cx="256" cy="256" r="10" fill="#04060A"/>
+  <!-- ======================================================================
+       THE SHADOW MONARCH SOVEREIGN SWORD
+       ====================================================================== -->
 
-  <!-- Crosshair Tactical Sights -->
-  <line x1="256" y1="90" x2="256" y2="170" stroke="url(#coreCyan)" stroke-width="4" stroke-linecap="square"/>
-  <line x1="256" y1="342" x2="256" y2="422" stroke="url(#coreCyan)" stroke-width="4" stroke-linecap="square"/>
-  <line x1="112" y1="256" x2="182" y2="256" stroke="url(#coreCyan)" stroke-width="4" stroke-linecap="square"/>
-  <line x1="330" y1="256" x2="400" y2="256" stroke="url(#coreCyan)" stroke-width="4" stroke-linecap="square"/>
+  <!-- Outer Sword Energy Silhouette (Bloom Base) -->
+  <path d="M256,68 L286,160 L282,210 L294,222 L278,285 L334,295 L342,324 L276,334 L278,400 L292,410 L256,448 L220,410 L234,400 L236,334 L170,324 L178,295 L234,285 L218,222 L230,210 L226,160 Z"
+        fill="#040A18" stroke="url(#bladeCore)" stroke-width="4" filter="url(#bladeGlow)"/>
 
-  <!-- Corner Tech Accents -->
-  <polygon points="256,58 266,74 246,74" fill="url(#goldGrad)"/>
-  <polygon points="256,454 266,438 246,438" fill="url(#goldGrad)"/>
-  <circle cx="256" cy="256" r="76" fill="none" stroke="#7DF9FF" stroke-width="1.5" stroke-opacity="0.5" stroke-dasharray="8 4"/>
+  <!-- Blade: Left Bevel (Shadowed Metallic Cyan) -->
+  <polygon points="256,76 228,162 232,212 220,224 236,286 256,290" 
+           fill="url(#bladeLeft)"/>
+
+  <!-- Blade: Right Bevel (Luminous Silver-Cyan Highlight) -->
+  <polygon points="256,76 284,162 280,212 292,224 276,286 256,290" 
+           fill="url(#bladeRight)"/>
+
+  <!-- Central Mana Fuller Channel (Glowing Core Spine) -->
+  <line x1="256" y1="90" x2="256" y2="284" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" filter="url(#bladeGlow)"/>
+  <line x1="256" y1="105" x2="256" y2="270" stroke="#7DF9FF" stroke-width="8" stroke-opacity="0.6" stroke-linecap="round" filter="url(#neonGlow)"/>
+
+  <!-- Serration Runic Insets on Blade -->
+  <polygon points="256,120 252,145 256,152 260,145" fill="#FFFFFF"/>
+  <polygon points="256,180 250,210 256,218 262,210" fill="#FFFFFF"/>
+
+  <!-- Tactical Winged Crossguard (Demonic Monarch Quillons) -->
+  <path d="M256,290 L280,288 L344,298 L348,322 L310,322 L274,334 L256,336 L238,334 L202,322 L164,322 L168,298 L232,288 Z" 
+        fill="url(#guardGrad)" stroke="url(#bladeCore)" stroke-width="3.5"/>
+
+  <!-- Guard Energy Core Diamond -->
+  <polygon points="256,296 270,314 256,332 242,314" fill="#0A1830" stroke="#00E5FF" stroke-width="2"/>
+  <polygon points="256,302 264,314 256,326 248,314" fill="url(#bladeCore)" filter="url(#neonGlow)"/>
+  <circle cx="256" cy="314" r="3" fill="#FFFFFF"/>
+
+  <!-- Quillon Wing Jewels -->
+  <polygon points="180,310 188,314 180,318 172,314" fill="url(#goldGrad)"/>
+  <polygon points="332,310 340,314 332,318 324,314" fill="url(#goldGrad)"/>
+
+  <!-- Sword Grip / Hilt with Diamond Wrappings -->
+  <rect x="248" y="336" width="16" height="66" fill="#060C16" stroke="#00E5FF" stroke-width="1.5"/>
+  <line x1="248" y1="348" x2="264" y2="356" stroke="url(#bladeCore)" stroke-width="2"/>
+  <line x1="264" y1="348" x2="248" y2="356" stroke="url(#bladeCore)" stroke-width="2"/>
+  <line x1="248" y1="368" x2="264" y2="376" stroke="url(#bladeCore)" stroke-width="2"/>
+  <line x1="264" y1="368" x2="248" y2="376" stroke="url(#bladeCore)" stroke-width="2"/>
+  <line x1="248" y1="388" x2="264" y2="396" stroke="url(#bladeCore)" stroke-width="2"/>
+  <line x1="264" y1="388" x2="248" y2="396" stroke="url(#bladeCore)" stroke-width="2"/>
+
+  <!-- Pommel (Faceted Mana Crystal Sovereign Pommel) -->
+  <polygon points="256,402 278,414 270,432 256,446 242,432 234,414" 
+           fill="url(#guardGrad)" stroke="url(#bladeCore)" stroke-width="3"/>
+  <polygon points="256,412 268,422 256,436 244,422" fill="url(#bladeCore)" filter="url(#neonGlow)"/>
+  <circle cx="256" cy="424" r="3.5" fill="#FFFFFF"/>
+
+  <!-- Reticle Crosshair Ticks -->
+  <line x1="256" y1="20" x2="256" y2="36" stroke="#00E5FF" stroke-width="3"/>
+  <line x1="256" y1="476" x2="256" y2="492" stroke="#00E5FF" stroke-width="3"/>
+  <line x1="48" y1="256" x2="64" y2="256" stroke="#00E5FF" stroke-width="3"/>
+  <line x1="448" y1="256" x2="464" y2="256" stroke="#00E5FF" stroke-width="3"/>
 </svg>
