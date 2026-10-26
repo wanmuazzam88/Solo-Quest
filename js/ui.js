@@ -73,6 +73,14 @@ window.SYS = window.SYS || {};
           if (view) UI.setView(view);
         });
       });
+
+      // Topbar Hunter Network & Database Auth Button
+      var btnAuth = document.getElementById('btn-topbar-auth');
+      if (btnAuth) {
+        btnAuth.addEventListener('click', function () {
+          UI.showAuthModal();
+        });
+      }
     },
 
     setView: function (view) {
@@ -1080,11 +1088,24 @@ window.SYS = window.SYS || {};
       var canExam = S.isEligibleForExam();
       var nextR = S.nextRank();
       var rows = S.boards(activeRankTab);
+      var isConnected = S.api && S.api.isConnected;
+      var isLocalOnly = !S.api || S.api.provider === 'local';
+      var isAuth = S.api && !!S.api.user;
+
+      var dbBadgeHtml = '<span class="db-latency-badge ' + (isConnected ? 'online' : isLocalOnly ? 'testing' : 'offline') + '" title="Database Connection Status">' +
+        '<span class="db-status-dot ' + (isConnected ? 'pulsing' : '') + '"></span>' +
+        (isConnected ? ('LIVE NETWORK // ' + rows.length + ' VERIFIED HUNTERS') : isLocalOnly ? 'LOCAL HUD (OFFLINE)' : 'DATABASE STANDBY') +
+      '</span>';
 
       container.innerHTML = '<div class="system-panel">' +
-        '<div class="panel-header">' +
+        '<div class="panel-header" style="flex-wrap:wrap; gap:8px;">' +
           '<div class="panel-title">' + I('trophy', 20) + ' [GLOBAL HUNTER ASSOCIATION RANKINGS]</div>' +
-          '<div class="sys-badge font-mono text-gold">HRS: ' + U.fmt(S.seasonHrs().total) + '</div>' +
+          '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
+            dbBadgeHtml +
+            '<button class="sys-btn sm" id="btn-rank-refresh" title="Refresh Live Database Rankings">' + I('radar', 13) + ' SYNC</button>' +
+            (!isAuth ? '<button class="sys-btn sm primary" id="btn-rank-link" title="Awaken or link profile to register on global leaderboard">' + I('gate', 13) + ' SYSTEM LINK</button>' : '') +
+            '<div class="sys-badge font-mono text-gold">HRS: ' + U.fmt(S.seasonHrs().total) + '</div>' +
+          '</div>' +
         '</div>' +
 
         // Promotion Exam Banner
@@ -1114,7 +1135,10 @@ window.SYS = window.SYS || {};
             rows.map(function (r) {
               return '<tr class="' + (r.you ? 'user-row' : '') + '">' +
                 '<td>' + r.pos + '</td>' +
-                '<td>' + U.esc(r.name) + (r.you ? ' (YOU)' : '') + '</td>' +
+                '<td>' +
+                  '<span>' + U.esc(r.name) + '</span>' +
+                  (r.you ? ' <span class="sys-badge" style="font-size:9px; color:var(--accent-core); border-color:var(--accent-core); margin-left:4px;">YOU</span>' : '<span class="verified-hunter-badge">VERIFIED</span>') +
+                '</td>' +
                 '<td><span class="sys-badge" style="font-size:10px;">' + r.tier + '</span></td>' +
                 '<td>' + (activeRankTab === 'HALL' ? 'Lv.' + r.level + ' / ' + r.streak + 'd' : U.fmt(r.score)) + '</td>' +
                 '<td style="text-align:right;">' + U.fmt(r.score) + '</td>' +
@@ -1131,6 +1155,24 @@ window.SYS = window.SYS || {};
           UI.renderRankView(container);
         });
       });
+
+      var btnRefresh = container.querySelector('#btn-rank-refresh');
+      if (btnRefresh) {
+        btnRefresh.addEventListener('click', async function () {
+          btnRefresh.disabled = true;
+          btnRefresh.textContent = 'SYNCING...';
+          if (S.auth) await S.auth.refreshLeaderboards();
+          UI.renderRankView(container);
+          UI.showToast('[DATABASE LEADERBOARD SYNCED]', 'Live rankings refreshed from the Hunter Association database.', 'cyan');
+        });
+      }
+
+      var btnLink = container.querySelector('#btn-rank-link');
+      if (btnLink) {
+        btnLink.addEventListener('click', function () {
+          UI.showAuthModal();
+        });
+      }
 
       var btnExam = container.querySelector('#btn-start-exam');
       if (btnExam) btnExam.addEventListener('click', function () {
@@ -1498,10 +1540,32 @@ window.SYS = window.SYS || {};
     renderSettingsView: function (container) {
       var p = S.state.profile;
       var set = S.state.settings;
+      var isConnected = S.api && S.api.isConnected;
+      var isAuth = S.api && !!S.api.user;
 
       container.innerHTML = '<div class="system-panel" style="max-width:760px; margin:0 auto;">' +
         '<div class="panel-header">' +
           '<div class="panel-title">' + I('settings', 20) + ' [SYSTEM CONFIGURATION & PROTOCOLS]</div>' +
+        '</div>' +
+
+        // Hunter Network & Cloud Database Terminal Card
+        '<div style="margin-bottom:18px; padding:14px; background:rgba(0,229,255,0.04); border:1px solid rgba(0,229,255,0.25); clip-path:var(--clip-chamfer-sm);">' +
+          '<div class="flex-between" style="margin-bottom:8px; flex-wrap:wrap; gap:6px;">' +
+            '<div class="font-display text-accent" style="font-size:14px; font-weight:700;">' + I('gate', 16) + ' [HUNTER NETWORK & CLOUD DATABASE TERMINAL]</div>' +
+            '<span class="db-latency-badge ' + (isConnected ? 'online' : (!S.api || S.api.provider === 'local') ? 'testing' : 'offline') + '">' +
+              '<span class="db-status-dot ' + (isConnected ? 'pulsing' : '') + '"></span>' +
+              (isConnected ? ((S.api.provider === 'supabase' ? 'SUPABASE POSTGRESQL' : 'CUSTOM NODE API') + ' ONLINE') : (!S.api || S.api.provider === 'local') ? 'LOCAL HUD (STANDALONE)' : 'STANDBY / OFFLINE') +
+            '</span>' +
+          '</div>' +
+          '<div style="font-size:12px; color:var(--text-secondary); margin-bottom:12px; line-height:1.5;">' +
+            (isAuth ?
+              ('Authenticated as <strong>' + U.esc(S.api.user.hunterName) + '</strong> (' + U.esc(S.api.user.email) + '). All progression (points, stats, quests, GPS runs, and inventory) synchronizes directly to the database.') :
+              'Currently operating in Standalone Local HUD mode. Link your System profile or connect a Supabase/Node database to compete with real players on the global leaderboard.') +
+          '</div>' +
+          '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+            '<button class="sys-btn primary" id="btn-settings-open-auth">' + I('user', 14) + ' ' + (isAuth ? 'MANAGE SYSTEM LINK & CLOUD' : 'AWAKEN / LINK DATABASE') + '</button>' +
+            (isAuth ? '<button class="sys-btn" id="btn-settings-force-sync">' + I('download', 14) + ' FORCE CLOUD SYNC</button>' : '') +
+          '</div>' +
         '</div>' +
 
         // Audio & Audio Volume
@@ -1551,6 +1615,20 @@ window.SYS = window.SYS || {};
           '<button class="sys-btn gold" id="btn-sim-midnight">' + I('clock', 14) + ' SIMULATE 00:00:00 MIDNIGHT ROLLOVER</button>' +
         '</div>' +
       '</div>';
+
+      var btnSettingsAuth = container.querySelector('#btn-settings-open-auth');
+      if (btnSettingsAuth) {
+        btnSettingsAuth.addEventListener('click', function () {
+          UI.showAuthModal();
+        });
+      }
+
+      var btnSettingsSync = container.querySelector('#btn-settings-force-sync');
+      if (btnSettingsSync) {
+        btnSettingsSync.addEventListener('click', function () {
+          if (S.auth) S.auth.triggerSync(true);
+        });
+      }
 
       var setSound = container.querySelector('#set-sound');
       if (setSound) setSound.addEventListener('change', function () {
@@ -1929,6 +2007,395 @@ window.SYS = window.SYS || {};
           if (S.tracker) S.tracker.start(null, true);
         });
       }
+    },
+
+    /* --- Hunter Network & Database Auth Terminal Modal --- */
+    showAuthModal: function (initialTab) {
+      var isAuth = S.api && !!S.api.user;
+      var activeTab = initialTab || (isAuth ? 'PROFILE' : 'LOGIN');
+
+      function renderModal() {
+        var isConnected = S.api && S.api.isConnected;
+        var latencyMs = S.api ? S.api.lastPingMs : null;
+        var latencyText = latencyMs != null ? (latencyMs + ' ms') : '--';
+
+        var tabsHtml = '<div class="auth-modal-tabs">' +
+          (isAuth ? '<button class="auth-tab-btn ' + (activeTab === 'PROFILE' ? 'active' : '') + '" data-tab="PROFILE">' + I('user', 14) + ' HUNTER IDENTITY</button>' : '') +
+          (!isAuth ? '<button class="auth-tab-btn ' + (activeTab === 'LOGIN' ? 'active' : '') + '" data-tab="LOGIN">' + I('gate', 14) + ' SYSTEM LINK (LOGIN)</button>' : '') +
+          (!isAuth ? '<button class="auth-tab-btn ' + (activeTab === 'REGISTER' ? 'active' : '') + '" data-tab="REGISTER">' + I('shield', 14) + ' AWAKENING (REGISTER)</button>' : '') +
+          '<button class="auth-tab-btn ' + (activeTab === 'DBCONFIG' ? 'active' : '') + '" data-tab="DBCONFIG">' + I('settings', 14) + ' DATABASE SETUP & PING</button>' +
+        '</div>';
+
+        var bodyHtml = '';
+
+        if (activeTab === 'PROFILE' && isAuth) {
+          var u = S.api.user;
+          bodyHtml = '<div>' +
+            '<div style="background:rgba(0,229,255,0.06); border:1px solid rgba(0,229,255,0.3); clip-path:var(--clip-chamfer-sm); padding:16px; margin-bottom:16px;">' +
+              '<div class="flex-between" style="margin-bottom:8px;">' +
+                '<div>' +
+                  '<div class="font-display text-accent" style="font-size:18px; font-weight:700;">' + U.esc(u.hunterName || 'HUNTER').toUpperCase() + '</div>' +
+                  '<div class="font-mono text-muted" style="font-size:11px;">' + U.esc(u.email || 'system@solo.quest') + '</div>' +
+                '</div>' +
+                '<span class="sys-badge font-display text-gold" style="font-size:14px;">RANK ' + S.rank().code + '</span>' +
+              '</div>' +
+              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; font-family:var(--font-mono); font-size:11px;">' +
+                '<div style="background:rgba(0,0,0,0.3); padding:8px; border:1px solid var(--sys-border);">' +
+                  '<div class="text-muted">DATABASE PROVIDER</div>' +
+                  '<div class="text-accent font-bold">' + S.api.provider.toUpperCase() + '</div>' +
+                '</div>' +
+                '<div style="background:rgba(0,0,0,0.3); padding:8px; border:1px solid var(--sys-border);">' +
+                  '<div class="text-muted">SYNC STATUS</div>' +
+                  '<div class="' + (isConnected ? 'text-accent' : 'text-danger') + ' font-bold">' + (S.auth ? S.auth.syncStatus : 'READY') + '</div>' +
+                '</div>' +
+                '<div style="background:rgba(0,0,0,0.3); padding:8px; border:1px solid var(--sys-border);">' +
+                  '<div class="text-muted">COMBAT POWER</div>' +
+                  '<div class="text-gold font-bold">' + U.fmt(S.combatPower()) + '</div>' +
+                '</div>' +
+                '<div style="background:rgba(0,0,0,0.3); padding:8px; border:1px solid var(--sys-border);">' +
+                  '<div class="text-muted">LAST CLOUD SYNC</div>' +
+                  '<div class="text-primary font-bold">' + (S.auth && S.auth.lastSyncTime ? S.auth.lastSyncTime.toLocaleTimeString() : 'Current Session') + '</div>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
+              '<button class="sys-btn primary" id="btn-modal-sync-now" style="flex:1;">' + I('download', 14) + ' FORCE CLOUD SYNC</button>' +
+              '<button class="sys-btn danger" id="btn-modal-logout" style="flex:1;">' + I('close', 14) + ' DISCONNECT (LOGOUT)</button>' +
+            '</div>' +
+          '</div>';
+        } else if (activeTab === 'LOGIN') {
+          bodyHtml = '<form id="form-auth-login">' +
+            '<div id="auth-login-error" style="display:none; color:var(--penalty-crimson); font-size:12px; margin-bottom:12px; padding:8px; background:rgba(255,0,60,0.1); border:1px solid rgba(255,0,60,0.3); clip-path:var(--clip-chamfer-sm);"></div>' +
+            '<div class="auth-form-group">' +
+              '<label class="auth-form-label">ASSOCIATION IDENTIFIER (EMAIL OR HUNTER NAME)</label>' +
+              '<input type="text" class="sys-input" id="login-identifier" required placeholder="hunter@system.solo or Sung Jin-Woo">' +
+            '</div>' +
+            '<div class="auth-form-group">' +
+              '<label class="auth-form-label">SECURITY PASSCODE</label>' +
+              '<input type="password" class="sys-input" id="login-password" required placeholder="Enter passcode">' +
+            '</div>' +
+            '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">' +
+              '<button type="button" class="sys-btn sm" id="btn-switch-to-register">AWAKEN NEW HUNTER</button>' +
+              '<button type="submit" class="sys-btn primary lg" id="btn-submit-login">SYSTEM LINK</button>' +
+            '</div>' +
+          '</form>';
+        } else if (activeTab === 'REGISTER') {
+          bodyHtml = '<form id="form-auth-register">' +
+            '<div id="auth-reg-error" style="display:none; color:var(--penalty-crimson); font-size:12px; margin-bottom:12px; padding:8px; background:rgba(255,0,60,0.1); border:1px solid rgba(255,0,60,0.3); clip-path:var(--clip-chamfer-sm);"></div>' +
+            '<div class="auth-form-group">' +
+              '<label class="auth-form-label">HUNTER AWAKENING NAME</label>' +
+              '<input type="text" class="sys-input" id="reg-name" required value="' + U.esc(S.state.profile.hunterName || 'Sung Jin-Woo') + '" placeholder="e.g., Sung Jin-Woo">' +
+            '</div>' +
+            '<div class="auth-form-group">' +
+              '<label class="auth-form-label">ASSOCIATION EMAIL</label>' +
+              '<input type="email" class="sys-input" id="reg-email" required placeholder="e.g., hunter@association.org">' +
+            '</div>' +
+            '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">' +
+              '<div class="auth-form-group">' +
+                '<label class="auth-form-label">PASSCODE</label>' +
+                '<input type="password" class="sys-input" id="reg-password" required minlength="6" placeholder="Min 6 characters">' +
+              '</div>' +
+              '<div class="auth-form-group">' +
+                '<label class="auth-form-label">CONFIRM PASSCODE</label>' +
+                '<input type="password" class="sys-input" id="reg-password-confirm" required minlength="6" placeholder="Repeat passcode">' +
+              '</div>' +
+            '</div>' +
+            '<div class="auth-form-group">' +
+              '<label class="auth-form-label">ACCOUNTABILITY DIRECTIVE</label>' +
+              '<select class="sys-select" id="reg-mode">' +
+                '<option value="OPTIONAL">Standard Directive (Optional Penalty + Streak Recovery)</option>' +
+                '<option value="HARDCORE">Hardcore Manhwa Mode (Mandatory Penalty Zone on Miss)</option>' +
+              '</select>' +
+            '</div>' +
+            '<label class="font-mono" style="font-size:11px; display:flex; align-items:center; gap:8px; margin-bottom:14px;">' +
+              '<input type="checkbox" id="reg-preset" checked style="accent-color:var(--accent-core);">' +
+              'INSTALL CANONICAL SYSTEM PRESET (100 PUSH-UPS, 100 SIT-UPS, 100 SQUATS, 10KM)' +
+            '</label>' +
+            '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+              '<button type="button" class="sys-btn sm" id="btn-switch-to-login">LINK EXISTING</button>' +
+              '<button type="submit" class="sys-btn primary lg" id="btn-submit-register">AWAKEN & SAVE PROGRESS</button>' +
+            '</div>' +
+          '</form>';
+        } else if (activeTab === 'DBCONFIG') {
+          var prov = S.api.provider;
+          bodyHtml = '<form id="form-db-config">' +
+            '<div id="db-config-status" style="margin-bottom:14px;">' +
+              '<div class="flex-between" style="padding:10px; background:rgba(0,0,0,0.3); border:1px solid var(--sys-border); clip-path:var(--clip-chamfer-sm);">' +
+                '<div style="display:flex; align-items:center; gap:8px;">' +
+                  '<span class="db-latency-badge ' + (isConnected ? 'online' : prov === 'local' ? 'testing' : 'offline') + '" id="badge-modal-ping">' +
+                    '<span class="db-status-dot ' + (isConnected ? 'pulsing' : '') + '"></span>' +
+                    '<span id="txt-modal-ping">' + (isConnected ? ('ONLINE // ' + latencyText) : prov === 'local' ? 'LOCAL HUD (OFFLINE)' : 'OFFLINE // STANDBY') + '</span>' +
+                  '</span>' +
+                '</div>' +
+                '<button type="button" class="sys-btn sm" id="btn-modal-test-ping">' + I('radar', 13) + ' TEST PING</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="auth-form-group">' +
+              '<label class="auth-form-label">DATABASE ARCHITECTURE PROVIDER</label>' +
+              '<select class="sys-select" id="cfg-provider">' +
+                '<option value="supabase" ' + (prov === 'supabase' ? 'selected' : '') + '>Supabase Cloud (PostgreSQL REST API - Free Zero-Config Cloud)</option>' +
+                '<option value="custom" ' + (prov === 'custom' ? 'selected' : '') + '>Self-Hosted Node.js / SQLite Server (Localhost REST API)</option>' +
+                '<option value="local" ' + (prov === 'local' ? 'selected' : '') + '>Offline Local HUD Only (Browser Storage Standalone)</option>' +
+              '</select>' +
+              '<div class="auth-form-hint">Supabase Cloud connects directly from your browser with zero server installation.</div>' +
+            '</div>' +
+            '<div id="cfg-supabase-fields" style="display:' + (prov === 'supabase' ? 'block' : 'none') + ';">' +
+              '<div class="auth-form-group">' +
+                '<label class="auth-form-label">SUPABASE PROJECT URL</label>' +
+                '<input type="url" class="sys-input font-mono" id="cfg-sb-url" value="' + U.esc(S.api.supabaseUrl) + '" placeholder="https://xyzprojectid.supabase.co">' +
+                '<div class="auth-form-hint">Found in Supabase Dashboard &rarr; Project Settings &rarr; API &rarr; Project URL.</div>' +
+              '</div>' +
+              '<div class="auth-form-group">' +
+                '<label class="auth-form-label">SUPABASE ANON PUBLIC KEY</label>' +
+                '<input type="password" class="sys-input font-mono" id="cfg-sb-key" value="' + U.esc(S.api.supabaseAnonKey) + '" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">' +
+                '<div class="auth-form-hint">Found in Supabase Dashboard &rarr; Project Settings &rarr; API &rarr; Project API keys (anon public).</div>' +
+              '</div>' +
+            '</div>' +
+            '<div id="cfg-custom-fields" style="display:' + (prov === 'custom' ? 'block' : 'none') + ';">' +
+              '<div class="auth-form-group">' +
+                '<label class="auth-form-label">CUSTOM NODE.JS API SERVER URL</label>' +
+                '<input type="url" class="sys-input font-mono" id="cfg-custom-url" value="' + U.esc(S.api.customUrl) + '" placeholder="http://localhost:3000">' +
+                '<div class="auth-form-hint">Start with <code>node server/server.js</code> in terminal.</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="background:rgba(255,183,3,0.06); border:1px solid rgba(255,183,3,0.25); clip-path:var(--clip-chamfer-sm); padding:10px; margin:14px 0; font-size:11px; line-height:1.5;">' +
+              '<div class="text-gold font-bold" style="margin-bottom:4px;">[QUICK DATABASE SETUP STEPS]</div>' +
+              '1. Create a free project at <a href="https://supabase.com" target="_blank" rel="noopener" style="color:var(--accent-core); text-decoration:underline;">supabase.com</a>.<br>' +
+              '2. Paste the SQL script from <code>supabase/schema.sql</code> into the Supabase SQL Editor and click <strong>RUN</strong>.<br>' +
+              '3. Copy Project URL and Anon Key into the fields above and click <strong>SAVE CONFIGURATION</strong>.' +
+            '</div>' +
+            '<div style="display:flex; justify-content:flex-end; gap:8px;">' +
+              '<button type="button" class="sys-btn btn-close-modal">CLOSE</button>' +
+              '<button type="submit" class="sys-btn primary">SAVE CONFIGURATION</button>' +
+            '</div>' +
+          '</form>';
+        }
+
+        UI.openModal(
+          '<div class="system-panel" style="max-width:560px; margin:0 auto;">' +
+            '<div class="panel-header">' +
+              '<div class="panel-title">' + I('gate', 18) + ' [HUNTER NETWORK // DATABASE TERMINAL]</div>' +
+              '<button class="modal-close btn-close-modal">' + I('close', 16) + '</button>' +
+            '</div>' +
+            tabsHtml +
+            bodyHtml +
+          '</div>'
+        );
+
+        bindModalEvents();
+      }
+
+      function bindModalEvents() {
+        // Tab switching
+        document.querySelectorAll('.auth-tab-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            activeTab = btn.getAttribute('data-tab');
+            if (S.audio) S.audio.tap();
+            renderModal();
+          });
+        });
+
+        // Switch to Register link
+        var btnSwitchReg = document.getElementById('btn-switch-to-register');
+        if (btnSwitchReg) {
+          btnSwitchReg.addEventListener('click', function () {
+            activeTab = 'REGISTER';
+            renderModal();
+          });
+        }
+
+        // Switch to Login link
+        var btnSwitchLogin = document.getElementById('btn-switch-to-login');
+        if (btnSwitchLogin) {
+          btnSwitchLogin.addEventListener('click', function () {
+            activeTab = 'LOGIN';
+            renderModal();
+          });
+        }
+
+        // Login submit
+        var formLogin = document.getElementById('form-auth-login');
+        if (formLogin) {
+          formLogin.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            var id = document.getElementById('login-identifier').value.trim();
+            var pass = document.getElementById('login-password').value;
+            var errEl = document.getElementById('auth-login-error');
+            var btnSub = document.getElementById('btn-submit-login');
+
+            if (errEl) errEl.style.display = 'none';
+            btnSub.disabled = true;
+            btnSub.textContent = 'CONNECTING...';
+
+            try {
+              var result = await S.api.login(id, pass);
+              UI.closeModal();
+              UI.showToast('[SYSTEM LINK ESTABLISHED]', 'Welcome, Hunter ' + (result.user.hunterName || 'Awakened') + '. Cloud sync active.', 'gold');
+              if (S.audio) S.audio.rankUp();
+              UI.render();
+            } catch (err) {
+              if (errEl) {
+                errEl.textContent = err.message || 'Authentication failed. Please verify credentials.';
+                errEl.style.display = 'block';
+              }
+              btnSub.disabled = false;
+              btnSub.textContent = 'SYSTEM LINK';
+            }
+          });
+        }
+
+        // Register submit
+        var formReg = document.getElementById('form-auth-register');
+        if (formReg) {
+          formReg.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            var name = document.getElementById('reg-name').value.trim();
+            var email = document.getElementById('reg-email').value.trim();
+            var pass = document.getElementById('reg-password').value;
+            var passConf = document.getElementById('reg-password-confirm').value;
+            var mode = document.getElementById('reg-mode').value;
+            var preset = document.getElementById('reg-preset').checked;
+            var errEl = document.getElementById('auth-reg-error');
+            var btnSub = document.getElementById('btn-submit-register');
+
+            if (pass !== passConf) {
+              if (errEl) {
+                errEl.textContent = 'Security passcodes do not match.';
+                errEl.style.display = 'block';
+              }
+              return;
+            }
+
+            if (errEl) errEl.style.display = 'none';
+            btnSub.disabled = true;
+            btnSub.textContent = 'AWAKENING...';
+
+            try {
+              var regRes = await S.api.register(email, pass, name, mode);
+              S.state.profile.hunterName = name;
+              S.state.profile.penaltyMode = mode;
+              if (preset && (!S.state.quests || !S.state.quests.length)) {
+                S.initPresets();
+              }
+              S.save();
+
+              UI.closeModal();
+              UI.showToast('[HUNTER AWAKENING COMPLETE]', 'Hunter profile ' + name + ' registered to the system database.', 'gold');
+              if (S.audio) S.audio.rankUp();
+              UI.render();
+            } catch (err) {
+              if (errEl) {
+                errEl.textContent = err.message || 'Awakening registration failed.';
+                errEl.style.display = 'block';
+              }
+              btnSub.disabled = false;
+              btnSub.textContent = 'AWAKEN & SAVE PROGRESS';
+            }
+          });
+        }
+
+        // Provider change in DB config
+        var selProv = document.getElementById('cfg-provider');
+        if (selProv) {
+          selProv.addEventListener('change', function () {
+            var val = selProv.value;
+            var sbFields = document.getElementById('cfg-supabase-fields');
+            var customFields = document.getElementById('cfg-custom-fields');
+            if (sbFields) sbFields.style.display = val === 'supabase' ? 'block' : 'none';
+            if (customFields) customFields.style.display = val === 'custom' ? 'block' : 'none';
+          });
+        }
+
+        // Test Ping button
+        var btnPing = document.getElementById('btn-modal-test-ping');
+        if (btnPing) {
+          btnPing.addEventListener('click', async function () {
+            var pVal = document.getElementById('cfg-provider') ? document.getElementById('cfg-provider').value : S.api.provider;
+            var sbUrl = document.getElementById('cfg-sb-url') ? document.getElementById('cfg-sb-url').value.trim() : S.api.supabaseUrl;
+            var sbKey = document.getElementById('cfg-sb-key') ? document.getElementById('cfg-sb-key').value.trim() : S.api.supabaseAnonKey;
+            var cUrl = document.getElementById('cfg-custom-url') ? document.getElementById('cfg-custom-url').value.trim() : S.api.customUrl;
+
+            var badge = document.getElementById('badge-modal-ping');
+            var txt = document.getElementById('txt-modal-ping');
+
+            if (badge) {
+              badge.className = 'db-latency-badge testing';
+            }
+            if (txt) txt.textContent = 'TESTING PING...';
+
+            try {
+              var res = await S.api.testConnection({
+                provider: pVal,
+                supabaseUrl: sbUrl,
+                supabaseAnonKey: sbKey,
+                customUrl: cUrl
+              });
+              if (badge) badge.className = 'db-latency-badge online';
+              if (txt) txt.textContent = 'ONLINE // ' + res.latencyMs + ' MS';
+              UI.showToast('[DATABASE REACHABLE]', pVal.toUpperCase() + ' connection verified (' + res.latencyMs + ' ms).', 'cyan');
+            } catch (err) {
+              if (badge) badge.className = 'db-latency-badge offline';
+              if (txt) txt.textContent = 'FAILED // UNREACHABLE';
+              UI.showToast('[CONNECTION FAILED]', err.message || 'Could not connect to database.', 'danger');
+            }
+          });
+        }
+
+        // Save DB config form
+        var formDb = document.getElementById('form-db-config');
+        if (formDb) {
+          formDb.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            var pVal = document.getElementById('cfg-provider').value;
+            var sbUrl = document.getElementById('cfg-sb-url') ? document.getElementById('cfg-sb-url').value.trim() : '';
+            var sbKey = document.getElementById('cfg-sb-key') ? document.getElementById('cfg-sb-key').value.trim() : '';
+            var cUrl = document.getElementById('cfg-custom-url') ? document.getElementById('cfg-custom-url').value.trim() : '';
+
+            try {
+              await S.api.saveConfig({
+                provider: pVal,
+                supabaseUrl: sbUrl,
+                supabaseAnonKey: sbKey,
+                customUrl: cUrl
+              });
+
+              UI.showToast('[CONFIG SAVED]', 'Database architecture switched to ' + pVal.toUpperCase() + '.', 'cyan');
+              if (S.auth) S.auth.updateStatus();
+              renderModal();
+              UI.render();
+            } catch (err) {
+              UI.showToast('[CONFIG SAVED: OFFLINE]', 'Settings saved, but connection test failed: ' + err.message, 'danger');
+              renderModal();
+            }
+          });
+        }
+
+        // Profile tab: Force sync
+        var btnSyncNow = document.getElementById('btn-modal-sync-now');
+        if (btnSyncNow) {
+          btnSyncNow.addEventListener('click', async function () {
+            btnSyncNow.disabled = true;
+            btnSyncNow.textContent = 'SYNCING TO CLOUD...';
+            if (S.auth) await S.auth.triggerSync(true);
+            renderModal();
+          });
+        }
+
+        // Profile tab: Logout
+        var btnLogout = document.getElementById('btn-modal-logout');
+        if (btnLogout) {
+          btnLogout.addEventListener('click', function () {
+            if (S.api) S.api.logout();
+            isAuth = false;
+            activeTab = 'LOGIN';
+            UI.showToast('[SYSTEM LINK TERMINATED]', 'Disconnected from remote database session.', 'info');
+            renderModal();
+            UI.render();
+          });
+        }
+      }
+
+      renderModal();
     },
 
     /* --- Generic Modal Helpers --- */

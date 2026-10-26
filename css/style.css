@@ -1529,5 +1529,152 @@ body.grace-countdown-active .grace-warning-banner {
   }
 }
 
+/* ==============================================================================
+   HUNTER NETWORK & DATABASE TERMINAL STYLES
+   ============================================================================== */
+.auth-status-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  padding: 5px 10px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.auth-status-btn.authenticated {
+  border-color: var(--accent-core);
+  color: var(--accent-core);
+  background: rgba(0, 229, 255, 0.08);
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.25);
+}
+.auth-status-btn.authenticated::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #39FF88;
+  box-shadow: 0 0 8px #39FF88;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  animation: pulse-aura 2s infinite ease-in-out;
+}
+.auth-status-btn.unauthenticated {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-secondary);
+}
+.auth-status-btn.unauthenticated:hover {
+  border-color: var(--accent-core);
+  color: var(--accent-core);
+}
 
+/* Auth Modal Specifics */
+.auth-modal-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--sys-border);
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.auth-tab-btn {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  clip-path: var(--clip-chamfer-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+}
+.auth-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+.auth-tab-btn.active {
+  color: var(--accent-core);
+  border-color: var(--accent-core);
+  background: rgba(0, 229, 255, 0.12);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+}
 
+.auth-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.auth-form-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+}
+.auth-form-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+/* Latency & Status Badges */
+.db-latency-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 10px;
+  clip-path: var(--clip-chamfer-sm);
+  transition: all 0.2s ease;
+}
+.db-latency-badge.online {
+  background: rgba(57, 255, 136, 0.12);
+  border: 1px solid rgba(57, 255, 136, 0.45);
+  color: #39FF88;
+  box-shadow: 0 0 8px rgba(57, 255, 136, 0.25);
+}
+.db-latency-badge.offline {
+  background: rgba(255, 0, 60, 0.12);
+  border: 1px solid rgba(255, 0, 60, 0.45);
+  color: var(--penalty-crimson);
+}
+.db-latency-badge.testing {
+  background: rgba(255, 183, 3, 0.12);
+  border: 1px solid rgba(255, 183, 3, 0.45);
+  color: var(--loot-mythic-gold);
+}
+.db-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+.db-status-dot.pulsing {
+  animation: pulse-aura 1.5s infinite ease-in-out;
+}
+
+.verified-hunter-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 1px 5px;
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  color: var(--accent-core);
+  background: rgba(0, 229, 255, 0.08);
+  clip-path: var(--clip-chamfer-sm);
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: 0.05em;
+}
