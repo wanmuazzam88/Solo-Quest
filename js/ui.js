@@ -1240,6 +1240,43 @@ window.SYS = window.SYS || {};
         '</div>';
       }
 
+      var permissionBannerHtml = '';
+      if (!st.isActive) {
+        if (st.permissionStatus === 'denied') {
+          permissionBannerHtml = '<div class="run-permission-banner denied">' +
+            '<div class="permission-icon-wrap">' + I('alert', 20) + '</div>' +
+            '<div class="permission-info">' +
+              '<div class="permission-title">[DEVICE LOCATION PERMISSION BLOCKED]</div>' +
+              '<div class="permission-desc">Location access was denied. Enable location in your browser site permissions to use live GPS, or switch to Demo Simulation.</div>' +
+            '</div>' +
+            '<div class="permission-actions">' +
+              '<button class="sys-btn sm warning" id="btn-request-location">' + I('gps', 14) + ' RETRY ACCESS</button>' +
+              '<button class="sys-btn sm" id="btn-location-help">' + I('info', 14) + ' HOW TO ALLOW</button>' +
+              '<button class="sys-btn sm primary" id="btn-run-demo-banner">' + I('radar', 14) + ' DEMO RUN</button>' +
+            '</div>' +
+          '</div>';
+        } else if (st.permissionStatus === 'granted') {
+          permissionBannerHtml = '<div class="run-permission-banner granted">' +
+            '<div class="permission-icon-wrap">' + I('check', 20) + '</div>' +
+            '<div class="permission-info">' +
+              '<div class="permission-title">[GPS SATELLITE LINK ESTABLISHED]</div>' +
+              '<div class="permission-desc">Device location permission active. Map locked to hunter position' + (st.accuracyMeters ? ' (±' + st.accuracyMeters + 'm precision)' : '') + '.</div>' +
+            '</div>' +
+            '<button class="sys-btn sm" id="btn-map-locate-header">' + I('compass', 14) + ' REFRESH GPS</button>' +
+          '</div>';
+        } else {
+          // 'prompt' or 'unknown'
+          permissionBannerHtml = '<div class="run-permission-banner prompt">' +
+            '<div class="permission-icon-wrap">' + I('gps', 20) + '</div>' +
+            '<div class="permission-info">' +
+              '<div class="permission-title">[DEVICE LOCATION ACCESS REQUIRED]</div>' +
+              '<div class="permission-desc">Allow device location permission to calculate real-time distance, speed, pace, and route coordinates like Strava.</div>' +
+            '</div>' +
+            '<button class="sys-btn primary" id="btn-request-location">' + I('gps', 16) + ' ALLOW LOCATION ACCESS</button>' +
+          '</div>';
+        }
+      }
+
       container.innerHTML = '<div class="run-view-layout">' +
         '<div class="system-panel">' +
           '<div class="panel-header">' +
@@ -1248,6 +1285,9 @@ window.SYS = window.SYS || {};
               st.gpsStatus + (st.accuracyMeters ? ' (±' + st.accuracyMeters + 'M)' : '') +
             '</div>' +
           '</div>' +
+
+          // Device Location Permission Status Banner
+          permissionBannerHtml +
 
           // Quest Association Selector
           '<div class="run-quest-link-row">' +
@@ -1322,7 +1362,8 @@ window.SYS = window.SYS || {};
           '<div class="run-map-wrapper">' +
             '<div id="run-map-canvas" class="run-map-canvas"></div>' +
             '<div class="run-map-overlay-controls">' +
-              '<button class="map-ctrl-btn" id="btn-map-recenter">' + I('compass', 14) + ' RECENTER</button>' +
+              '<button class="map-ctrl-btn" id="btn-map-locate" title="Acquire device location">' + I('gps', 14) + ' LOCATE ME</button>' +
+              '<button class="map-ctrl-btn" id="btn-map-recenter" title="Center map on track">' + I('compass', 14) + ' RECENTER</button>' +
             '</div>' +
           '</div>' +
 
@@ -1355,6 +1396,35 @@ window.SYS = window.SYS || {};
       if (selQuest) {
         selQuest.addEventListener('change', function () {
           tr.linkedQuestId = selQuest.value || null;
+        });
+      }
+
+      var btnReqLoc = container.querySelector('#btn-request-location');
+      if (btnReqLoc) {
+        btnReqLoc.addEventListener('click', function () {
+          tr.requestLocationPermission(true);
+        });
+      }
+
+      var btnLocHeader = container.querySelector('#btn-map-locate-header');
+      if (btnLocHeader) {
+        btnLocHeader.addEventListener('click', function () {
+          tr.requestLocationPermission(true);
+        });
+      }
+
+      var btnLocHelp = container.querySelector('#btn-location-help');
+      if (btnLocHelp) {
+        btnLocHelp.addEventListener('click', function () {
+          UI.showLocationPermissionHelp();
+        });
+      }
+
+      var btnDemoBanner = container.querySelector('#btn-run-demo-banner');
+      if (btnDemoBanner) {
+        btnDemoBanner.addEventListener('click', function () {
+          var qId = selQuest ? selQuest.value : null;
+          tr.start(qId, true);
         });
       }
 
@@ -1404,6 +1474,13 @@ window.SYS = window.SYS || {};
           if (confirm('Discard current run telemetry without logging?')) {
             tr.discard();
           }
+        });
+      }
+
+      var btnLocate = container.querySelector('#btn-map-locate');
+      if (btnLocate) {
+        btnLocate.addEventListener('click', function () {
+          tr.requestLocationPermission(true);
         });
       }
 
@@ -1796,6 +1873,60 @@ window.SYS = window.SYS || {};
           S.awaken(name, mode, preset);
           if (S.audio) S.audio.windowOpen();
           UI.closeModal();
+        });
+      }
+    },
+
+    /* --- Location Permission Guidance Modal --- */
+    showLocationPermissionHelp: function (err) {
+      var isFileProtocol = window.location.protocol === 'file:';
+      var noteSecure = isFileProtocol ?
+        '<div style="margin-top:12px; padding:10px; background:rgba(255,183,3,0.1); border:1px solid rgba(255,183,3,0.4); clip-path:var(--clip-chamfer-sm); font-size:11px; color:#FFB703;">' +
+          '<strong>[SECURITY RESTRICTION: SECURE ORIGIN MANDATE]</strong><br>' +
+          'Web browsers strictly restrict live GPS hardware access on <code>file:///</code> URLs. ' +
+          'To test live GPS on desktop, serve via localhost (e.g. <code>npx serve</code> or VS Code Live Server) or install as PWA. Alternatively, click below for instant <strong>Demo Simulation</strong>.' +
+        '</div>' : '';
+
+      UI.openModal(
+        '<div class="system-panel" style="max-width:560px; margin:0 auto;">' +
+          '<div class="panel-header">' +
+            '<div class="panel-title text-danger">' + I('alert', 18) + ' [SYSTEM DIRECTIVE // DEVICE LOCATION ACCESS]</div>' +
+            '<button class="modal-close btn-close-modal">' + I('close', 16) + '</button>' +
+          '</div>' +
+          '<div style="font-size:13px; color:var(--text-secondary); line-height:1.6; margin-bottom:14px;">' +
+            'The System requires device location authorization to track route coordinates, velocity, and distance telemetry.' +
+          '</div>' +
+          '<div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); padding:12px; clip-path:var(--clip-chamfer-sm); margin-bottom:14px; font-family:var(--font-mono); font-size:11px;">' +
+            '<div class="text-accent font-bold" style="margin-bottom:8px;">HOW TO AUTHORIZE LOCATION ACCESS:</div>' +
+            '<ul style="padding-left:18px; display:flex; flex-direction:column; gap:6px; color:var(--text-primary);">' +
+              '<li><strong>Desktop (Chrome / Edge / Brave):</strong> Click the padlock / tune icon on the left of the URL address bar &rarr; switch <em>Location</em> to <em>Allow</em>.</li>' +
+              '<li><strong>Mobile (iOS Safari):</strong> Open iPhone Settings &rarr; Safari &rarr; Location &rarr; set to <em>Allow</em> or <em>Ask</em>.</li>' +
+              '<li><strong>Mobile (Android Chrome):</strong> Tap three dots &rarr; Settings &rarr; Site settings &rarr; Location &rarr; Allow.</li>' +
+              '<li><strong>System GPS:</strong> Ensure device Location / GPS toggle is turned ON in system quick settings.</li>' +
+            '</ul>' +
+          '</div>' +
+          noteSecure +
+          '<div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">' +
+            '<button class="sys-btn primary" id="btn-modal-retry-perm" style="flex:1;">' + I('gps', 16) + ' RETRY AUTHORIZATION</button>' +
+            '<button class="sys-btn" id="btn-modal-start-demo" style="flex:1;">' + I('radar', 16) + ' USE DEMO SIMULATION</button>' +
+            '<button class="sys-btn btn-close-modal">DISMISS</button>' +
+          '</div>' +
+        '</div>'
+      );
+
+      var btnRetry = document.getElementById('btn-modal-retry-perm');
+      if (btnRetry) {
+        btnRetry.addEventListener('click', function () {
+          UI.closeModal();
+          if (S.tracker) S.tracker.requestLocationPermission(true);
+        });
+      }
+
+      var btnDemo = document.getElementById('btn-modal-start-demo');
+      if (btnDemo) {
+        btnDemo.addEventListener('click', function () {
+          UI.closeModal();
+          if (S.tracker) S.tracker.start(null, true);
         });
       }
     },
