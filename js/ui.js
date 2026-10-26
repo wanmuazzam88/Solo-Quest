@@ -2143,12 +2143,12 @@ window.SYS = window.SYS || {};
               '<div class="auth-form-group">' +
                 '<label class="auth-form-label">SUPABASE PROJECT URL</label>' +
                 '<input type="url" class="sys-input font-mono" id="cfg-sb-url" value="' + U.esc(S.api.supabaseUrl) + '" placeholder="https://xyzprojectid.supabase.co">' +
-                '<div class="auth-form-hint">Found in Supabase Dashboard &rarr; Project Settings &rarr; API &rarr; Project URL.</div>' +
+                '<div class="auth-form-hint">Found in Supabase Dashboard &rarr; Project Settings &rarr; API &rarr; Project URL. (NOT the postgresql:// connection string).</div>' +
               '</div>' +
               '<div class="auth-form-group">' +
                 '<label class="auth-form-label">SUPABASE ANON PUBLIC KEY</label>' +
-                '<input type="password" class="sys-input font-mono" id="cfg-sb-key" value="' + U.esc(S.api.supabaseAnonKey) + '" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">' +
-                '<div class="auth-form-hint">Found in Supabase Dashboard &rarr; Project Settings &rarr; API &rarr; Project API keys (anon public).</div>' +
+                '<input type="text" class="sys-input font-mono" id="cfg-sb-key" value="' + U.esc(S.api.supabaseAnonKey) + '" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">' +
+                '<div class="auth-form-hint">Found in Supabase Dashboard &rarr; Project Settings &rarr; API &rarr; Project API keys (anon public). Safe for browser use.</div>' +
               '</div>' +
             '</div>' +
             '<div id="cfg-custom-fields" style="display:' + (prov === 'custom' ? 'block' : 'none') + ';">' +
@@ -2160,9 +2160,9 @@ window.SYS = window.SYS || {};
             '</div>' +
             '<div style="background:rgba(255,183,3,0.06); border:1px solid rgba(255,183,3,0.25); clip-path:var(--clip-chamfer-sm); padding:10px; margin:14px 0; font-size:11px; line-height:1.5;">' +
               '<div class="text-gold font-bold" style="margin-bottom:4px;">[QUICK DATABASE SETUP STEPS]</div>' +
-              '1. Create a free project at <a href="https://supabase.com" target="_blank" rel="noopener" style="color:var(--accent-core); text-decoration:underline;">supabase.com</a>.<br>' +
-              '2. Paste the SQL script from <code>supabase/schema.sql</code> into the Supabase SQL Editor and click <strong>RUN</strong>.<br>' +
-              '3. Copy Project URL and Anon Key into the fields above and click <strong>SAVE CONFIGURATION</strong>.' +
+              '1. In Supabase Dashboard, click <strong>SQL Editor</strong>, paste <code>supabase/schema.sql</code>, and click <strong>RUN</strong>.<br>' +
+              '2. In Supabase Dashboard &rarr; <strong>Authentication</strong> &rarr; <strong>Providers</strong> &rarr; <strong>Email</strong>, turn off <em>Confirm email</em> for instant registration.<br>' +
+              '3. Copy Project URL and Anon Public Key from <strong>Project Settings &rarr; API</strong>, paste above, and click <strong>SAVE CONFIGURATION</strong>.' +
             '</div>' +
             '<div style="display:flex; justify-content:flex-end; gap:8px;">' +
               '<button type="button" class="sys-btn btn-close-modal">CLOSE</button>' +
@@ -2271,7 +2271,7 @@ window.SYS = window.SYS || {};
             btnSub.textContent = 'AWAKENING...';
 
             try {
-              var regRes = await S.api.register(email, pass, name, mode);
+              var regRes = await S.api.register({ email: email, password: pass, hunterName: name, mode: mode });
               S.state.profile.hunterName = name;
               S.state.profile.penaltyMode = mode;
               if (preset && (!S.state.quests || !S.state.quests.length)) {
@@ -2279,12 +2279,29 @@ window.SYS = window.SYS || {};
               }
               S.save();
 
+              if (regRes && regRes.emailConfirmationRequired) {
+                if (errEl) {
+                  errEl.style.color = 'var(--loot-mythic-gold)';
+                  errEl.style.borderColor = 'rgba(255,183,3,0.4)';
+                  errEl.style.background = 'rgba(255,183,3,0.1)';
+                  errEl.textContent = regRes.message;
+                  errEl.style.display = 'block';
+                }
+                btnSub.disabled = false;
+                btnSub.textContent = 'AWAKEN & SAVE PROGRESS';
+                UI.showToast('[CONFIRMATION REQUIRED]', 'Check your email inbox or disable email confirmation in Supabase.', 'gold');
+                return;
+              }
+
               UI.closeModal();
               UI.showToast('[HUNTER AWAKENING COMPLETE]', 'Hunter profile ' + name + ' registered to the system database.', 'gold');
               if (S.audio) S.audio.rankUp();
               UI.render();
             } catch (err) {
               if (errEl) {
+                errEl.style.color = 'var(--penalty-crimson)';
+                errEl.style.borderColor = 'rgba(255,0,60,0.3)';
+                errEl.style.background = 'rgba(255,0,60,0.1)';
                 errEl.textContent = err.message || 'Awakening registration failed.';
                 errEl.style.display = 'block';
               }
@@ -2330,9 +2347,15 @@ window.SYS = window.SYS || {};
                 supabaseAnonKey: sbKey,
                 customUrl: cUrl
               });
+              var latency = res.latencyMs || res.pingMs || 1;
               if (badge) badge.className = 'db-latency-badge online';
-              if (txt) txt.textContent = 'ONLINE // ' + res.latencyMs + ' MS';
-              UI.showToast('[DATABASE REACHABLE]', pVal.toUpperCase() + ' connection verified (' + res.latencyMs + ' ms).', 'cyan');
+              if (txt) txt.textContent = 'ONLINE // ' + latency + ' MS';
+
+              if (res.warning) {
+                UI.showToast('[DATABASE CONNECTED]', res.warning, 'gold');
+              } else {
+                UI.showToast('[DATABASE REACHABLE]', pVal.toUpperCase() + ' connection verified (' + latency + ' ms).', 'cyan');
+              }
             } catch (err) {
               if (badge) badge.className = 'db-latency-badge offline';
               if (txt) txt.textContent = 'FAILED // UNREACHABLE';
@@ -2352,14 +2375,19 @@ window.SYS = window.SYS || {};
             var cUrl = document.getElementById('cfg-custom-url') ? document.getElementById('cfg-custom-url').value.trim() : '';
 
             try {
-              await S.api.saveConfig({
+              var saveRes = await S.api.saveConfig({
                 provider: pVal,
                 supabaseUrl: sbUrl,
                 supabaseAnonKey: sbKey,
                 customUrl: cUrl
               });
 
-              UI.showToast('[CONFIG SAVED]', 'Database architecture switched to ' + pVal.toUpperCase() + '.', 'cyan');
+              if (saveRes && saveRes.warning) {
+                UI.showToast('[CONFIG SAVED // TABLES MISSING]', saveRes.warning, 'gold');
+              } else {
+                UI.showToast('[CONFIG SAVED]', 'Database architecture switched to ' + pVal.toUpperCase() + '.', 'cyan');
+              }
+
               if (S.auth) S.auth.updateStatus();
               renderModal();
               UI.render();

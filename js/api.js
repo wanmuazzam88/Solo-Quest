@@ -11,6 +11,44 @@ window.SYS = window.SYS || {};
   var TOKEN_KEY = 'solo_quest_auth_token_v1';
   var USER_KEY = 'solo_quest_auth_user_v1';
 
+  function cleanUrl(raw) {
+    if (!raw) return '';
+    var u = String(raw).trim();
+    if (!u) return '';
+    u = u.replace(/^['"]|['"]$/g, '');
+
+    // Check if user accidentally pasted postgresql:// string
+    if (/^postgres(ql)?:\/\//i.test(u)) {
+      var m = u.match(/@db\.([a-z0-9_-]+)\.supabase\.co/i);
+      if (m && m[1]) {
+        u = 'https://' + m[1] + '.supabase.co';
+      } else {
+        throw new Error('You entered a PostgreSQL connection string. Please copy the Project URL (https://xyz.supabase.co) from Supabase Dashboard -> Project Settings -> API.');
+      }
+    }
+
+    // If user entered only the project reference id (e.g. "aivdoxwzkpyvbnqm")
+    if (!u.includes('.') && /^[a-z0-9_-]{10,50}$/i.test(u)) {
+      u = 'https://' + u + '.supabase.co';
+    }
+
+    if (!/^https?:\/\//i.test(u)) {
+      u = 'https://' + u;
+    }
+
+    u = u.replace(/\/+$/, '');
+    u = u.replace(/\/(rest|auth)\/v1\/?$/i, '');
+    return u;
+  }
+
+  function cleanKey(raw) {
+    if (!raw) return '';
+    var k = String(raw).trim();
+    k = k.replace(/^['"]|['"]$/g, '');
+    k = k.replace(/^Bearer\s+/i, '');
+    return k.trim();
+  }
+
   var api = S.api = {
     // Current database provider: 'supabase' | 'custom' | 'local'
     provider: 'local',
@@ -36,9 +74,9 @@ window.SYS = window.SYS || {};
         if (rawCfg) {
           var cfg = JSON.parse(rawCfg);
           api.provider = cfg.provider || 'local';
-          api.supabaseUrl = (cfg.supabaseUrl || '').replace(/\/+$/, '');
-          api.supabaseAnonKey = cfg.supabaseAnonKey || '';
-          api.customUrl = (cfg.customUrl || 'http://localhost:3000').replace(/\/+$/, '');
+          api.supabaseUrl = cleanUrl(cfg.supabaseUrl);
+          api.supabaseAnonKey = cleanKey(cfg.supabaseAnonKey);
+          api.customUrl = cleanUrl(cfg.customUrl || 'http://localhost:3000');
         }
       } catch (e) {}
 
@@ -50,9 +88,9 @@ window.SYS = window.SYS || {};
 
     saveConfig: function (cfg) {
       api.provider = cfg.provider || api.provider;
-      api.supabaseUrl = (cfg.supabaseUrl || '').replace(/\/+$/, '');
-      api.supabaseAnonKey = cfg.supabaseAnonKey || '';
-      api.customUrl = (cfg.customUrl || 'http://localhost:3000').replace(/\/+$/, '');
+      api.supabaseUrl = cleanUrl(cfg.supabaseUrl || api.supabaseUrl);
+      api.supabaseAnonKey = cleanKey(cfg.supabaseAnonKey || api.supabaseAnonKey);
+      api.customUrl = cleanUrl(cfg.customUrl || api.customUrl);
 
       localStorage.setItem(CONFIG_KEY, JSON.stringify({
         provider: api.provider,
@@ -88,40 +126,95 @@ window.SYS = window.SYS || {};
       var t0 = Date.now();
 
       if (prov === 'supabase') {
-        var url = overrideCfg ? overrideCfg.supabaseUrl : api.supabaseUrl;
-        var key = overrideCfg ? overrideCfg.supabaseAnonKey : api.supabaseAnonKey;
+        var rawUrl = overrideCfg ? overrideCfg.supabaseUrl : api.supabaseUrl;
+        var rawKey = overrideCfg ? overrideCfg.supabaseAnonKey : api.supabaseAnonKey;
+        var url, key;
+
+        try {
+          url = cleanUrl(rawUrl);
+          key = cleanKey(rawKey);
+        } catch (e) {
+          api.isConnected = false;
+          throw e;
+        }
+
         if (!url || !key) {
           api.isConnected = false;
           throw new Error('Supabase Project URL and Anon API Key are required.');
         }
 
         try {
-          var res = await fetch(url + '/rest/v1/hunter_profiles?select=count', {
-            method: 'HEAD',
+          // Stage 1: Ping Supabase OpenAPI endpoint (/rest/v1/)
+          var pingRes = await fetch(url + '/rest/v1/', {
+            method: 'GET',
             headers: {
               'apikey': key,
               'Authorization': 'Bearer ' + key
             }
           });
-          api.lastPingMs = Date.now() - t0;
-          if (res.ok || res.status === 406 || res.status === 200 || res.status === 204) {
-            api.isConnected = true;
-            return { ok: true, pingMs: api.lastPingMs, provider: 'supabase' };
+
+          api.lastPingMs = Math.max(1, Date.now() - t0);
+
+          if (pingRes.status === 401 || pingRes.status === 403) {
+            api.isConnected = false;
+            throw new Error('Supabase Project URL reached, but Anon Key was rejected (HTTP ' + pingRes.status + '). Ensure you copied the "anon" "public" key.');
           }
-          throw new Error('Supabase responded with status: ' + res.status);
+
+          if (!pingRes.ok && pingRes.status !== 404) {
+            // Secondary fallback test: /auth/v1/health
+            try {
+              var authRes = await fetch(url + '/auth/v1/health', {
+                headers: { 'apikey': key }
+              });
+              if (!authRes.ok && authRes.status !== 200) {
+                throw new Error('Supabase responded with HTTP ' + pingRes.status);
+              }
+            } catch (authErr) {
+              throw new Error('Supabase responded with HTTP ' + pingRes.status);
+            }
+          }
+
+          api.isConnected = true;
+
+          // Stage 2: Check if hunter_profiles table exists
+          var tableRes = await fetch(url + '/rest/v1/hunter_profiles?select=id&limit=1', {
+            method: 'GET',
+            headers: {
+              'apikey': key,
+              'Authorization': 'Bearer ' + key
+            }
+          });
+
+          var schemaInstalled = true;
+          var warningMsg = null;
+
+          if (!tableRes.ok) {
+            schemaInstalled = false;
+            warningMsg = 'Supabase server connected (' + api.lastPingMs + ' ms), but the "hunter_profiles" table was not found. Please paste and run supabase/schema.sql in your Supabase SQL Editor.';
+          }
+
+          return {
+            ok: true,
+            pingMs: api.lastPingMs,
+            latencyMs: api.lastPingMs,
+            provider: 'supabase',
+            schemaInstalled: schemaInstalled,
+            warning: warningMsg
+          };
+
         } catch (err) {
           api.isConnected = false;
           throw new Error('Unable to connect to Supabase: ' + err.message);
         }
       } else if (prov === 'custom') {
-        var host = overrideCfg ? overrideCfg.customUrl : api.customUrl;
+        var host = cleanUrl(overrideCfg ? overrideCfg.customUrl : api.customUrl);
         try {
           var res2 = await fetch(host + '/api/health', { method: 'GET' });
-          api.lastPingMs = Date.now() - t0;
+          api.lastPingMs = Math.max(1, Date.now() - t0);
           if (res2.ok) {
             var data = await res2.json();
             api.isConnected = true;
-            return { ok: true, pingMs: api.lastPingMs, provider: 'custom', info: data };
+            return { ok: true, pingMs: api.lastPingMs, latencyMs: api.lastPingMs, provider: 'custom', info: data };
           }
           throw new Error('Server responded with HTTP ' + res2.status);
         } catch (err2) {
@@ -131,24 +224,52 @@ window.SYS = window.SYS || {};
       } else {
         api.isConnected = true;
         api.lastPingMs = 0;
-        return { ok: true, pingMs: 0, provider: 'local' };
+        return { ok: true, pingMs: 0, latencyMs: 0, provider: 'local' };
       }
     },
 
     // ==========================================================================
     // Authentication: Register (Hunter Awakening)
     // ==========================================================================
-    register: async function (email, hunterName, password, mode) {
+    register: async function (emailOrObj, arg2, arg3, arg4) {
+      var email, password, hunterName, mode;
+
+      if (emailOrObj && typeof emailOrObj === 'object') {
+        email = (emailOrObj.email || '').trim().toLowerCase();
+        password = emailOrObj.password || '';
+        hunterName = (emailOrObj.hunterName || emailOrObj.name || '').trim();
+        mode = emailOrObj.mode || 'OPTIONAL';
+      } else {
+        email = String(emailOrObj || '').trim().toLowerCase();
+        // Support both (email, password, hunterName, mode) AND (email, hunterName, password, mode)
+        if (typeof arg2 === 'string' && typeof arg3 === 'string') {
+          password = arg2;
+          hunterName = arg3;
+        } else {
+          hunterName = arg2 || 'Hunter';
+          password = arg3 || '';
+        }
+        mode = arg4 || 'OPTIONAL';
+      }
+
+      if (!hunterName) hunterName = 'Hunter';
+      if (!password || password.length < 6) {
+        throw new Error('Passcode must be at least 6 characters.');
+      }
+
       if (api.provider === 'supabase') {
         if (!api.supabaseUrl || !api.supabaseAnonKey) {
-          throw new Error('Supabase database configuration missing.');
+          throw new Error('Supabase database configuration missing. Please enter Project URL and Anon Key in Database Setup.');
         }
 
-        var res = await fetch(api.supabaseUrl + '/auth/v1/signup', {
+        var url = cleanUrl(api.supabaseUrl);
+        var key = cleanKey(api.supabaseAnonKey);
+
+        var res = await fetch(url + '/auth/v1/signup', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': api.supabaseAnonKey
+            'apikey': key
           },
           body: JSON.stringify({
             email: email,
@@ -161,7 +282,13 @@ window.SYS = window.SYS || {};
         });
 
         var json = await res.json();
-        if (!res.ok) throw new Error(json.msg || json.error_description || json.error || 'Registration failed');
+        if (!res.ok) {
+          var msg = json.msg || json.error_description || json.error || (json.error && json.error.message);
+          if (json.code === 'user_already_exists' || (msg && msg.toLowerCase().includes('already registered'))) {
+            throw new Error('This email is already registered. Please click SYSTEM LINK to log in with your password.');
+          }
+          throw new Error(msg || 'Registration failed');
+        }
 
         var token = json.access_token || (json.session ? json.session.access_token : null);
         var user = {
@@ -170,11 +297,23 @@ window.SYS = window.SYS || {};
           hunterName: hunterName
         };
 
-        api.setSession(token, user);
+        if (token) {
+          api.setSession(token, user);
+        } else {
+          // Email confirmation is required by Supabase project settings
+          return {
+            user: user,
+            token: null,
+            emailConfirmationRequired: true,
+            message: 'Awakening registered! Please check ' + email + ' to confirm, or turn off "Confirm email" in Supabase -> Authentication -> Providers -> Email.'
+          };
+        }
+
         return { user: user, token: token };
 
       } else if (api.provider === 'custom') {
-        var res2 = await fetch(api.customUrl + '/api/auth/register', {
+        var host = cleanUrl(api.customUrl);
+        var res2 = await fetch(host + '/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email, hunterName: hunterName, password: password, mode: mode })
@@ -200,28 +339,55 @@ window.SYS = window.SYS || {};
     login: async function (emailOrName, password) {
       if (api.provider === 'supabase') {
         if (!api.supabaseUrl || !api.supabaseAnonKey) {
-          throw new Error('Supabase database configuration missing.');
+          throw new Error('Supabase database configuration missing. Please enter Project URL and Anon Key in Database Setup.');
         }
 
-        // Supabase standard signin requires email
-        var res = await fetch(api.supabaseUrl + '/auth/v1/token?grant_type=password', {
+        var url = cleanUrl(api.supabaseUrl);
+        var key = cleanKey(api.supabaseAnonKey);
+        var email = String(emailOrName || '').trim().toLowerCase();
+
+        // If user typed hunter name instead of email:
+        if (!email.includes('@')) {
+          try {
+            var lookupRes = await fetch(url + '/rest/v1/hunter_profiles?hunter_name=ilike.' + encodeURIComponent(emailOrName.trim()) + '&select=email&limit=1', {
+              headers: { 'apikey': key }
+            });
+            if (lookupRes.ok) {
+              var rows = await lookupRes.json();
+              if (rows && rows.length && rows[0].email) {
+                email = rows[0].email;
+              }
+            }
+          } catch (e) {}
+        }
+
+        var res = await fetch(url + '/auth/v1/token?grant_type=password', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': api.supabaseAnonKey
+            'apikey': key
           },
           body: JSON.stringify({
-            email: emailOrName,
+            email: email,
             password: password
           })
         });
 
         var json = await res.json();
-        if (!res.ok) throw new Error(json.error_description || json.msg || 'Authentication failed. Check credentials.');
+        if (!res.ok) {
+          var errMsg = json.error_description || json.msg || json.error || 'Authentication failed.';
+          if (errMsg.toLowerCase().includes('email not confirmed')) {
+            throw new Error('Email not confirmed. Check your inbox for confirmation link, or disable "Confirm email" in Supabase -> Authentication -> Providers -> Email.');
+          }
+          if (errMsg.toLowerCase().includes('invalid login credentials')) {
+            throw new Error('Invalid email or password. Verify credentials or register a new hunter account.');
+          }
+          throw new Error(errMsg);
+        }
 
         var token = json.access_token;
         var meta = json.user.user_metadata || {};
-        var hunterName = meta.hunter_name || json.user.email.split('@')[0];
+        var hunterName = meta.hunter_name || (json.user.email ? json.user.email.split('@')[0] : 'Hunter');
 
         var user = {
           id: json.user.id,
@@ -233,7 +399,8 @@ window.SYS = window.SYS || {};
         return { user: user, token: token };
 
       } else if (api.provider === 'custom') {
-        var res2 = await fetch(api.customUrl + '/api/auth/login', {
+        var host = cleanUrl(api.customUrl);
+        var res2 = await fetch(host + '/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ emailOrName: emailOrName, password: password })
@@ -254,10 +421,12 @@ window.SYS = window.SYS || {};
 
     logout: function () {
       if (api.provider === 'supabase' && api.token && api.supabaseUrl && api.supabaseAnonKey) {
-        fetch(api.supabaseUrl + '/auth/v1/logout', {
+        var url = cleanUrl(api.supabaseUrl);
+        var key = cleanKey(api.supabaseAnonKey);
+        fetch(url + '/auth/v1/logout', {
           method: 'POST',
           headers: {
-            'apikey': api.supabaseAnonKey,
+            'apikey': key,
             'Authorization': 'Bearer ' + api.token
           }
         }).catch(function () {});
@@ -272,6 +441,9 @@ window.SYS = window.SYS || {};
       view = (view || 'VANGUARD').toUpperCase();
 
       if (api.provider === 'supabase' && api.supabaseUrl && api.supabaseAnonKey) {
+        var url = cleanUrl(api.supabaseUrl);
+        var key = cleanKey(api.supabaseAnonKey);
+
         var orderParam = 'hrs_score.desc';
         if (view === 'HALL') {
           orderParam = 'combat_power.desc,level.desc';
@@ -282,44 +454,49 @@ window.SYS = window.SYS || {};
           filterParam = '&rank_tier_index=eq.' + targetTierIndex;
         }
 
-        var endpoint = api.supabaseUrl + '/rest/v1/hunter_profiles?select=id,hunter_name,level,rank_code,rank_tier_index,streak_days,hrs_score,combat_power,total_focus_minutes,total_km_run&order=' + orderParam + filterParam + '&limit=50';
+        var endpoint = url + '/rest/v1/hunter_profiles?select=id,hunter_name,level,rank_code,rank_tier_index,streak_days,hrs_score,combat_power,total_focus_minutes,total_km_run&order=' + orderParam + filterParam + '&limit=50';
 
-        var res = await fetch(endpoint, {
-          method: 'GET',
-          headers: {
-            'apikey': api.supabaseAnonKey,
-            'Authorization': 'Bearer ' + (api.token || api.supabaseAnonKey)
+        try {
+          var res = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'apikey': key,
+              'Authorization': 'Bearer ' + (api.token || key)
+            }
+          });
+
+          if (!res.ok) {
+            return null; // Gracefully fallback if table does not exist
           }
-        });
 
-        if (!res.ok) {
-          throw new Error('Failed to query Supabase leaderboard (HTTP ' + res.status + ')');
+          var rows = await res.json();
+          var currentUserId = api.user ? api.user.id : null;
+
+          return rows.map(function (r, idx) {
+            var isYou = currentUserId && (r.id === currentUserId || r.hunter_name.toLowerCase() === (api.user.hunterName || '').toLowerCase());
+            return {
+              pos: idx + 1,
+              id: r.id,
+              name: r.hunter_name.toUpperCase(),
+              tier: r.rank_code || 'E-IV',
+              tierIndex: r.rank_tier_index || 0,
+              level: r.level || 1,
+              streak: r.streak_days || 0,
+              score: view === 'HALL' ? (r.combat_power || 120) : (r.hrs_score || 0),
+              combatPower: r.combat_power || 120,
+              totalKmRun: r.total_km_run || 0,
+              focusMins: r.total_focus_minutes || 0,
+              you: isYou
+            };
+          });
+        } catch (e) {
+          return null;
         }
 
-        var rows = await res.json();
-        var currentUserId = api.user ? api.user.id : null;
-
-        return rows.map(function (r, idx) {
-          var isYou = currentUserId && (r.id === currentUserId || r.hunter_name.toLowerCase() === (api.user.hunterName || '').toLowerCase());
-          return {
-            pos: idx + 1,
-            id: r.id,
-            name: r.hunter_name.toUpperCase(),
-            tier: r.rank_code || 'E-IV',
-            tierIndex: r.rank_tier_index || 0,
-            level: r.level || 1,
-            streak: r.streak_days || 0,
-            score: view === 'HALL' ? (r.combat_power || 120) : (r.hrs_score || 0),
-            combatPower: r.combat_power || 120,
-            totalKmRun: r.total_km_run || 0,
-            focusMins: r.total_focus_minutes || 0,
-            you: isYou
-          };
-        });
-
       } else if (api.provider === 'custom' && api.customUrl) {
+        var host = cleanUrl(api.customUrl);
         var query = '?view=' + view + (targetTierIndex !== undefined ? '&tier=' + targetTierIndex : '');
-        var res2 = await fetch(api.customUrl + '/api/leaderboard' + query, { method: 'GET' });
+        var res2 = await fetch(host + '/api/leaderboard' + query, { method: 'GET' });
         if (!res2.ok) throw new Error('Custom server leaderboard query failed');
 
         var json = await res2.json();
@@ -373,10 +550,13 @@ window.SYS = window.SYS || {};
       };
 
       if (api.provider === 'supabase') {
+        var url = cleanUrl(api.supabaseUrl);
+        var key = cleanKey(api.supabaseAnonKey);
+        var token = api.token || key;
         var headers = {
           'Content-Type': 'application/json',
-          'apikey': api.supabaseAnonKey,
-          'Authorization': 'Bearer ' + api.token,
+          'apikey': key,
+          'Authorization': 'Bearer ' + token,
           'Prefer': 'resolution=merge-duplicates'
         };
 
@@ -413,7 +593,7 @@ window.SYS = window.SYS || {};
           updated_at: new Date().toISOString()
         };
 
-        var pReq = fetch(api.supabaseUrl + '/rest/v1/hunter_profiles', {
+        var pReq = fetch(url + '/rest/v1/hunter_profiles', {
           method: 'POST',
           headers: headers,
           body: JSON.stringify(dbProfile)
@@ -431,7 +611,7 @@ window.SYS = window.SYS || {};
           updated_at: new Date().toISOString()
         };
 
-        var iReq = fetch(api.supabaseUrl + '/rest/v1/hunter_inventory', {
+        var iReq = fetch(url + '/rest/v1/hunter_inventory', {
           method: 'POST',
           headers: headers,
           body: JSON.stringify(dbInv)
@@ -457,7 +637,7 @@ window.SYS = window.SYS || {};
           };
         });
 
-        var qReq = dbQuests.length ? fetch(api.supabaseUrl + '/rest/v1/hunter_quests', {
+        var qReq = dbQuests.length ? fetch(url + '/rest/v1/hunter_quests', {
           method: 'POST',
           headers: headers,
           body: JSON.stringify(dbQuests)
@@ -504,42 +684,50 @@ window.SYS = window.SYS || {};
       if (!api.user || !api.token) return null;
 
       if (api.provider === 'supabase') {
+        var url = cleanUrl(api.supabaseUrl);
+        var key = cleanKey(api.supabaseAnonKey);
         var headers = {
-          'apikey': api.supabaseAnonKey,
+          'apikey': key,
           'Authorization': 'Bearer ' + api.token
         };
 
-        // 1. Fetch Profile
-        var pRes = await fetch(api.supabaseUrl + '/rest/v1/hunter_profiles?id=eq.' + api.user.id, {
-          method: 'GET',
-          headers: headers
-        });
-        var pData = await pRes.json();
-        var remoteProfile = pData && pData.length ? pData[0] : null;
+        try {
+          // 1. Fetch Profile
+          var pRes = await fetch(url + '/rest/v1/hunter_profiles?id=eq.' + api.user.id, {
+            method: 'GET',
+            headers: headers
+          });
+          var pData = pRes.ok ? await pRes.json() : null;
+          var remoteProfile = pData && pData.length ? pData[0] : null;
 
-        // 2. Fetch Quests
-        var qRes = await fetch(api.supabaseUrl + '/rest/v1/hunter_quests?user_id=eq.' + api.user.id, {
-          method: 'GET',
-          headers: headers
-        });
-        var remoteQuests = await qRes.json();
+          // 2. Fetch Quests
+          var qRes = await fetch(url + '/rest/v1/hunter_quests?user_id=eq.' + api.user.id, {
+            method: 'GET',
+            headers: headers
+          });
+          var remoteQuests = qRes.ok ? await qRes.json() : [];
 
-        // 3. Fetch Inventory
-        var iRes = await fetch(api.supabaseUrl + '/rest/v1/hunter_inventory?user_id=eq.' + api.user.id, {
-          method: 'GET',
-          headers: headers
-        });
-        var iData = await iRes.json();
-        var remoteInv = iData && iData.length ? iData[0] : null;
+          // 3. Fetch Inventory
+          var iRes = await fetch(url + '/rest/v1/hunter_inventory?user_id=eq.' + api.user.id, {
+            method: 'GET',
+            headers: headers
+          });
+          var iData = iRes.ok ? await iRes.json() : null;
+          var remoteInv = iData && iData.length ? iData[0] : null;
 
-        return {
-          profile: remoteProfile,
-          quests: remoteQuests,
-          inventory: remoteInv
-        };
+          return {
+            profile: remoteProfile,
+            quests: remoteQuests,
+            inventory: remoteInv
+          };
+        } catch (e) {
+          console.warn('[SYNC DOWN ERROR]', e);
+          return null;
+        }
 
       } else if (api.provider === 'custom') {
-        var res = await fetch(api.customUrl + '/api/sync/down', {
+        var host = cleanUrl(api.customUrl);
+        var res = await fetch(host + '/api/sync/down', {
           method: 'GET',
           headers: { 'Authorization': 'Bearer ' + api.token }
         });
