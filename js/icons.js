@@ -70,7 +70,13 @@ window.SYS = window.SYS || {};
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.2v.6"/>',
     forge: '<path d="M12 2l8.66 5v10L12 22l-8.66-5V7z"/><path d="M12 8v8M8 12h8"/>',
     arise: '<path d="M12 22V9"/><path d="M7 13l5-5 5 5"/><path d="M4 9l8-7 8 7" opacity=".55"/><path d="M8 22h8"/>',
-    hourglass: '<path d="M6 2h12M6 22h12M7 2c0 5 5 6 5 10s-5 5-5 10M17 2c0 5-5 6-5 10s5 5 5 10"/>'
+    hourglass: '<path d="M6 2h12M6 22h12M7 2c0 5 5 6 5 10s-5 5-5 10M17 2c0 5-5 6-5 10s5 5 5 10"/>',
+    gps: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
+    map: '<path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/>',
+    pace: '<path d="M12 3a9 9 0 0 0-9 9c0 3.6 2.1 6.7 5.2 8.1l1.8-3.1"/><path d="M12 3a9 9 0 0 1 9 9c0 3.6-2.1 6.7-5.2 8.1l-1.8-3.1"/><circle cx="12" cy="12" r="2"/><path d="M12 12l3-4"/>',
+    steps: '<path d="M6 14.5c.5-2 1.5-3.5 3-4s2.5.5 3 2.5-1 4.5-3 5-3-1.5-3-3.5z"/><circle cx="10" cy="5" r="1.5" ' + F + '/><path d="M15 9.5c.5-2 1.5-3.5 3-4s2.5.5 3 2.5-1 4.5-3 5-3-1.5-3-3.5z" opacity=".7"/><circle cx="19" cy="3" r="1.2" ' + F + '/>',
+    compass: '<circle cx="12" cy="12" r="9"/><polygon points="12,6 15,12 12,18 9,12" stroke-linejoin="round"/><circle cx="12" cy="12" r="1.5" ' + F + '/>',
+    signal: '<path d="M4 18v2M8 14v6M12 10v10M16 6v14M20 2v18"/>'
   };
 
   S.ICON_PATHS = P;
