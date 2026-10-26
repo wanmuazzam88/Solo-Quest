@@ -6,8 +6,14 @@
   <title>THE SYSTEM // Solo Leveling Habit, Workout &amp; Focus Gate</title>
   <meta name="description" content="Gamified self-improvement, workout tracker, and deep-focus application modeled after the System from Solo Leveling. Daily quests, 22 hunter tiers, Focus Gates, and the Penalty Zone.">
   <meta name="theme-color" content="#04060A">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Solo Quest">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/leaflet.css">
 </head>
@@ -93,6 +99,10 @@
             <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l5.2 6.2L12 22 6.8 8.2z"/><path d="M6.8 8.2h10.4M12 2v20" opacity=".55"/></svg>
             <span id="top-essence">0</span>
           </div>
+          <button class="sys-btn sm primary pwa-install-btn hidden" id="btn-pwa-install" title="Install Solo Quest System App">
+            <svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>
+            INSTALL APP
+          </button>
         </div>
       </div>
     </header>

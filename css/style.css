@@ -1420,3 +1420,26 @@ body.grace-countdown-active .grace-warning-banner {
   color: var(--text-primary);
 }
 
+/* --- Utility & PWA Install Styles --- */
+.hidden {
+  display: none !important;
+}
+
+.pwa-install-btn {
+  background: rgba(0, 229, 255, 0.2);
+  border-color: var(--accent-core);
+  color: var(--accent-core);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.35);
+  animation: pwaPulse 2.5s infinite;
+}
+
+@keyframes pwaPulse {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(0, 229, 255, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(0, 229, 255, 0.6);
+  }
+}
+
+

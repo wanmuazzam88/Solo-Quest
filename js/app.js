@@ -95,6 +95,61 @@ window.SYS = window.SYS || {};
     });
   }
 
+  /* ======================================================================
+     Progressive Web App (PWA) Service Worker & Installation
+     ====================================================================== */
+  var deferredInstallPrompt = null;
+
+  function initPWA() {
+    // 1. Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js')
+          .then(function (reg) {
+            console.log('[PWA] Service Worker registered:', reg.scope);
+          })
+          .catch(function (err) {
+            console.warn('[PWA] Service Worker registration failed:', err);
+          });
+      });
+    }
+
+    // 2. Capture beforeinstallprompt event
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      var installBtn = document.getElementById('btn-pwa-install');
+      if (installBtn) {
+        installBtn.classList.remove('hidden');
+      }
+    });
+
+    // 3. Handle install button click
+    var installBtn = document.getElementById('btn-pwa-install');
+    if (installBtn) {
+      installBtn.addEventListener('click', function () {
+        if (!deferredInstallPrompt) return;
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.then(function (choiceResult) {
+          if (choiceResult.outcome === 'accepted') {
+            if (S.ui) S.ui.showToast('[SYSTEM INSTALLED]', 'Solo Quest added to your home screen.', 'gold');
+          }
+          deferredInstallPrompt = null;
+          installBtn.classList.add('hidden');
+        });
+      });
+    }
+
+    // 4. Handle appinstalled event
+    window.addEventListener('appinstalled', function () {
+      deferredInstallPrompt = null;
+      var installBtn = document.getElementById('btn-pwa-install');
+      if (installBtn) installBtn.classList.add('hidden');
+      if (S.ui) S.ui.showToast('[SYSTEM INSTALLED]', 'Application is now running standalone.', 'gold');
+      if (S.audio) S.audio.rankUp();
+    });
+  }
+
   // Boot on DOM ready
   document.addEventListener('DOMContentLoaded', function () {
     if (S.audio) S.audio.init();
@@ -105,6 +160,7 @@ window.SYS = window.SYS || {};
     initParticles();
     startClocks();
     setupModalBackdrop();
+    initPWA();
 
     console.log('[PROJECT: ARISE] The System is fully operational.');
   });
