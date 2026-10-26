@@ -24,7 +24,7 @@ A dark-futuristic, tactical manhwa-styled web application modeled directly after
    - Bonus Quest re-roll system (cooldown reduced by your `AGI` stat).
 
 3. **Strava-Style Tactical GPS & Step Run Tracker (OpenStreetMap):**
-   - **Real-Time Geolocation:** Powered by HTML5 High-Accuracy Geolocation API with noise jitter and speed spike filtering.
+   - **Real-Time Geolocation & Device Permissions:** Proactive satellite authorization HUD with browser permission query lifecycle, high-accuracy GPS fix locking, iOS motion sensor authorization, and in-app permission troubleshooting directives.
    - **Haversine Distance Telemetry:** High-precision distance accumulator displayed in kilometers with live sub-counters.
    - **OpenStreetMap & Leaflet Integration:** Official standard free OpenStreetMap tile API (`tile.openstreetmap.org`) with glowing neon cyan route polylines and a pulsing radar hunter beacon.
    - **Live Pace & Velocity HUD:** Instantaneous rolling pace and overall average pace (`MM'SS"/KM`), current speed (`KM/H`), and maximum speed.
