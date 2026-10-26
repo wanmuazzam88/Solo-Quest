@@ -1,0 +1,76 @@
+{
+  "name": "Solo Quest: The System",
+  "short_name": "Solo Quest",
+  "description": "Gamified manhwa habit, workout and deep focus application modeled after the System from Solo Leveling.",
+  "id": "solo-quest-pwa",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#04060A",
+  "theme_color": "#04060A",
+  "categories": ["health", "fitness", "productivity", "games", "lifestyle"],
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Daily Quests",
+      "short_name": "Quests",
+      "description": "Open your daily training and habit quests",
+      "url": "./index.html?view=quests",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "GPS Run Tracker",
+      "short_name": "Run",
+      "description": "Start live GPS run telemetry with OpenStreetMap",
+      "url": "./index.html?view=run",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Dungeon Focus Gate",
+      "short_name": "Gate",
+      "description": "Enter deep work focus gate with distraction shield",
+      "url": "./index.html?view=gate",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Hunter Status",
+      "short_name": "Status",
+      "description": "View hunter stats and 5-axis attribute radar chart",
+      "url": "./index.html?view=status",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
