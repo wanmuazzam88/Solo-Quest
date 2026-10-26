@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "THE SYSTEM // Focus Shield",
+  "version": "1.0.0",
+  "description": "Distraction domain blocker for PROJECT: ARISE. Redirects blacklisted social feeds to the System Lock Screen during Focus Gate sessions.",
+  "permissions": [
+    "declarativeNetRequest",
+    "storage"
+  ],
+  "action": {
+    "default_title": "THE SYSTEM // Focus Shield"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "distraction_rules",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  }
+}

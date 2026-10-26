@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>[ACCESS DENIED BY THE SYSTEM]</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #04060A;
+      color: #F0F6FC;
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+    }
+    .panel {
+      background: rgba(10, 17, 31, 0.95);
+      border: 1px solid #FF003C;
+      clip-path: polygon(0 14px, 14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px));
+      padding: 40px;
+      max-width: 640px;
+      box-shadow: 0 0 35px rgba(255, 0, 60, 0.4);
+    }
+    .title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: #FF003C;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      text-shadow: 0 0 12px #FF003C;
+    }
+    .message {
+      font-size: 15px;
+      color: #C0D0E6;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+    .btn {
+      display: inline-block;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 10px 24px;
+      color: #00E5FF;
+      background: rgba(0, 229, 255, 0.12);
+      border: 1px solid #00E5FF;
+      text-decoration: none;
+      clip-path: polygon(0 6px, 6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px));
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="title">[ACCESS DENIED BY THE SYSTEM]</div>
+    <div class="message">
+      A Dungeon Gate or Focus Session is currently active.<br>
+      You cannot flee from your trial. Complete your active quest first before returning to the mundane realm.
+    </div>
+    <a href="#" class="btn" onclick="window.history.back(); return false;">RETURN TO ACTIVE QUEST</a>
+  </div>
+</body>
+</html>
