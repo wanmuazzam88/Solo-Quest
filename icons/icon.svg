@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0E1A30"/>
+      <stop offset="70%" stop-color="#070D18"/>
+      <stop offset="100%" stop-color="#04060A"/>
+    </radialGradient>
+
+    <!-- Neon Glow Filter -->
+    <filter id="neonGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur1"/>
+      <feGaussianBlur stdDeviation="18" result="blur2"/>
+      <feMerge>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Core Blue Gradient -->
+    <linearGradient id="coreCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7DF9FF"/>
+      <stop offset="50%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#0066FF"/>
+    </linearGradient>
+
+    <!-- Gold Accent Gradient -->
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="100%" stop-color="#FFB703"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="512" height="512" fill="url(#bgGrad)"/>
+
+  <!-- Subtle Tactical Grid Ring -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#00E5FF" stroke-width="1.5" stroke-opacity="0.2" stroke-dasharray="6 6"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#00E5FF" stroke-width="1.5" stroke-opacity="0.15"/>
+
+  <!-- Outer Hexagonal Chamfered Crest -->
+  <polygon points="256,48 440,154 440,358 256,464 72,358 72,154" 
+           fill="#0A111F" fill-opacity="0.85" 
+           stroke="url(#coreCyan)" stroke-width="8" 
+           filter="url(#neonGlow)"/>
+
+  <!-- Inner Concentric Hexagon -->
+  <polygon points="256,86 404,171 404,341 256,426 108,341 108,171" 
+           fill="none" 
+           stroke="#00E5FF" stroke-width="2" stroke-opacity="0.4"/>
+
+  <!-- Central Monarch Eye / Arise Core -->
+  <!-- Upper & Lower Tactical Arcs -->
+  <path d="M140,256 C170,180 342,180 372,256 C342,332 170,332 140,256 Z" 
+        fill="#040812" 
+        stroke="url(#coreCyan)" stroke-width="7" 
+        filter="url(#neonGlow)"/>
+
+  <!-- Center Glowing Iris Core -->
+  <circle cx="256" cy="256" r="48" fill="url(#coreCyan)" filter="url(#neonGlow)"/>
+  <circle cx="256" cy="256" r="24" fill="#FFFFFF"/>
+  <circle cx="256" cy="256" r="10" fill="#04060A"/>
+
+  <!-- Crosshair Tactical Sights -->
+  <line x1="256" y1="90" x2="256" y2="170" stroke="url(#coreCyan)" stroke-width="4" stroke-linecap="square"/>
+  <line x1="256" y1="342" x2="256" y2="422" stroke="url(#coreCyan)" stroke-width="4" stroke-linecap="square"/>
+  <line x1="112" y1="256" x2="182" y2="256" stroke="url(#coreCyan)" stroke-width="4" stroke-linecap="square"/>
+  <line x1="330" y1="256" x2="400" y2="256" stroke="url(#coreCyan)" stroke-width="4" stroke-linecap="square"/>
+
+  <!-- Corner Tech Accents -->
+  <polygon points="256,58 266,74 246,74" fill="url(#goldGrad)"/>
+  <polygon points="256,454 266,438 246,438" fill="url(#goldGrad)"/>
+  <circle cx="256" cy="256" r="76" fill="none" stroke="#7DF9FF" stroke-width="1.5" stroke-opacity="0.5" stroke-dasharray="8 4"/>
+</svg>
