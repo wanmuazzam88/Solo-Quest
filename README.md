@@ -23,19 +23,29 @@ A dark-futuristic, tactical manhwa-styled web application modeled directly after
    - Modular Custom Quest Forge (Calisthenics, Gym, Running, Study, Focus, Habit).
    - Bonus Quest re-roll system (cooldown reduced by your `AGI` stat).
 
-3. **Midnight Evaluation & The Dreaded Penalty Zone:**
+3. **Strava-Style Tactical GPS & Step Run Tracker (OpenStreetMap):**
+   - **Real-Time Geolocation:** Powered by HTML5 High-Accuracy Geolocation API with noise jitter and speed spike filtering.
+   - **Haversine Distance Telemetry:** High-precision distance accumulator displayed in kilometers with live sub-counters.
+   - **OpenStreetMap & Leaflet Integration:** Tactical dark abyss Carto/OSM tile map with glowing neon cyan route polylines and a pulsing radar hunter beacon.
+   - **Live Pace & Velocity HUD:** Instantaneous rolling pace and overall average pace (`MM'SS"/KM`), current speed (`KM/H`), and maximum speed.
+   - **Motion Sensor Step Counter & Cadence:** Dynamic accelerometer peak-detection algorithm using `DeviceMotionEvent` with rolling Steps-Per-Minute (`SPM`) cadence calculation and stride-length fallback.
+   - **1 KM Split Breakdowns:** Automatic split time and pace recording at every kilometer mark accompanied by procedural audio announcements.
+   - **Quest Sync & History:** Direct integration with running quests (auto-increments progress upon run completion) and persistent local run dossier.
+   - **Desktop/Indoor Demo Mode:** Built-in GPS simulation route with realistic coordinates and steps for immediate testing on laptops.
+
+4. **Midnight Evaluation & The Dreaded Penalty Zone:**
    - Real-time countdown timer to `00:00:00` local time.
    - **Hardcore Manhwa Mode:** Uncompleted daily quests trigger a full application override into **Blood Crimson (`#FF003C`)**, freezing the Vault and normal XP gains until surviving a mandatory Penalty Quest or 45-minute Dark Lock session.
    - **Standard Mode:** Optional redemption quests and streak preservation.
 
-4. **Focus Gate & "Dark Lock" Distraction Shield:**
+5. **Focus Gate & "Dark Lock" Distraction Shield:**
    - Four dungeon tiers: E-Rank (15m), C-Rank (25m), A-Rank (50m), and the brutal S-Rank Red Gate (90m unbroken).
    - Fullscreen API and Screen WakeLock integration.
    - Tab visibility & window blur telemetry with a **15-second grace countdown**.
    - Failing to return in time triggers a **Gate Breach (`[FOCUS BROKEN]`)**, corrupting bonus loot and cutting XP yield by 50%.
    - Companion Chrome/Edge Manifest V3 extension in `extension/` using `declarativeNetRequest`.
 
-5. **Hunter's Vault & Rewards (165 Items):**
+6. **Hunter's Vault & Rewards (165 Items):**
    - 45 Hunter Weapons & Relics with passive buffs (equip up to 2).
    - 30 Consumables, Keys, and Skill Runes.
    - 25 System UI Hologram Skins with live dynamic theme switching.
@@ -44,11 +54,11 @@ A dark-futuristic, tactical manhwa-styled web application modeled directly after
    - Gacha Loot Box opening sequence (Blessed & Cursed boxes).
    - Hunter Association Commissary (Gold & Essence store).
 
-6. **Global Leaderboards & Anti-Cheat HRS:**
+7. **Global Leaderboards & Anti-Cheat HRS:**
    - Seasonal Vanguard, Division Brackets, and All-Time Hall of Monarchs.
    - Anti-cheat Hunter Rating Score ($\text{HRS}$) weighting verified focus minutes and streak consistency while capping daily quest spam.
 
-7. **Zero-Emoji Mandate & Manhwa Aesthetics:**
+8. **Zero-Emoji Mandate & Manhwa Aesthetics:**
    - 100% bespoke SVG geometric glyphs with glowing neon drop-shadows.
    - Native **Web Audio API** procedural synthesizer (no external audio files required).
 
