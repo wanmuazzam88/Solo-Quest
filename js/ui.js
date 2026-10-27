@@ -2260,10 +2260,10 @@ window.SYS = window.SYS || {};
                 errEl.style.background = 'rgba(255,0,60,0.1)';
                 errEl.textContent = err.message || 'Awakening registration failed.';
                 errEl.style.display = 'block';
-              }
               btnSub.disabled = false;
               btnSub.textContent = 'AWAKEN & SAVE PROGRESS';
             }
+          });
         }
 
         // Profile tab: Force sync
