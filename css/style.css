@@ -1192,7 +1192,8 @@ body.grace-countdown-active .grace-warning-banner {
   background: currentColor;
   box-shadow: 0 0 8px currentColor;
 }
-.gps-badge.locked {
+.gps-badge.locked,
+.gps-badge.good {
   color: #39FF88;
   background: rgba(57, 255, 136, 0.12);
   border: 1px solid rgba(57, 255, 136, 0.4);

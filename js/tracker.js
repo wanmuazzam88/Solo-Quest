@@ -64,6 +64,7 @@ window.SYS = window.SYS || {};
     _tickerInterval: null,
     _wakeLock: null,
     _lastMotionTime: 0,
+    _lastGpsPingTime: 0,
     _motionSmoothed: 0,
     _motionStepCooldown: 0,
     _autoCenterMap: true,
@@ -261,64 +262,91 @@ window.SYS = window.SYS || {};
 
       var options = {
         enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0
+        timeout: 12000,
+        maximumAge: 4000
       };
 
+      function onPositionSuccess(pos) {
+        var crd = pos.coords;
+        tracker.permissionStatus = 'granted';
+        tracker.permissionChecked = true;
+        try { localStorage.setItem(PERMISSION_STORAGE_KEY, 'granted'); } catch (e) {}
+        tracker.accuracyMeters = Math.round(crd.accuracy || 12);
+        if (tracker.accuracyMeters <= 25) {
+          tracker.gpsStatus = 'LOCKED';
+        } else if (tracker.accuracyMeters <= 65) {
+          tracker.gpsStatus = 'GOOD';
+        } else if (tracker.accuracyMeters <= 120) {
+          tracker.gpsStatus = 'FAIR';
+        } else {
+          tracker.gpsStatus = 'WEAK';
+        }
+        tracker.currentPosition = {
+          lat: crd.latitude,
+          lng: crd.longitude,
+          accuracy: crd.accuracy,
+          altitude: crd.altitude,
+          heading: crd.heading || 0,
+          speed: crd.speed,
+          timestamp: Date.now()
+        };
+
+        if (tracker.map) {
+          tracker.map.flyTo([crd.latitude, crd.longitude], 16, { animate: true, duration: 1.2 });
+          tracker.updateMapHunterOnly(crd.latitude, crd.longitude, crd.accuracy, crd.heading || 0);
+        }
+
+        if (interactive) {
+          if (S.audio && S.audio.windowOpen) S.audio.windowOpen();
+          if (S.ui) S.ui.showToast('[GPS SATELLITE LOCKED]', 'Location acquired (±' + tracker.accuracyMeters + 'm precision).', 'cyan');
+        }
+
+        if (S.ui && S.ui.renderRunView) S.ui.render();
+        if (callback) callback(null, tracker.currentPosition);
+      }
+
+      function onPositionError(err) {
+        // If high accuracy timed out, retry immediately with standard accuracy fallback
+        if (err.code === 3) {
+          navigator.geolocation.getCurrentPosition(
+            onPositionSuccess,
+            function (fallbackErr) {
+              handleFinalError(fallbackErr);
+            },
+            { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
+          );
+          return;
+        }
+        handleFinalError(err);
+      }
+
+      function handleFinalError(err) {
+        tracker.permissionChecked = true;
+        if (err.code === 1) { // PERMISSION_DENIED
+          tracker.permissionStatus = 'denied';
+          tracker.gpsStatus = 'DENIED';
+          try { localStorage.removeItem(PERMISSION_STORAGE_KEY); } catch (e) {}
+          if (interactive && S.ui && S.ui.showLocationPermissionHelp) {
+            S.ui.showLocationPermissionHelp(err);
+          }
+        } else if (err.code === 2) { // POSITION_UNAVAILABLE
+          tracker.gpsStatus = 'UNAVAILABLE';
+          if (interactive && S.ui) {
+            S.ui.showToast('[GPS SATELLITE UNREACHABLE]', 'Device location could not be determined. Check GPS switch.', 'crimson');
+          }
+        } else { // TIMEOUT
+          tracker.gpsStatus = 'FAIR';
+          if (interactive && S.ui) {
+            S.ui.showToast('[GPS SEARCHING]', 'Acquiring satellite lock. Please move to open sky.', 'gold');
+          }
+        }
+        if (S.ui && S.ui.renderRunView) S.ui.render();
+        if (callback) callback(err);
+      }
+
       navigator.geolocation.getCurrentPosition(
-        function (pos) {
-          var crd = pos.coords;
-          tracker.permissionStatus = 'granted';
-          tracker.permissionChecked = true;
-          try { localStorage.setItem(PERMISSION_STORAGE_KEY, 'granted'); } catch (e) {}
-          tracker.accuracyMeters = Math.round(crd.accuracy || 10);
-          tracker.gpsStatus = tracker.accuracyMeters <= 20 ? 'LOCKED' : (tracker.accuracyMeters <= 40 ? 'FAIR' : 'WEAK');
-          tracker.currentPosition = {
-            lat: crd.latitude,
-            lng: crd.longitude,
-            accuracy: crd.accuracy,
-            altitude: crd.altitude,
-            heading: crd.heading || 0,
-            speed: crd.speed,
-            timestamp: Date.now()
-          };
-
-          if (tracker.map) {
-            tracker.map.flyTo([crd.latitude, crd.longitude], 16, { animate: true, duration: 1.2 });
-            tracker.updateMapHunterOnly(crd.latitude, crd.longitude, crd.accuracy, crd.heading || 0);
-          }
-
-          if (interactive) {
-            if (S.audio && S.audio.windowOpen) S.audio.windowOpen();
-            if (S.ui) S.ui.showToast('[GPS SATELLITE LOCKED]', 'Location acquired (±' + tracker.accuracyMeters + 'm precision).', 'cyan');
-          }
-
-          if (S.ui && S.ui.renderRunView) S.ui.render();
-          if (callback) callback(null, tracker.currentPosition);
-        },
-        function (err) {
-          tracker.permissionChecked = true;
-          if (err.code === 1) { // PERMISSION_DENIED
-            tracker.permissionStatus = 'denied';
-            tracker.gpsStatus = 'DENIED';
-            try { localStorage.removeItem(PERMISSION_STORAGE_KEY); } catch (e) {}
-            if (interactive && S.ui && S.ui.showLocationPermissionHelp) {
-              S.ui.showLocationPermissionHelp(err);
-            }
-          } else if (err.code === 2) { // POSITION_UNAVAILABLE
-            tracker.gpsStatus = 'UNAVAILABLE';
-            if (interactive && S.ui) {
-              S.ui.showToast('[GPS SATELLITE UNREACHABLE]', 'Device location could not be determined. Check GPS switch.', 'crimson');
-            }
-          } else { // TIMEOUT
-            tracker.gpsStatus = 'WEAK';
-            if (interactive && S.ui) {
-              S.ui.showToast('[GPS SEARCH TIMEOUT]', 'Satellite query timed out. Retrying search...', 'gold');
-            }
-          }
-          if (S.ui && S.ui.renderRunView) S.ui.render();
-          if (callback) callback(err);
-        },
+        onPositionSuccess,
+        onPositionError,
         options
       );
     },
@@ -405,6 +433,15 @@ window.SYS = window.SYS || {};
 
       // Start GPS geolocation watch
       tracker.startGeolocationWatch();
+
+      // Immediate satellite kickstart (locks position in ~1s instead of waiting for watch interval)
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          function (pos) { tracker.onLocationUpdate(pos); },
+          function () {},
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
+        );
+      }
 
       // 1-second cadence ticker
       clearInterval(tracker._tickerInterval);
@@ -544,8 +581,8 @@ window.SYS = window.SYS || {};
 
       var options = {
         enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 1000
+        timeout: 20000,
+        maximumAge: 3000
       };
 
       tracker._watchId = navigator.geolocation.watchPosition(
@@ -568,18 +605,27 @@ window.SYS = window.SYS || {};
       var crd = pos.coords;
       var lat = crd.latitude;
       var lng = crd.longitude;
-      var accuracy = crd.accuracy || 10;
+      var accuracy = crd.accuracy || 12;
       var altitude = crd.altitude || null;
       var heading = crd.heading || 0;
       var speedMps = crd.speed !== null && !isNaN(crd.speed) ? crd.speed : null;
       var now = Date.now();
 
       tracker.accuracyMeters = Math.round(accuracy);
-      tracker.gpsStatus = accuracy <= 15 ? 'LOCKED' : (accuracy <= 35 ? 'FAIR' : 'WEAK');
+      if (tracker.accuracyMeters <= 25) {
+        tracker.gpsStatus = 'LOCKED';
+      } else if (tracker.accuracyMeters <= 65) {
+        tracker.gpsStatus = 'GOOD';
+      } else if (tracker.accuracyMeters <= 120) {
+        tracker.gpsStatus = 'FAIR';
+      } else {
+        tracker.gpsStatus = 'WEAK';
+      }
 
-      // Reject fixes with unusable accuracy (> 45m)
-      if (accuracy > 45) {
+      // Reject fixes with truly unusable accuracy (> 100m)
+      if (accuracy > 100) {
         tracker.updateMapHunterOnly(lat, lng, accuracy, heading);
+        tracker.updateLiveHudDom();
         return;
       }
 
@@ -600,6 +646,7 @@ window.SYS = window.SYS || {};
         tracker.coordinates.push(pt);
         tracker.routeHistory.push(tracker.currentPosition);
         tracker.updateMapFull(pt, accuracy, heading);
+        tracker.updateLiveHudDom();
         return;
       }
 
@@ -607,15 +654,17 @@ window.SYS = window.SYS || {};
       var distM = tracker.haversine(tracker.lastValidFix.lat, tracker.lastValidFix.lng, lat, lng);
       var timeDeltaSec = (now - tracker.lastValidFix.time) / 1000;
 
-      // Noise Gate: Ignore tiny GPS jitter when stationary (< 3.0 meters)
-      if (distM < 3.0) {
+      // Dynamic noise gate: avoid stationary drift while capturing real movement
+      var minMoveMeters = tracker.accuracyMeters <= 25 ? 1.4 : (tracker.accuracyMeters <= 65 ? 2.2 : 3.2);
+      if (distM < minMoveMeters) {
         tracker.updateMapHunterOnly(lat, lng, accuracy, heading);
+        tracker.updateLiveHudDom();
         return;
       }
 
-      // Speed Gate: Ignore physically impossible human sprint jumps (> 35 km/h / 9.7 m/s)
-      var calcSpeedMps = timeDeltaSec > 0 ? distM / timeDeltaSec : 0;
-      if (calcSpeedMps > 9.7) {
+      // Speed Gate: Ignore physically impossible human sprint jumps (> 36 km/h / 10 m/s)
+      var calcSpeedMps = timeDeltaSec > 0.4 ? distM / timeDeltaSec : 0;
+      if (calcSpeedMps > 10.0) {
         return; // Glitch spike rejected
       }
 
@@ -642,7 +691,6 @@ window.SYS = window.SYS || {};
 
       // Fallback step estimation if device motion is absent
       if (tracker.stepTimestamps.length === 0) {
-        // Average human running stride length ≈ 0.78 - 0.85 meters
         var estimatedSteps = Math.floor(tracker.totalDistanceMeters / 0.82);
         tracker.totalSteps = estimatedSteps;
       }
@@ -652,17 +700,25 @@ window.SYS = window.SYS || {};
 
       tracker.lastValidFix = { lat: lat, lng: lng, time: now, alt: altitude };
       tracker.updateMapFull(pt, accuracy, heading);
+      tracker.updateLiveHudDom();
     },
 
     onLocationError: function (err) {
+      var now = Date.now();
       if (err.code === 1) { // PERMISSION_DENIED
         tracker.gpsStatus = 'DENIED';
       } else if (err.code === 2) { // POSITION_UNAVAILABLE
-        tracker.gpsStatus = 'UNAVAILABLE';
+        if (!tracker.lastValidFix || (now - tracker.lastValidFix.time > 20000)) {
+          tracker.gpsStatus = 'UNAVAILABLE';
+        }
       } else {
-        tracker.gpsStatus = 'WEAK';
+        // TIMEOUT
+        // If we recently had a valid fix (< 15 seconds), keep status as FAIR or GOOD instead of dropping to WEAK
+        if (!tracker.lastValidFix || (now - tracker.lastValidFix.time > 15000)) {
+          tracker.gpsStatus = 'FAIR';
+        }
       }
-      if (S.ui) S.ui.render();
+      tracker.updateLiveHudDom();
     },
 
     haversine: function (lat1, lon1, lat2, lon2) {
@@ -791,6 +847,21 @@ window.SYS = window.SYS || {};
         tracker.movingSeconds++;
       }
       tracker.lastTickTime = now;
+
+      // Active Satellite Watchdog: If no fix for 5 seconds while active, ping hardware GPS
+      if (tracker.isActive && !tracker.isPaused && 'geolocation' in navigator) {
+        if (!tracker._lastGpsPingTime || (now - tracker._lastGpsPingTime > 5000)) {
+          var timeSinceFix = tracker.lastValidFix ? (now - tracker.lastValidFix.time) : 99999;
+          if (timeSinceFix > 5000) {
+            tracker._lastGpsPingTime = now;
+            navigator.geolocation.getCurrentPosition(
+              function (pos) { tracker.onLocationUpdate(pos); },
+              function () {},
+              { enableHighAccuracy: true, timeout: 6000, maximumAge: 4000 }
+            );
+          }
+        }
+      }
 
       // Calculate Cadence (Steps Per Minute)
       var cutoff = now - 10000;
@@ -962,7 +1033,7 @@ window.SYS = window.SYS || {};
                 tracker.onLocationUpdate(pos);
               },
               function () {},
-              { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+              { enableHighAccuracy: true, timeout: 8000, maximumAge: 4000 }
             );
           }
 
