@@ -1928,8 +1928,11 @@ window.SYS = window.SYS || {};
 
     renderAwakeningModal: function () {
       var step = 'NARRATOR';
+      var savedEmail = '';
 
-      function showStep() {
+      function showStep(prefEmail) {
+        if (prefEmail) savedEmail = prefEmail;
+
         if (step === 'NARRATOR') {
           UI.openModal(
             '<div style="max-width:100%; box-sizing:border-box; text-align:center;">' +
@@ -1973,61 +1976,82 @@ window.SYS = window.SYS || {};
             btnNarrator.addEventListener('click', onNarratorAccept);
             btnNarrator.addEventListener('touchend', onNarratorAccept);
           }
-        } else {
-          // step === 'REGISTER'
+        } else if (step === 'REGISTER') {
           var curProfile = (S.state && S.state.profile) || {};
           var existingName = (curProfile.hunterName && curProfile.hunterName !== 'PLAYER') ? curProfile.hunterName : '';
-          var existingEmail = curProfile.email || (S.api && S.api.user ? S.api.user.email : '');
+          var existingEmail = savedEmail || curProfile.email || (S.api && S.api.user ? S.api.user.email : '');
 
           UI.openModal(
             '<div style="max-width:100%; box-sizing:border-box;">' +
-              '<div style="text-align:center; margin-bottom:8px;">' +
-                '<div class="font-display text-accent font-bold" style="font-size:clamp(15px, 4.2vw, 19px); letter-spacing:0.06em; line-height:1.2; text-shadow:0 0 10px rgba(0,229,255,0.4); text-transform:uppercase;">' +
-                  '[PLAYER REGISTRATION TERMINAL]' +
-                '</div>' +
-                '<p style="font-size:10.5px; color:var(--text-secondary); margin:2px 0 0; line-height:1.3;">' +
-                  'Designate your Hunter identity and connect your email for network sync.' +
-                '</p>' +
+              '<div style="display:flex; gap:6px; margin-bottom:8px;">' +
+                '<button type="button" class="sys-btn sm primary" style="flex:1; height:28px; font-size:10px; font-weight:700;">AWAKEN (REGISTER)</button>' +
+                '<button type="button" class="sys-btn sm" id="btn-goto-login" style="flex:1; height:28px; font-size:10px; font-weight:700;">SYSTEM LINK (LOGIN)</button>' +
               '</div>' +
-              '<form id="form-awaken" style="display:flex; flex-direction:column; gap:7px; margin:0; padding:0;">' +
+              '<div id="awaken-error-msg" style="display:none; color:#FF003C; font-size:10.5px; background:rgba(255,0,60,0.1); border-left:2px solid #FF003C; padding:4px 8px; margin-bottom:6px; font-family:var(--font-mono);"></div>' +
+              '<form id="form-awaken" style="display:flex; flex-direction:column; gap:6px; margin:0; padding:0;">' +
                 '<div>' +
                   '<label class="font-mono text-muted" style="display:block; font-size:9.5px; letter-spacing:0.05em; margin-bottom:2px;">HUNTER DESIGNATION (NAME)</label>' +
-                  '<input type="text" class="sys-input" id="awaken-name" placeholder="SUNG JIN-WOO" maxlength="18" value="' + U.esc(existingName) + '" style="width:100%; height:34px; padding:5px 8px; font-size:12px; box-sizing:border-box;" required>' +
+                  '<input type="text" class="sys-input" id="awaken-name" placeholder="SUNG JIN-WOO" maxlength="18" value="' + U.esc(existingName) + '" style="width:100%; height:32px; padding:4px 8px; font-size:12px; box-sizing:border-box;" required>' +
                 '</div>' +
                 '<div>' +
                   '<label class="font-mono text-muted" style="display:block; font-size:9.5px; letter-spacing:0.05em; margin-bottom:2px;">ASSOCIATION EMAIL (FOR CLOUD BACKUP &amp; SYNC)</label>' +
-                  '<input type="email" class="sys-input" id="awaken-email" placeholder="hunter@association.kr" value="' + U.esc(existingEmail) + '" style="width:100%; height:34px; padding:5px 8px; font-size:12px; box-sizing:border-box;" required>' +
+                  '<input type="email" class="sys-input" id="awaken-email" placeholder="hunter@association.kr" value="' + U.esc(existingEmail) + '" style="width:100%; height:32px; padding:4px 8px; font-size:12px; box-sizing:border-box;" required>' +
                 '</div>' +
                 '<div>' +
                   '<label class="font-mono text-muted" style="display:block; font-size:9.5px; letter-spacing:0.05em; margin-bottom:2px;">SECURITY PASSCODE (FOR LEADERBOARD SYNC)</label>' +
-                  '<input type="password" class="sys-input" id="awaken-pass" placeholder="Min 6 characters (Optional)" maxlength="32" style="width:100%; height:34px; padding:5px 8px; font-size:12px; box-sizing:border-box;">' +
+                  '<input type="password" class="sys-input" id="awaken-pass" placeholder="Min 6 characters (Optional)" maxlength="32" style="width:100%; height:32px; padding:4px 8px; font-size:12px; box-sizing:border-box;">' +
                 '</div>' +
                 '<div>' +
                   '<label class="font-mono text-muted" style="display:block; font-size:9.5px; letter-spacing:0.05em; margin-bottom:2px;">ACCOUNTABILITY DIRECTIVE (PENALTY MODE)</label>' +
-                  '<select class="sys-select" id="awaken-mode" style="width:100%; height:34px; padding:4px 8px; font-size:11.5px; box-sizing:border-box;">' +
+                  '<select class="sys-select" id="awaken-mode" style="width:100%; height:32px; padding:3px 8px; font-size:11px; box-sizing:border-box;">' +
                     '<option value="OPTIONAL">Standard Directive (Optional Penalty + Streak Recovery)</option>' +
                     '<option value="HARDCORE">Hardcore Directive (Mandatory Blood Crimson Zone)</option>' +
                   '</select>' +
                 '</div>' +
                 '<label class="font-mono" style="font-size:9.5px; line-height:1.2; display:flex; align-items:flex-start; gap:6px; color:var(--text-secondary); cursor:pointer; padding:1px 0;">' +
-                  '<input type="checkbox" id="awaken-preset" checked style="accent-color:var(--accent-core); width:14px; height:14px; margin-top:1px; flex-shrink:0;">' +
+                  '<input type="checkbox" id="awaken-preset" checked style="accent-color:var(--accent-core); width:13px; height:13px; margin-top:1px; flex-shrink:0;">' +
                   '<span>Install Canonical Quests (100 Push-ups, 100 Sit-ups, 100 Squats, 10km Run)</span>' +
                 '</label>' +
                 '<button type="button" class="sys-btn lg primary" id="btn-awaken-accept" style="width:100%; height:38px; font-size:12.5px; font-weight:700; letter-spacing:0.08em; margin-top:2px;">' +
                   'INITIALIZE SYSTEM &amp; ARISE' +
                 '</button>' +
+                '<div style="text-align:center; margin-top:4px; font-size:10.5px; color:var(--text-secondary);">' +
+                  'Already registered? <span id="link-goto-login" style="color:var(--accent-core); font-weight:700; text-decoration:underline; cursor:pointer;">Log in with existing account &rarr;</span>' +
+                '</div>' +
               '</form>' +
             '</div>'
           );
 
+          function switchToLogin(e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            var em = document.getElementById('awaken-email');
+            if (em && em.value) savedEmail = em.value.trim().toLowerCase();
+            step = 'LOGIN';
+            showStep();
+          }
+
+          var btnTabLog = document.getElementById('btn-goto-login');
+          if (btnTabLog) {
+            btnTabLog.addEventListener('click', switchToLogin);
+            btnTabLog.addEventListener('touchend', switchToLogin);
+          }
+          var linkTabLog = document.getElementById('link-goto-login');
+          if (linkTabLog) {
+            linkTabLog.addEventListener('click', switchToLogin);
+            linkTabLog.addEventListener('touchend', switchToLogin);
+          }
+
           var form = document.getElementById('form-awaken');
           var btn = document.getElementById('btn-awaken-accept');
 
-          function handleAwaken(e) {
+          async function handleAwaken(e) {
             if (e) {
               e.preventDefault();
               e.stopPropagation();
             }
+            var errEl = document.getElementById('awaken-error-msg');
+            if (errEl) errEl.style.display = 'none';
+
             var nameInput = document.getElementById('awaken-name');
             var rawName = nameInput ? nameInput.value : '';
             var name = (rawName || 'PLAYER').trim().slice(0, 18) || 'PLAYER';
@@ -2044,11 +2068,17 @@ window.SYS = window.SYS || {};
             var presetInput = document.getElementById('awaken-preset');
             var preset = presetInput ? presetInput.checked : true;
 
-            S.awaken(name, mode, preset, email);
-            if (pass && pass.length >= 6 && email && S.api && S.api.register) {
-              S.api.register({ email: email, password: pass, hunterName: name, mode: mode }).catch(function (err) {
-                console.warn('[REG SYNC STANDBY]', err);
-              });
+            var btnSub = document.getElementById('btn-awaken-accept');
+            if (btnSub) {
+              btnSub.disabled = true;
+              btnSub.textContent = 'INITIALIZING SYSTEM...';
+            }
+
+            // 1. Awaken immediately so user is never blocked or left waiting
+            try {
+              S.awaken(name, mode, preset, email);
+            } catch (awakenErr) {
+              console.error('[AWAKEN ERROR]', awakenErr);
             }
 
             if (S.audio) {
@@ -2057,12 +2087,147 @@ window.SYS = window.SYS || {};
             UI.closeModal();
             UI.showToast('[THE SYSTEM AWAKENED]', 'Welcome, Hunter ' + name + '. System contract initialized.', 'gold');
             UI.render();
+
+            // 2. Perform background cloud registration if email & password are provided
+            if (pass && pass.length >= 6 && email && S.api && S.api.register) {
+              S.api.register({ email: email, password: pass, hunterName: name, mode: mode })
+                .then(function () {
+                  UI.showToast('[CLOUD SYNC ACTIVE]', 'Hunter profile registered with Cloud database.', 'cyan');
+                  UI.render();
+                })
+                .catch(function (regErr) {
+                  console.warn('[REGISTRATION NOTICE]', regErr);
+                  var errMsg = (regErr && regErr.message) || '';
+                  if (errMsg.toLowerCase().includes('already registered') || errMsg.toLowerCase().includes('already exists') || errMsg.toLowerCase().includes('user_already_exists')) {
+                    UI.showToast('[ACCOUNT NOTICE]', 'Email already registered. You can link your passcode anytime in Settings.', 'gold');
+                  }
+                });
+            }
           }
 
           if (form) form.addEventListener('submit', handleAwaken);
           if (btn) {
             btn.addEventListener('click', handleAwaken);
             btn.addEventListener('touchend', handleAwaken);
+          }
+        } else if (step === 'LOGIN') {
+          var curProfile = (S.state && S.state.profile) || {};
+          var initialIdentifier = savedEmail || curProfile.email || (curProfile.hunterName && curProfile.hunterName !== 'PLAYER' ? curProfile.hunterName : '');
+
+          UI.openModal(
+            '<div style="max-width:100%; box-sizing:border-box;">' +
+              '<div style="display:flex; gap:6px; margin-bottom:8px;">' +
+                '<button type="button" class="sys-btn sm" id="btn-goto-register" style="flex:1; height:28px; font-size:10px; font-weight:700;">AWAKEN (REGISTER)</button>' +
+                '<button type="button" class="sys-btn sm primary" style="flex:1; height:28px; font-size:10px; font-weight:700;">SYSTEM LINK (LOGIN)</button>' +
+              '</div>' +
+              '<div id="login-error-msg" style="display:none; color:#FF003C; font-size:10.5px; background:rgba(255,0,60,0.1); border-left:2px solid #FF003C; padding:4px 8px; margin-bottom:6px; font-family:var(--font-mono);"></div>' +
+              '<form id="form-login" style="display:flex; flex-direction:column; gap:8px; margin:0; padding:0;">' +
+                '<div>' +
+                  '<label class="font-mono text-muted" style="display:block; font-size:9.5px; letter-spacing:0.05em; margin-bottom:2px;">ASSOCIATION EMAIL OR HUNTER NAME</label>' +
+                  '<input type="text" class="sys-input" id="login-identifier" placeholder="hunter@association.kr" value="' + U.esc(initialIdentifier) + '" style="width:100%; height:34px; padding:5px 8px; font-size:12px; box-sizing:border-box;" required>' +
+                '</div>' +
+                '<div>' +
+                  '<label class="font-mono text-muted" style="display:block; font-size:9.5px; letter-spacing:0.05em; margin-bottom:2px;">SECURITY PASSCODE</label>' +
+                  '<input type="password" class="sys-input" id="login-passcode" placeholder="Enter your passcode" style="width:100%; height:34px; padding:5px 8px; font-size:12px; box-sizing:border-box;" required>' +
+                '</div>' +
+                '<button type="button" class="sys-btn lg primary" id="btn-login-submit" style="width:100%; height:38px; font-size:12.5px; font-weight:700; letter-spacing:0.08em; margin-top:4px;">' +
+                  'LINK SYSTEM &amp; RESTORE PROGRESS' +
+                '</button>' +
+                '<div style="text-align:center; margin-top:4px; font-size:10.5px; color:var(--text-secondary);">' +
+                  'New Hunter? <span id="link-goto-register" style="color:var(--accent-core); font-weight:700; text-decoration:underline; cursor:pointer;">Awaken new profile &rarr;</span>' +
+                '</div>' +
+              '</form>' +
+            '</div>'
+          );
+
+          function switchToRegister(e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            var idEl = document.getElementById('login-identifier');
+            if (idEl && idEl.value && idEl.value.includes('@')) savedEmail = idEl.value.trim().toLowerCase();
+            step = 'REGISTER';
+            showStep();
+          }
+
+          var btnTabReg = document.getElementById('btn-goto-register');
+          if (btnTabReg) {
+            btnTabReg.addEventListener('click', switchToRegister);
+            btnTabReg.addEventListener('touchend', switchToRegister);
+          }
+          var linkTabReg = document.getElementById('link-goto-register');
+          if (linkTabReg) {
+            linkTabReg.addEventListener('click', switchToRegister);
+            linkTabReg.addEventListener('touchend', switchToRegister);
+          }
+
+          var formLog = document.getElementById('form-login');
+          var btnLog = document.getElementById('btn-login-submit');
+
+          async function handleLogin(e) {
+            if (e) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+            var errEl = document.getElementById('login-error-msg');
+            if (errEl) errEl.style.display = 'none';
+
+            var idInput = document.getElementById('login-identifier');
+            var identifier = idInput ? idInput.value.trim() : '';
+
+            var passInput = document.getElementById('login-passcode');
+            var pass = passInput ? passInput.value : '';
+
+            if (!identifier) {
+              if (errEl) { errEl.textContent = 'Please enter your Association Email or Hunter Name.'; errEl.style.display = 'block'; }
+              return;
+            }
+            if (!pass) {
+              if (errEl) { errEl.textContent = 'Please enter your Security Passcode.'; errEl.style.display = 'block'; }
+              return;
+            }
+
+            var btnSub = document.getElementById('btn-login-submit');
+            if (btnSub) {
+              btnSub.disabled = true;
+              btnSub.textContent = 'AUTHENTICATING...';
+            }
+
+            try {
+              var result = await S.api.login(identifier, pass);
+              if (S.auth && S.auth.pullFromCloud) {
+                try { await S.auth.pullFromCloud(); } catch (e) {}
+              }
+              if (S.state) {
+                S.state.initialized = true;
+                if (result && result.user && result.user.hunterName) {
+                  S.state.profile.hunterName = result.user.hunterName;
+                }
+                if (result && result.user && result.user.email) {
+                  S.state.profile.email = result.user.email;
+                }
+                S.commit();
+              }
+              if (S.audio) {
+                try { S.audio.rankUp(); } catch (err) {}
+              }
+              UI.closeModal();
+              UI.showToast('[SYSTEM LINK ESTABLISHED]', 'Welcome back, Hunter ' + ((result && result.user && result.user.hunterName) || 'Player') + '. Progress restored.', 'gold');
+              UI.render();
+            } catch (err) {
+              if (btnSub) {
+                btnSub.disabled = false;
+                btnSub.textContent = 'LINK SYSTEM & RESTORE PROGRESS';
+              }
+              if (errEl) {
+                errEl.textContent = err.message || 'Login failed. Please verify credentials.';
+                errEl.style.display = 'block';
+              }
+            }
+          }
+
+          if (formLog) formLog.addEventListener('submit', handleLogin);
+          if (btnLog) {
+            btnLog.addEventListener('click', handleLogin);
+            btnLog.addEventListener('touchend', handleLogin);
           }
         }
       }

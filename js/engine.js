@@ -289,9 +289,6 @@ window.SYS = window.SYS || {};
       S.addQuest(Object.assign({ difficulty: 'D', mode: 'COUNTER', isMandatory: true, recurring: true }, sp), true);
     });
   };
-  if (!S.state.quests || S.state.quests.length === 0) {
-    S.installPreset();
-  }
   S.removePreset = function () { S.state.quests = S.state.quests.filter(function (q) { return !q.preset; }); S.commit(); };
   function refreshPresetTargets() {
     var specs = S.presetSpecs(S.state.profile.rankTierIndex);
@@ -322,6 +319,10 @@ window.SYS = window.SYS || {};
     if (!silent) S.commit();
     return q;
   };
+
+  if (!S.state.quests || S.state.quests.length === 0) {
+    S.installPreset();
+  }
   S.deleteQuest = function (id) { S.state.quests = S.state.quests.filter(function (q) { return q.id !== id || q.isPenaltyQuest || q.isExam; }); S.commit(); };
   S.getQuest = function (id) { return S.state.quests.find(function (q) { return q.id === id; }); };
 
@@ -648,7 +649,11 @@ window.SYS = window.SYS || {};
 
   /* ======================= Loot & Vault ======================= */
   function grant(id, n) {
-    var inv = S.state.inventory;
+    var s = S.state;
+    if (!s) return;
+    var inv = s.inventory = s.inventory || { owned: {}, seen: {}, shadows: {}, boxes: { BLESSED: 1, CURSED: 0 } };
+    inv.owned = inv.owned || {};
+    inv.seen = inv.seen || {};
     inv.owned[id] = (inv.owned[id] || 0) + (n || 1);
     inv.seen[id] = true;
   }
@@ -832,7 +837,13 @@ window.SYS = window.SYS || {};
   /** Auto-unlocks titles and avatar borders whose conditions are met. */
   S.checkUnlocks = function () {
     var s = S.state;
+    if (!s) return;
+    s.unlockedTitles = s.unlockedTitles || ['t_weakest'];
+    s.unlockedBorders = s.unlockedBorders || ['br_e'];
+    s.unlockedSkins = s.unlockedSkins || ['skin_classic'];
+    if (!S.VAULT) return;
     S.VAULT.forEach(function (it) {
+      if (!it || !it.cond) return;
       if (it.category === 'TITLE' && s.unlockedTitles.indexOf(it.id) < 0 && it.cond(s)) {
         s.unlockedTitles.push(it.id);
         S.notify('[TITLE ACQUIRED]', '"' + it.name + '"', 'gold');
@@ -911,17 +922,24 @@ window.SYS = window.SYS || {};
   /* ======================= Onboarding ======================= */
   S.awaken = function (name, mode, usePreset, email) {
     var s = S.state;
+    if (!s) return;
+    s.profile = s.profile || {};
     s.profile.hunterName = (name || 'PLAYER').trim().slice(0, 18) || 'PLAYER';
     s.profile.penaltyMode = mode === 'HARDCORE' ? 'HARDCORE' : 'OPTIONAL';
     if (email) s.profile.email = String(email).trim().toLowerCase();
     s.initialized = true;
     s.currentDate = S.today();
+    s.settings = s.settings || {};
     s.settings.dayOffset = 0;
-    S.dayLog();
-    if (usePreset !== false) S.installPreset();
-    grant('c_pot_low', 1);
-    grant('c_key_subway', 1);
-    S.checkUnlocks();
+    try { S.dayLog(); } catch (e) {}
+    if (usePreset !== false) {
+      try { S.installPreset(); } catch (e) {}
+    }
+    try {
+      grant('c_pot_low', 1);
+      grant('c_key_subway', 1);
+      S.checkUnlocks();
+    } catch (e) {}
     S.commit();
   };
 })(window.SYS);
