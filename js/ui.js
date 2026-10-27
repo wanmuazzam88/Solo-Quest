@@ -129,11 +129,6 @@ window.SYS = window.SYS || {};
       var container = document.getElementById('view-container');
       if (!container) return;
 
-      if (!S.state.initialized) {
-        UI.renderAwakeningModal();
-        return;
-      }
-
       switch (currentView) {
         case 'quests':
           UI.renderCommandCenter(container);
@@ -158,6 +153,10 @@ window.SYS = window.SYS || {};
           break;
         default:
           UI.renderCommandCenter(container);
+      }
+
+      if (!S.state.initialized) {
+        UI.renderAwakeningModal();
       }
     },
 
@@ -2231,7 +2230,7 @@ window.SYS = window.SYS || {};
               S.state.profile.hunterName = name;
               S.state.profile.penaltyMode = mode;
               if (preset && (!S.state.quests || !S.state.quests.length)) {
-                S.initPresets();
+                S.installPreset();
               }
               S.save();
 
@@ -2260,6 +2259,7 @@ window.SYS = window.SYS || {};
                 errEl.style.background = 'rgba(255,0,60,0.1)';
                 errEl.textContent = err.message || 'Awakening registration failed.';
                 errEl.style.display = 'block';
+              }
               btnSub.disabled = false;
               btnSub.textContent = 'AWAKEN & SAVE PROGRESS';
             }

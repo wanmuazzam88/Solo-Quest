@@ -279,6 +279,9 @@ window.SYS = window.SYS || {};
       S.addQuest(Object.assign({ difficulty: 'D', mode: 'COUNTER', isMandatory: true, recurring: true }, sp), true);
     });
   };
+  if (!S.state.quests || S.state.quests.length === 0) {
+    S.installPreset();
+  }
   S.removePreset = function () { S.state.quests = S.state.quests.filter(function (q) { return !q.preset; }); S.commit(); };
   function refreshPresetTargets() {
     var specs = S.presetSpecs(S.state.profile.rankTierIndex);
