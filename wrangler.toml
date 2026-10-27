@@ -1,8 +1,10 @@
 name = "solo-quest"
+main = "worker.js"
 compatibility_date = "2024-09-23"
 
-# Static assets configuration for Cloudflare
+# Static assets configuration for Cloudflare Workers
 [assets]
 directory = "."
+binding = "ASSETS"
 not_found_handling = "single-page-application"
 html_handling = "auto-trailing-slash"
