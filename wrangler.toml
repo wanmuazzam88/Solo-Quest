@@ -1,0 +1,8 @@
+name = "solo-quest"
+compatibility_date = "2024-09-23"
+
+# Static assets configuration for Cloudflare
+[assets]
+directory = "."
+not_found_handling = "single-page-application"
+html_handling = "auto-trailing-slash"
