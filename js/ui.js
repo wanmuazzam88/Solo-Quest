@@ -60,7 +60,8 @@ window.SYS = window.SYS || {};
     bindEvents: function () {
       // Desktop Nav clicks
       document.querySelectorAll('.nav-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
           var view = btn.getAttribute('data-view');
           if (view) UI.setView(view);
         });
@@ -68,10 +69,13 @@ window.SYS = window.SYS || {};
 
       // Mobile Dock clicks
       document.querySelectorAll('.dock-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
+        function triggerView(e) {
+          if (e) e.preventDefault();
           var view = btn.getAttribute('data-view');
           if (view) UI.setView(view);
-        });
+        }
+        btn.addEventListener('click', triggerView);
+        btn.addEventListener('touchend', triggerView);
       });
 
       // Topbar Hunter Network & Database Auth Button
@@ -84,8 +88,11 @@ window.SYS = window.SYS || {};
     },
 
     setView: function (view) {
+      if (!view) return;
       currentView = view;
-      if (S.audio) S.audio.windowOpen();
+      if (S.audio) {
+        try { S.audio.windowOpen(); } catch (err) {}
+      }
       // Update active nav classes
       document.querySelectorAll('.nav-btn').forEach(function (b) {
         b.classList.toggle('active', b.getAttribute('data-view') === view);
@@ -97,11 +104,11 @@ window.SYS = window.SYS || {};
     },
 
     applyActiveTheme: function () {
-      var skinId = S.state.profile.activeSkinId || 'skin_classic';
-      var skin = S.ITEM[skinId];
+      var skinId = (S.state && S.state.profile && S.state.profile.activeSkinId) || 'skin_classic';
+      var skin = S.ITEM ? S.ITEM[skinId] : null;
       var root = document.documentElement;
 
-      if (S.state.profile.inPenaltyZone && S.state.profile.penaltyMode === 'HARDCORE') {
+      if (S.state && S.state.profile && S.state.profile.inPenaltyZone && S.state.profile.penaltyMode === 'HARDCORE') {
         document.body.classList.add('in-penalty-zone');
         root.style.setProperty('--accent-core', '#FF003C');
         root.style.setProperty('--accent-deep', '#8A0020');
@@ -129,30 +136,37 @@ window.SYS = window.SYS || {};
       var container = document.getElementById('view-container');
       if (!container) return;
 
-      switch (currentView) {
-        case 'quests':
-          UI.renderCommandCenter(container);
-          break;
-        case 'status':
-          UI.renderStatusView(container);
-          break;
-        case 'gate':
-          UI.renderGateView(container);
-          break;
-        case 'run':
-          UI.renderRunView(container);
-          break;
-        case 'vault':
-          UI.renderVaultView(container);
-          break;
-        case 'rank':
-          UI.renderRankView(container);
-          break;
-        case 'settings':
-          UI.renderSettingsView(container);
-          break;
-        default:
-          UI.renderCommandCenter(container);
+      try {
+        switch (currentView) {
+          case 'quests':
+            UI.renderCommandCenter(container);
+            break;
+          case 'status':
+            UI.renderStatusView(container);
+            break;
+          case 'gate':
+            UI.renderGateView(container);
+            break;
+          case 'run':
+            UI.renderRunView(container);
+            break;
+          case 'vault':
+            UI.renderVaultView(container);
+            break;
+          case 'rank':
+            UI.renderRankView(container);
+            break;
+          case 'settings':
+            UI.renderSettingsView(container);
+            break;
+          default:
+            UI.renderCommandCenter(container);
+        }
+      } catch (err) {
+        console.error('[VIEW RENDER ERROR]', err);
+        container.innerHTML = '<div class="system-panel text-center" style="max-width:540px; margin:20px auto;"><div class="text-danger font-bold" style="font-size:14px; margin-bottom:8px;">[SYSTEM TELEMETRY RECOVERY]</div><p style="color:var(--text-secondary); font-size:12px; margin-bottom:12px;">' + U.esc(err.message) + '</p><button class="sys-btn primary" id="btn-err-recover">RECOVER COMMAND CENTER</button></div>';
+        var btnRec = container.querySelector('#btn-err-recover');
+        if (btnRec) btnRec.addEventListener('click', function () { UI.setView('quests'); });
       }
     },
 
@@ -972,9 +986,11 @@ window.SYS = window.SYS || {};
     },
 
     renderVaultItemCard: function (it) {
+      if (!it) return '';
       var unlocked = S.isUnlocked(it);
-      var p = S.state.profile;
-      var isEquipped = p.equippedRelicIds.indexOf(it.id) >= 0;
+      var p = (S.state && S.state.profile) || {};
+      var relics = p.equippedRelicIds || [];
+      var isEquipped = relics.indexOf(it.id) >= 0;
       var isActiveSkin = p.activeSkinId === it.id;
       var isActiveTitle = p.activeTitle === it.id;
       var isActiveShadow = p.activeShadowId === it.id;
@@ -1001,7 +1017,9 @@ window.SYS = window.SYS || {};
             '<button class="sys-btn sm primary btn-apply-title" data-id="' + it.id + '">EQUIP</button>';
         } else if (it.category === 'SHADOW') {
           if (it.kind === 'shadow') {
-            var lvl = S.state.inventory.shadows[it.id] || 1;
+            var inv = (S.state && S.state.inventory) || {};
+            var shadows = inv.shadows || {};
+            var lvl = shadows[it.id] || 1;
             var upCost = S.shadowUpgradeCost(it.id);
             actions = '<div class="flex-between">' +
               '<span class="font-mono text-accent">LV. ' + lvl + '</span>' +
@@ -1909,67 +1927,147 @@ window.SYS = window.SYS || {};
     },
 
     renderAwakeningModal: function () {
-      UI.openModal(
-        '<div style="max-width:100%; box-sizing:border-box;">' +
-          '<div style="text-align:center; margin-bottom:10px;">' +
-            '<div class="font-display text-accent font-bold" style="font-size:clamp(16px, 4.4vw, 20px); letter-spacing:0.06em; line-height:1.2; text-shadow:0 0 10px rgba(0,229,255,0.4); text-transform:uppercase; word-break:break-word;">[THE SYSTEM HAS AWAKENED]</div>' +
-            '<p style="font-size:11px; color:var(--text-secondary); margin:3px 0 0; line-height:1.3;">You versus your old self, one quest at a time.</p>' +
-          '</div>' +
-          '<form id="form-awaken" style="display:flex; flex-direction:column; gap:9px; margin:0; padding:0;">' +
-            '<div>' +
-              '<label class="font-mono text-muted" style="display:block; font-size:10px; letter-spacing:0.05em; margin-bottom:3px;">HUNTER DESIGNATION (NAME)</label>' +
-              '<input type="text" class="sys-input" id="awaken-name" placeholder="SUNG JIN-WOO" maxlength="18" value="' + U.esc((S.state && S.state.profile && S.state.profile.hunterName && S.state.profile.hunterName !== 'PLAYER' ? S.state.profile.hunterName : '')) + '" style="width:100%; height:36px; padding:6px 10px; font-size:13px; box-sizing:border-box;">' +
-            '</div>' +
-            '<div>' +
-              '<label class="font-mono text-muted" style="display:block; font-size:10px; letter-spacing:0.05em; margin-bottom:3px;">ACCOUNTABILITY DIRECTIVE (PENALTY MODE)</label>' +
-              '<select class="sys-select" id="awaken-mode" style="width:100%; height:36px; padding:6px 10px; font-size:12px; box-sizing:border-box;">' +
-                '<option value="OPTIONAL">Standard Directive (Optional Penalty + Streak Recovery)</option>' +
-                '<option value="HARDCORE">Hardcore Directive (Mandatory Blood Crimson Zone)</option>' +
-              '</select>' +
-            '</div>' +
-            '<label class="font-mono" style="font-size:10px; line-height:1.3; display:flex; align-items:flex-start; gap:8px; color:var(--text-secondary); cursor:pointer; padding:2px 0;">' +
-              '<input type="checkbox" id="awaken-preset" checked style="accent-color:var(--accent-core); width:15px; height:15px; margin-top:1px; flex-shrink:0;">' +
-              '<span>Install Canonical Quests (100 Push-ups, 100 Sit-ups, 100 Squats, 10km Run)</span>' +
-            '</label>' +
-            '<button type="button" class="sys-btn lg primary" id="btn-awaken-accept" style="width:100%; height:40px; font-size:13px; font-weight:700; letter-spacing:0.08em; margin-top:4px;">ACCEPT PLAYER SYSTEM CONTRACT</button>' +
-          '</form>' +
-        '</div>'
-      );
+      var step = 'NARRATOR';
 
-      var form = document.getElementById('form-awaken');
-      var btn = document.getElementById('btn-awaken-accept');
+      function showStep() {
+        if (step === 'NARRATOR') {
+          UI.openModal(
+            '<div style="max-width:100%; box-sizing:border-box; text-align:center;">' +
+              '<div style="display:inline-flex; align-items:center; gap:6px; padding:3px 10px; background:rgba(0,229,255,0.12); border:1px solid rgba(0,229,255,0.5); clip-path:var(--clip-chamfer-sm); margin-bottom:8px;">' +
+                '<span class="db-status-dot pulsing" style="background:#00E5FF;"></span>' +
+                '<span class="font-mono text-accent font-bold" style="font-size:10px; letter-spacing:0.12em;">[SYSTEM DIRECTIVE // SECRET QUEST COMPLETED]</span>' +
+              '</div>' +
+              '<div class="font-display font-bold" style="font-size:clamp(16px, 4.4vw, 21px); color:#FFB703; letter-spacing:0.06em; line-height:1.2; text-shadow:0 0 14px rgba(255,183,3,0.5); margin-bottom:6px; text-transform:uppercase;">' +
+                '"COURAGE OF THE WEAK"' +
+              '</div>' +
+              '<div style="background:linear-gradient(180deg, rgba(13,27,42,0.85) 0%, rgba(6,11,18,0.95) 100%); border:1px solid rgba(0,229,255,0.3); clip-path:var(--clip-chamfer-sm); padding:10px 12px; margin-bottom:10px; text-align:left; box-shadow:inset 0 0 15px rgba(0,229,255,0.06);">' +
+                '<p style="font-size:12px; color:var(--text-primary); line-height:1.45; margin:0 0 6px;">' +
+                  '<strong class="text-accent">[SYSTEM]:</strong> You have survived the threshold where the weak perish. The world deemed you the weakest, but the System has chosen you alone as its <strong>Player</strong>.' +
+                '</p>' +
+                '<p style="font-size:12px; color:var(--text-secondary); line-height:1.45; margin:0 0 6px;">' +
+                  'Will you accept the contract and begin your leveling? Only those who face daily trials hold the power to rise above all monarchs.' +
+                '</p>' +
+                '<div style="font-family:var(--font-mono); font-size:10px; color:#FF003C; font-weight:700; letter-spacing:0.05em; background:rgba(255,0,60,0.1); border-left:2px solid #FF003C; padding:4px 8px;">' +
+                  '[WARNING: REFUSAL IS NOT AN OPTION. YOUR HEART WILL CEASE BEATING IN 0.02 SECONDS.]' +
+                '</div>' +
+              '</div>' +
+              '<button type="button" class="sys-btn lg primary" id="btn-narrator-accept" style="width:100%; height:40px; font-size:13px; font-weight:700; letter-spacing:0.08em; text-shadow:0 0 8px rgba(0,229,255,0.6);">' +
+                'ACCEPT CONTRACT &amp; AWAKEN &rarr;' +
+              '</button>' +
+            '</div>'
+          );
 
-      function handleAwaken(e) {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
+          var btnNarrator = document.getElementById('btn-narrator-accept');
+          function onNarratorAccept(e) {
+            if (e) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+            if (S.audio) {
+              try { S.audio.rankUp(); } catch (err) {}
+            }
+            step = 'REGISTER';
+            showStep();
+          }
+          if (btnNarrator) {
+            btnNarrator.addEventListener('click', onNarratorAccept);
+            btnNarrator.addEventListener('touchend', onNarratorAccept);
+          }
+        } else {
+          // step === 'REGISTER'
+          var curProfile = (S.state && S.state.profile) || {};
+          var existingName = (curProfile.hunterName && curProfile.hunterName !== 'PLAYER') ? curProfile.hunterName : '';
+          var existingEmail = curProfile.email || (S.api && S.api.user ? S.api.user.email : '');
+
+          UI.openModal(
+            '<div style="max-width:100%; box-sizing:border-box;">' +
+              '<div style="text-align:center; margin-bottom:8px;">' +
+                '<div class="font-display text-accent font-bold" style="font-size:clamp(15px, 4.2vw, 19px); letter-spacing:0.06em; line-height:1.2; text-shadow:0 0 10px rgba(0,229,255,0.4); text-transform:uppercase;">' +
+                  '[PLAYER REGISTRATION TERMINAL]' +
+                '</div>' +
+                '<p style="font-size:10.5px; color:var(--text-secondary); margin:2px 0 0; line-height:1.3;">' +
+                  'Designate your Hunter identity and connect your email for network sync.' +
+                '</p>' +
+              '</div>' +
+              '<form id="form-awaken" style="display:flex; flex-direction:column; gap:7px; margin:0; padding:0;">' +
+                '<div>' +
+                  '<label class="font-mono text-muted" style="display:block; font-size:9.5px; letter-spacing:0.05em; margin-bottom:2px;">HUNTER DESIGNATION (NAME)</label>' +
+                  '<input type="text" class="sys-input" id="awaken-name" placeholder="SUNG JIN-WOO" maxlength="18" value="' + U.esc(existingName) + '" style="width:100%; height:34px; padding:5px 8px; font-size:12px; box-sizing:border-box;" required>' +
+                '</div>' +
+                '<div>' +
+                  '<label class="font-mono text-muted" style="display:block; font-size:9.5px; letter-spacing:0.05em; margin-bottom:2px;">ASSOCIATION EMAIL (FOR CLOUD BACKUP &amp; SYNC)</label>' +
+                  '<input type="email" class="sys-input" id="awaken-email" placeholder="hunter@association.kr" value="' + U.esc(existingEmail) + '" style="width:100%; height:34px; padding:5px 8px; font-size:12px; box-sizing:border-box;" required>' +
+                '</div>' +
+                '<div>' +
+                  '<label class="font-mono text-muted" style="display:block; font-size:9.5px; letter-spacing:0.05em; margin-bottom:2px;">SECURITY PASSCODE (FOR LEADERBOARD SYNC)</label>' +
+                  '<input type="password" class="sys-input" id="awaken-pass" placeholder="Min 6 characters (Optional)" maxlength="32" style="width:100%; height:34px; padding:5px 8px; font-size:12px; box-sizing:border-box;">' +
+                '</div>' +
+                '<div>' +
+                  '<label class="font-mono text-muted" style="display:block; font-size:9.5px; letter-spacing:0.05em; margin-bottom:2px;">ACCOUNTABILITY DIRECTIVE (PENALTY MODE)</label>' +
+                  '<select class="sys-select" id="awaken-mode" style="width:100%; height:34px; padding:4px 8px; font-size:11.5px; box-sizing:border-box;">' +
+                    '<option value="OPTIONAL">Standard Directive (Optional Penalty + Streak Recovery)</option>' +
+                    '<option value="HARDCORE">Hardcore Directive (Mandatory Blood Crimson Zone)</option>' +
+                  '</select>' +
+                '</div>' +
+                '<label class="font-mono" style="font-size:9.5px; line-height:1.2; display:flex; align-items:flex-start; gap:6px; color:var(--text-secondary); cursor:pointer; padding:1px 0;">' +
+                  '<input type="checkbox" id="awaken-preset" checked style="accent-color:var(--accent-core); width:14px; height:14px; margin-top:1px; flex-shrink:0;">' +
+                  '<span>Install Canonical Quests (100 Push-ups, 100 Sit-ups, 100 Squats, 10km Run)</span>' +
+                '</label>' +
+                '<button type="button" class="sys-btn lg primary" id="btn-awaken-accept" style="width:100%; height:38px; font-size:12.5px; font-weight:700; letter-spacing:0.08em; margin-top:2px;">' +
+                  'INITIALIZE SYSTEM &amp; ARISE' +
+                '</button>' +
+              '</form>' +
+            '</div>'
+          );
+
+          var form = document.getElementById('form-awaken');
+          var btn = document.getElementById('btn-awaken-accept');
+
+          function handleAwaken(e) {
+            if (e) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+            var nameInput = document.getElementById('awaken-name');
+            var rawName = nameInput ? nameInput.value : '';
+            var name = (rawName || 'PLAYER').trim().slice(0, 18) || 'PLAYER';
+
+            var emailInput = document.getElementById('awaken-email');
+            var email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+
+            var passInput = document.getElementById('awaken-pass');
+            var pass = passInput ? passInput.value : '';
+
+            var modeInput = document.getElementById('awaken-mode');
+            var mode = modeInput ? modeInput.value : 'OPTIONAL';
+
+            var presetInput = document.getElementById('awaken-preset');
+            var preset = presetInput ? presetInput.checked : true;
+
+            S.awaken(name, mode, preset, email);
+            if (pass && pass.length >= 6 && email && S.api && S.api.register) {
+              S.api.register({ email: email, password: pass, hunterName: name, mode: mode }).catch(function (err) {
+                console.warn('[REG SYNC STANDBY]', err);
+              });
+            }
+
+            if (S.audio) {
+              try { S.audio.rankUp(); } catch (err) {}
+            }
+            UI.closeModal();
+            UI.showToast('[THE SYSTEM AWAKENED]', 'Welcome, Hunter ' + name + '. System contract initialized.', 'gold');
+            UI.render();
+          }
+
+          if (form) form.addEventListener('submit', handleAwaken);
+          if (btn) {
+            btn.addEventListener('click', handleAwaken);
+            btn.addEventListener('touchend', handleAwaken);
+          }
         }
-        var nameInput = document.getElementById('awaken-name');
-        var rawName = nameInput ? nameInput.value : '';
-        var name = (rawName || 'PLAYER').trim().slice(0, 18) || 'PLAYER';
-
-        var modeInput = document.getElementById('awaken-mode');
-        var mode = modeInput ? modeInput.value : 'OPTIONAL';
-
-        var presetInput = document.getElementById('awaken-preset');
-        var preset = presetInput ? presetInput.checked : true;
-
-        S.awaken(name, mode, preset);
-        if (S.audio) {
-          try { S.audio.rankUp(); } catch (err) {}
-        }
-        UI.closeModal();
-        UI.showToast('[THE SYSTEM AWAKENED]', 'Welcome, Hunter ' + name + '. System contract initialized.', 'gold');
-        UI.render();
       }
 
-      if (form) form.addEventListener('submit', handleAwaken);
-      if (btn) {
-        btn.addEventListener('click', handleAwaken);
-        btn.addEventListener('touchend', function (e) {
-          handleAwaken(e);
-        });
-      }
+      showStep();
     },
 
     /* --- Location Permission Guidance Modal --- */

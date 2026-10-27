@@ -112,19 +112,29 @@ window.SYS = window.SYS || {};
   /* ======================= Core math ======================= */
   /** XP_req(L) = floor(100 * L^1.65 + 50 * (L - 1)) */
   S.xpReq = function (L) { return Math.floor(100 * Math.pow(L, 1.65) + 50 * (L - 1)); };
-  S.rank = function (i) { return S.RANKS[i == null ? S.state.profile.rankTierIndex : i]; };
-  S.nextRank = function () { var i = S.state.profile.rankTierIndex + 1; return i < S.RANKS.length ? S.RANKS[i] : null; };
-  S.isFrozen = function () { var p = S.state.profile; return p.inPenaltyZone && p.penaltyMode === 'HARDCORE'; };
-  S.streakMult = function () { return 1 + Math.min(0.5, 0.02 * S.state.profile.streakDays); };
-  S.qty = function (id) { return S.state.inventory.owned[id] || 0; };
+  S.rank = function (i) {
+    var s = S.state;
+    var idx = i == null ? (s && s.profile ? s.profile.rankTierIndex : 0) : i;
+    idx = Math.max(0, Math.min(S.RANKS.length - 1, idx || 0));
+    return S.RANKS[idx] || S.RANKS[0];
+  };
+  S.nextRank = function () {
+    var s = S.state;
+    var i = ((s && s.profile ? s.profile.rankTierIndex : 0) || 0) + 1;
+    return i < S.RANKS.length ? S.RANKS[i] : null;
+  };
+  S.isFrozen = function () { var p = (S.state && S.state.profile) || {}; return !!(p.inPenaltyZone && p.penaltyMode === 'HARDCORE'); };
+  S.streakMult = function () { return 1 + Math.min(0.5, 0.02 * ((S.state && S.state.profile && S.state.profile.streakDays) || 0)); };
+  S.qty = function (id) { return (S.state && S.state.inventory && S.state.inventory.owned && S.state.inventory.owned[id]) || 0; };
 
   /** All active buff sources: equipped relics, active shadow, timed rune buffs. */
   S.activeBuffs = function () {
-    var s = S.state, p = s.profile, out = [];
+    var s = S.state, p = (s && s.profile) || {}, out = [];
     var sets = {};
-    p.equippedRelicIds.forEach(function (id) {
-      var it = id && S.ITEM[id];
-      if (!it) return;
+    var relics = p.equippedRelicIds || [];
+    relics.forEach(function (id) {
+      var it = id && S.ITEM ? S.ITEM[id] : null;
+      if (!it || !it.b) return;
       it.b.forEach(function (b) { out.push({ k: b.k, t: b.t, v: b.v, src: it.name }); });
       if (it.set) sets[it.set] = (sets[it.set] || 0) + 1;
     });
@@ -729,17 +739,29 @@ window.SYS = window.SYS || {};
   S.unequipRelic = function (id) { var p = S.state.profile; p.equippedRelicIds = p.equippedRelicIds.map(function (x) { return x === id ? null : x; }); S.commit(); };
 
   S.isUnlocked = function (it) {
+    if (!it) return false;
     var s = S.state;
+    if (!s) return false;
+    var inv = s.inventory = s.inventory || { owned: {}, seen: {}, shadows: {}, boxes: {} };
+    inv.owned = inv.owned || {};
+    inv.seen = inv.seen || {};
+    inv.shadows = inv.shadows || {};
+    var skins = s.unlockedSkins || (s.unlockedSkins = ['skin_classic']);
+    var titles = s.unlockedTitles || (s.unlockedTitles = ['t_weakest']);
+    var borders = s.unlockedBorders || (s.unlockedBorders = ['br_e']);
+
     switch (it.category) {
       case 'RELIC': return S.qty(it.id) > 0;
-      case 'CONSUMABLE': return !!s.inventory.seen[it.id];
-      case 'SKIN': return s.unlockedSkins.indexOf(it.id) >= 0;
-      case 'TITLE': return s.unlockedTitles.indexOf(it.id) >= 0;
-      case 'SHADOW': return it.kind === 'border' ? s.unlockedBorders.indexOf(it.id) >= 0 : !!s.inventory.shadows[it.id];
+      case 'CONSUMABLE': return !!inv.seen[it.id];
+      case 'SKIN': return skins.indexOf(it.id) >= 0;
+      case 'TITLE': return titles.indexOf(it.id) >= 0;
+      case 'SHADOW': return it.kind === 'border' ? borders.indexOf(it.id) >= 0 : !!inv.shadows[it.id];
     }
     return false;
   };
-  S.collectionCount = function () { return S.VAULT.filter(S.isUnlocked).length; };
+  S.collectionCount = function () {
+    return S.VAULT ? S.VAULT.filter(function (it) { return S.isUnlocked(it); }).length : 0;
+  };
 
   S.buySkin = function (id) {
     var s = S.state, it = S.ITEM[id];
@@ -773,7 +795,13 @@ window.SYS = window.SYS || {};
     S.commit();
     return true;
   };
-  S.shadowUpgradeCost = function (id) { var lvl = S.state.inventory.shadows[id] || 1; return Math.ceil(S.ITEM[id].cost * 0.25 * lvl); };
+  S.shadowUpgradeCost = function (id) {
+    var inv = (S.state && S.state.inventory) || {};
+    var shadows = inv.shadows || {};
+    var lvl = shadows[id] || 1;
+    var it = S.ITEM ? S.ITEM[id] : null;
+    return it ? Math.ceil(it.cost * 0.25 * lvl) : 10;
+  };
   S.upgradeShadow = function (id) {
     var s = S.state, lvl = s.inventory.shadows[id];
     if (!lvl || lvl >= 10 || S.isFrozen()) return false;
@@ -842,44 +870,50 @@ window.SYS = window.SYS || {};
   S.seasonHrs = function () { var t = S.state.currentDate; return S.hrs(U.weekStart(t), t); };
 
   S.boards = function (view) {
-    var s = S.state, p = s.profile, t = s.currentDate, ws = U.weekStart(t);
+    var s = S.state;
+    var p = (s && s.profile) ? s.profile : { hunterName: 'PLAYER', rankTierIndex: 0, level: 1, maxStreak: 0 };
+    var t = (s && s.currentDate) ? s.currentDate : S.today();
+    var ws = U.weekStart(t);
     var dayIdx = (U.parseDate(t).getDay() + 6) % 7;
     var now = S.nowDate();
     var frac = Math.max(0.04, (dayIdx + (now.getHours() * 60 + now.getMinutes()) / 1440) / 7);
-    var tier = p.rankTierIndex;
-    var rand = U.rng(U.hash(ws + view + (view === 'DIVISION' ? tier : '')));
-    var names = S.RIVAL_NAMES.slice();
+    var tier = Math.max(0, Math.min(S.RANKS.length - 1, p.rankTierIndex || 0));
+    var rand = U.rng(U.hash(ws + (view || 'VANGUARD') + (view === 'DIVISION' ? tier : '')));
+    var names = (S.RIVAL_NAMES && S.RIVAL_NAMES.length) ? S.RIVAL_NAMES.slice() : ['HUNTER_CHA', 'BAEK_YOON', 'HWANG_DONGSOO', 'CHOI_JONGIN'];
     for (var i = names.length - 1; i > 0; i--) { var j = Math.floor(rand() * (i + 1)); var tmp = names[i]; names[i] = names[j]; names[j] = tmp; }
     var rows = [];
-    var me = { name: p.hunterName.toUpperCase(), you: true, tier: S.rank().code, level: p.level };
+    var myRank = S.rank ? S.rank() : S.RANKS[0];
+    var me = { name: (p.hunterName || 'PLAYER').toUpperCase(), you: true, tier: (myRank ? myRank.code : 'E-IV'), level: p.level || 1 };
     if (view === 'HALL') {
-      for (var k = 0; k < 49; k++) {
+      for (var k = 0; k < Math.min(names.length, 49); k++) {
         var lv = Math.max(1, Math.floor(Math.pow(rand(), 1.8) * 118) + 1);
         var ti = 0; for (var x = 0; x < S.RANKS.length; x++) if (lv >= S.RANKS[x].minLevel) ti = x;
-        ti = Math.max(0, ti - Math.floor(rand() * 3));
+        ti = Math.max(0, Math.min(S.RANKS.length - 1, ti - Math.floor(rand() * 3)));
         rows.push({ name: names[k], tier: S.RANKS[ti].code, level: lv, streak: Math.floor(rand() * lv * 3), score: Math.floor(lv * 60 + lv * 55 * (0.8 + rand() * 0.5) + ti * 250) });
       }
-      me.streak = p.maxStreak; me.score = S.combatPower();
+      me.streak = p.maxStreak || 0; me.score = S.combatPower ? S.combatPower() : 100;
     } else {
-      var count = 49;
+      var count = Math.min(names.length, 49);
       for (var m = 0; m < count; m++) {
-        var rt = view === 'DIVISION' ? tier : Math.floor(Math.pow(rand(), 1.6) * 22);
+        var rt = view === 'DIVISION' ? tier : Math.floor(Math.pow(rand(), 1.6) * S.RANKS.length);
+        rt = Math.max(0, Math.min(S.RANKS.length - 1, rt));
         var typical = (rt + 1) * 210 + 300;
         rows.push({ name: names[m], tier: S.RANKS[rt].code, score: Math.floor(typical * 7 * frac * (0.35 + rand() * 1.3)) });
       }
-      me.score = S.seasonHrs().total;
+      me.score = (S.seasonHrs && S.seasonHrs().total) ? S.seasonHrs().total : 0;
     }
     rows.push(me);
-    rows.sort(function (a, b) { return b.score - a.score; });
+    rows.sort(function (a, b) { return (b.score || 0) - (a.score || 0); });
     rows.forEach(function (r, i) { r.pos = i + 1; });
     return rows;
   };
 
   /* ======================= Onboarding ======================= */
-  S.awaken = function (name, mode, usePreset) {
+  S.awaken = function (name, mode, usePreset, email) {
     var s = S.state;
     s.profile.hunterName = (name || 'PLAYER').trim().slice(0, 18) || 'PLAYER';
     s.profile.penaltyMode = mode === 'HARDCORE' ? 'HARDCORE' : 'OPTIONAL';
+    if (email) s.profile.email = String(email).trim().toLowerCase();
     s.initialized = true;
     s.currentDate = S.today();
     s.settings.dayOffset = 0;
