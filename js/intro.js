@@ -1,19 +1,23 @@
 /* ==========================================================================
-   THE SYSTEM // PROJECT: ARISE — Solo Leveling Opening Intro Animation
-   High-performance procedural canvas renderer & cinematic sequence.
+   THE SYSTEM // PROJECT: ARISE — Cinematic Introduction Animation
+   Modeled after Set-as-known Trait Icon Animation (Relentless) & Solo Leveling.
    Features:
-   - Double Dungeon ancient runic magic circle rotation
-   - Shadow Monarch dark mist & floating mana embers
-   - Sung Jin-woo's iconic glowing electric-cyan eye flare with smoke trails
-   - Branching mana lightning discharge
-   - Seismic [ARISE] (일어나라) shockwave pulse and radial spark burst
-   - Procedural Web Audio API sound synchronization
+   - Synchronized High-Definition Video Animation (Beating Heart, Stone Fortress,
+     Kinetic Projectile Impact, Syringe Piercing, and Unbroken Heart Breakthrough)
+   - Synchronized Master Sound Suite (Deep biological heartbeats, crushing stone,
+     heavy impacts, and seismic ARISE mana burst)
+   - Real-Time ECG Biometric Vital HUD (Dynamic BPM scanner & vitals)
+   - Kinetic Screen Shakes, Impact Flashes, and Fissure Lightning Arcs
+   - Sung Jin-woo Glowing Cyan Eye Flare & Billowing Shadow Flame Trails
+   - Seismic [ARISE] (일어나라) Shockwave & Radial Spark Particles
+   - Seamless chaining to Narrator Awakening / Command Center & 0ms Skip
    ========================================================================== */
 window.SYS = window.SYS || {};
 (function (S) {
   'use strict';
 
   var overlay = null;
+  var video = null;
   var canvas = null;
   var ctx = null;
   var animFrameId = null;
@@ -30,12 +34,16 @@ window.SYS = window.SYS || {};
   var lightnings = [];
   var shockwaveRadius = 0;
   var shockwaveTriggered = false;
+  var stageImpact1 = false;
+  var stageImpact2 = false;
+  var stageArise = false;
 
-  var DURATION_SEC = 3.6;
+  var DURATION_SEC = 9.8;
 
   function initOverlay() {
     overlay = document.getElementById('monarch-intro-overlay');
     if (!overlay) return;
+    video = document.getElementById('intro-vid');
     canvas = document.getElementById('intro-canvas');
     if (canvas) ctx = canvas.getContext('2d');
 
@@ -45,15 +53,25 @@ window.SYS = window.SYS || {};
         if (e) { e.preventDefault(); e.stopPropagation(); }
         S.intro.skip();
       }
-      btnSkip.addEventListener('click', doSkip);
-      btnSkip.addEventListener('touchend', doSkip);
+      btnSkip.onclick = doSkip;
+      btnSkip.ontouchend = doSkip;
     }
 
-    // Tapping overlay background also allows instant skip
-    overlay.addEventListener('click', function (e) {
+    // Tapping overlay background: unlocks audio if blocked, or skips on second tap
+    var audioPrompt = document.getElementById('intro-audio-prompt');
+    overlay.onclick = function (e) {
       if (e.target && e.target.id === 'btn-intro-skip') return;
-      S.intro.skip();
-    });
+
+      // Try unlocking audio if currently not playing
+      if (S.audio && S.audio.currentIntroAudio && S.audio.currentIntroAudio.paused) {
+        S.audio.currentIntroAudio.play().then(function () {
+          if (audioPrompt) audioPrompt.style.display = 'none';
+        }).catch(function () {});
+      } else {
+        // If audio is already active, tap skips the animation
+        S.intro.skip();
+      }
+    };
   }
 
   function resize() {
@@ -73,31 +91,45 @@ window.SYS = window.SYS || {};
 
   function initEmbers() {
     embers = [];
-    var count = Math.min(60, Math.floor(width * 0.08));
+    var count = Math.min(50, Math.floor(width * 0.06));
     for (var i = 0; i < count; i++) {
       embers.push({
         x: Math.random() * width,
         y: Math.random() * height,
         r: Math.random() * 2.2 + 0.8,
-        vy: -Math.random() * 1.2 - 0.4,
-        vx: (Math.random() - 0.5) * 0.6,
+        vy: -Math.random() * 1.4 - 0.5,
+        vx: (Math.random() - 0.5) * 0.7,
         alpha: Math.random() * 0.7 + 0.3,
-        hue: Math.random() > 0.4 ? '0, 229, 255' : '150, 60, 255', // Cyan or Monarch violet
+        hue: Math.random() > 0.35 ? '0, 229, 255' : '150, 60, 255',
         seed: Math.random() * Math.PI * 2
       });
     }
   }
 
+  function triggerShake(type) {
+    if (!overlay) return;
+    overlay.classList.remove('shake-light', 'shake-heavy', 'flash-impact');
+    void overlay.offsetWidth; // Force reflow
+    if (type === 'light') {
+      overlay.classList.add('shake-light');
+    } else if (type === 'heavy') {
+      overlay.classList.add('shake-heavy', 'flash-impact');
+    }
+    setTimeout(function () {
+      if (overlay) overlay.classList.remove('shake-light', 'shake-heavy', 'flash-impact');
+    }, 500);
+  }
+
   function spawnShockwave() {
     shockwaveRadius = 1;
     shockwaveSparks = [];
-    var count = 55;
+    var count = 65;
     var cx = width / 2;
-    var cy = height * 0.42;
+    var cy = height * 0.44;
 
     for (var i = 0; i < count; i++) {
-      var angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.2;
-      var speed = Math.random() * 9 + 4;
+      var angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.25;
+      var speed = Math.random() * 11 + 4;
       shockwaveSparks.push({
         x: cx,
         y: cy,
@@ -116,7 +148,7 @@ window.SYS = window.SYS || {};
     var dx = (x2 - x1) / steps;
     var dy = (y2 - y1) / steps;
     for (var i = 1; i < steps; i++) {
-      var offset = (Math.random() - 0.5) * 45;
+      var offset = (Math.random() - 0.5) * 55;
       points.push({
         x: x1 + dx * i - dy * (offset / 50),
         y: y1 + dy * i + dx * (offset / 50) + offset
@@ -126,253 +158,168 @@ window.SYS = window.SYS || {};
     return points;
   }
 
-  // Draw ancient double-dungeon runic circle
-  function drawRuneCircle(cx, cy, radius, alpha, angle) {
+  // Draw Sung Jin-woo's iconic glowing cyan eye flare with bezier shadow flame trails
+  function drawEyeFlare(cx, cy, scale, alpha, time) {
     if (alpha <= 0.01) return;
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.rotate(angle);
+    ctx.scale(scale, scale);
 
-    // Outer glow ring
-    ctx.strokeStyle = 'rgba(0, 229, 255, ' + (alpha * 0.6) + ')';
-    ctx.lineWidth = 2;
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = '#00E5FF';
-    ctx.beginPath();
-    ctx.arc(0, 0, radius, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Secondary dashed circle
-    ctx.strokeStyle = 'rgba(0, 229, 255, ' + (alpha * 0.4) + ')';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([8, 6]);
-    ctx.beginPath();
-    ctx.arc(0, 0, radius * 0.88, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Runic tick marks
-    var ticks = 32;
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = 'rgba(0, 229, 255, ' + (alpha * 0.75) + ')';
-    for (var i = 0; i < ticks; i++) {
-      var a = (i / ticks) * Math.PI * 2;
-      var r1 = radius * 0.88;
-      var r2 = radius * (i % 4 === 0 ? 1.05 : 0.98);
-      ctx.beginPath();
-      ctx.moveTo(Math.cos(a) * r1, Math.sin(a) * r1);
-      ctx.lineTo(Math.cos(a) * r2, Math.sin(a) * r2);
-      ctx.stroke();
-    }
-
-    // Inner sacred geometry star
-    var starPts = 8;
-    ctx.strokeStyle = 'rgba(125, 249, 255, ' + (alpha * 0.45) + ')';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (var j = 0; j < starPts * 2; j++) {
-      var sa = (j / (starPts * 2)) * Math.PI * 2;
-      var sr = j % 2 === 0 ? radius * 0.65 : radius * 0.35;
-      if (j === 0) ctx.moveTo(Math.cos(sa) * sr, Math.sin(sa) * sr);
-      else ctx.lineTo(Math.cos(sa) * sr, Math.sin(sa) * sr);
-    }
-    ctx.closePath();
-    ctx.stroke();
-
-    // Central pulsing glyph core
-    ctx.strokeStyle = 'rgba(255, 255, 255, ' + (alpha * 0.7) + ')';
-    ctx.beginPath();
-    ctx.arc(0, 0, radius * 0.18, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.restore();
-  }
-
-  // Draw Jin-woo's iconic glowing cyan eye slit with burning flame smoke trails
-  function drawMonarchEyeFlare(cx, cy, intensity, time) {
-    if (intensity <= 0.01) return;
-    ctx.save();
-
-    var eyeSpacing = Math.min(width * 0.18, 68);
-    var eyeWidth = 26 * intensity;
-    var eyeHeight = 6 * intensity;
-
-    // Both left and right eyes
     var eyes = [
-      { x: cx - eyeSpacing, dir: -1 },
-      { x: cx + eyeSpacing, dir: 1 }
+      { x: -32, dir: -1 },
+      { x: 32, dir: 1 }
     ];
 
-    eyes.forEach(function (eye) {
+    for (var e = 0; e < eyes.length; e++) {
+      var eye = eyes[e];
       var ex = eye.x;
-      var ey = cy;
+      var ey = 0;
 
-      // 1. Horizontal lens flare line
-      var beamLen = 140 * intensity;
-      var grad = ctx.createLinearGradient(ex - beamLen, ey, ex + beamLen, ey);
-      grad.addColorStop(0, 'rgba(0, 229, 255, 0)');
-      grad.addColorStop(0.3, 'rgba(0, 229, 255, ' + (0.35 * intensity) + ')');
-      grad.addColorStop(0.5, 'rgba(255, 255, 255, ' + (0.95 * intensity) + ')');
-      grad.addColorStop(0.7, 'rgba(0, 229, 255, ' + (0.35 * intensity) + ')');
-      grad.addColorStop(1, 'rgba(0, 229, 255, 0)');
+      // Outer radial cyan corona
+      var corona = ctx.createRadialGradient(ex, ey, 2, ex, ey, 55);
+      corona.addColorStop(0, 'rgba(0, 229, 255, ' + (alpha * 0.95) + ')');
+      corona.addColorStop(0.3, 'rgba(0, 150, 255, ' + (alpha * 0.6) + ')');
+      corona.addColorStop(0.7, 'rgba(138, 43, 226, ' + (alpha * 0.25) + ')');
+      corona.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
-      ctx.strokeStyle = grad;
-      ctx.lineWidth = 3 * intensity;
+      ctx.fillStyle = corona;
       ctx.beginPath();
-      ctx.moveTo(ex - beamLen, ey);
-      ctx.lineTo(ex + beamLen, ey);
-      ctx.stroke();
+      ctx.arc(ex, ey, 55, 0, Math.PI * 2);
+      ctx.fill();
 
-      // 2. Eye slit core (blazing cyan/white vertical slit)
-      ctx.shadowBlur = 24 * intensity;
-      ctx.shadowColor = '#00E5FF';
+      // Sharp piercing eye slit core
       ctx.fillStyle = '#FFFFFF';
+      ctx.shadowBlur = 18;
+      ctx.shadowColor = '#00E5FF';
       ctx.beginPath();
-      ctx.ellipse(ex, ey, eyeWidth, eyeHeight, 0, 0, Math.PI * 2);
+      ctx.ellipse(ex, ey, 9, 3.5, 0.15 * eye.dir, 0, Math.PI * 2);
       ctx.fill();
 
-      // Sharp central slit
-      ctx.fillStyle = 'rgba(0, 229, 255, ' + (0.9 * intensity) + ')';
-      ctx.beginPath();
-      ctx.ellipse(ex, ey, eyeWidth * 0.45, eyeHeight * 1.5, 0, 0, Math.PI * 2);
-      ctx.fill();
+      // Billowing upward shadow mana flame trails
+      for (var f = 0; f < 3; f++) {
+        var flameOffset = Math.sin(time * 6 + f * 1.5) * 12;
+        var flameLen = 45 + f * 18;
 
-      // 3. Ethereal flame smoke trail curving outward
-      var trailCount = 4;
-      for (var t = 0; t < trailCount; t++) {
-        var trailLen = (90 + t * 30) * intensity;
-        var wave = Math.sin(time * 6 + t * 1.8) * 14 * intensity;
-        var endX = ex + eye.dir * trailLen;
-        var endY = ey - (25 + t * 15 + wave);
-
-        ctx.strokeStyle = 'rgba(0, 229, 255, ' + ((0.45 - t * 0.08) * intensity) + ')';
-        ctx.lineWidth = (3.5 - t * 0.6) * intensity;
-        ctx.shadowBlur = 16;
-        ctx.shadowColor = '#0066FF';
-
+        ctx.strokeStyle = 'rgba(0, 229, 255, ' + (alpha * (0.8 - f * 0.22)) + ')';
+        ctx.lineWidth = 3 - f * 0.7;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#00E5FF';
         ctx.beginPath();
-        ctx.moveTo(ex, ey);
-        ctx.bezierCurveTo(
-          ex + eye.dir * (trailLen * 0.4), ey - 10 + wave * 0.5,
-          ex + eye.dir * (trailLen * 0.7), ey - 20 - wave,
-          endX, endY
+        ctx.moveTo(ex + eye.dir * 6, ey);
+        ctx.quadraticCurveTo(
+          ex + eye.dir * (22 + f * 10) + flameOffset,
+          ey - flameLen * 0.5,
+          ex + eye.dir * (35 + f * 16) + flameOffset * 1.4,
+          ey - flameLen
         );
         ctx.stroke();
       }
-    });
+    }
 
     ctx.restore();
   }
 
-  // Animation frame loop
-  function render(timeMs) {
+  // Main 60fps render loop
+  function render(timestamp) {
     if (!isPlaying) return;
-    if (!startTime) startTime = timeMs;
-    var elapsed = (timeMs - startTime) / 1000;
+
+    if (!startTime) startTime = timestamp;
+    var elapsed = (timestamp - startTime) / 1000;
+
+    // Synchronize elapsed time with video if playing
+    if (video && !video.paused && video.currentTime > 0) {
+      elapsed = video.currentTime;
+    }
 
     ctx.clearRect(0, 0, width, height);
 
     var cx = width / 2;
-    var cy = height * 0.42;
+    var cy = height * 0.44;
 
-    // --- 1. Void Atmosphere & Floating Mana Embers ---
+    // --- 1. Ambient Floating Mana Embers ---
     for (var i = 0; i < embers.length; i++) {
       var p = embers[i];
       p.y += p.vy;
       p.x += p.vx + Math.sin(elapsed * 2 + p.seed) * 0.4;
-      if (p.y < -10) { p.y = height + 10; p.x = Math.random() * width; }
-      if (p.x < -10) p.x = width + 10;
-      if (p.x > width + 10) p.x = -10;
-
-      ctx.fillStyle = 'rgba(' + p.hue + ', ' + p.alpha + ')';
+      if (p.y < -10) {
+        p.y = height + 10;
+        p.x = Math.random() * width;
+      }
+      ctx.fillStyle = 'rgba(' + p.hue + ', ' + p.alpha * Math.min(1, elapsed * 1.5) + ')';
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // --- 2. Runic Magic Circle Phase (0s - 2.5s) ---
-    var runeRadius = Math.min(width, height) * 0.38;
-    var runeAlpha = 0;
-    if (elapsed < 0.8) {
-      runeAlpha = (elapsed / 0.8) * 0.65;
-    } else if (elapsed < 2.4) {
-      runeAlpha = 0.65 + Math.sin(elapsed * 5) * 0.15;
-    } else {
-      runeAlpha = Math.max(0, 0.65 - (elapsed - 2.4) * 0.7);
-    }
-    drawRuneCircle(cx, cy, runeRadius, runeAlpha, elapsed * 0.35);
-
-    // --- 3. Monarch Eye Flare Phase (0.7s - 3.2s) ---
-    var eyeIntensity = 0;
-    if (elapsed >= 0.7 && elapsed < 1.6) {
-      eyeIntensity = Math.min(1, (elapsed - 0.7) / 0.8);
-    } else if (elapsed >= 1.6 && elapsed < 2.7) {
-      eyeIntensity = 1.0 + Math.sin((elapsed - 1.6) * 12) * 0.18;
-    } else if (elapsed >= 2.7) {
-      eyeIntensity = Math.max(0, 1 - (elapsed - 2.7) / 0.5);
-    }
-    drawMonarchEyeFlare(cx, cy, eyeIntensity, elapsed);
-
-    // --- 4. Branching Electric Lightning (1.2s - 2.4s) ---
-    if (elapsed >= 1.2 && elapsed < 2.4) {
-      if (Math.random() < 0.35) {
-        var a1 = Math.random() * Math.PI * 2;
-        var a2 = a1 + (Math.random() - 0.5) * 1.5;
-        var rDist = runeRadius * (0.4 + Math.random() * 0.6);
-        lightnings.push({
-          pts: generateLightning(
-            cx + Math.cos(a1) * (rDist * 0.3),
-            cy + Math.sin(a1) * (rDist * 0.3),
-            cx + Math.cos(a2) * rDist,
-            cy + Math.sin(a2) * rDist
-          ),
-          life: 1.0
-        });
-      }
+    // --- 2. Kinetic Impact 1 (Projectile Strike at ~3.2s) ---
+    if (elapsed >= 3.2 && !stageImpact1) {
+      stageImpact1 = true;
+      triggerShake('light');
     }
 
-    for (var l = lightnings.length - 1; l >= 0; l--) {
-      var bolt = lightnings[l];
-      bolt.life -= 0.14;
-      if (bolt.life <= 0) {
-        lightnings.splice(l, 1);
-        continue;
-      }
+    // --- 3. Kinetic Impact 2 (Fatal Syringe Piercing at ~4.3s) ---
+    if (elapsed >= 4.3 && !stageImpact2) {
+      stageImpact2 = true;
+      triggerShake('heavy');
+
+      // Spawn branching lightning arcs across the crack
+      lightnings = [
+        generateLightning(cx - 140, cy - 80, cx, cy),
+        generateLightning(cx + 120, cy - 90, cx, cy + 20),
+        generateLightning(cx - 30, cy - 130, cx + 50, cy + 40)
+      ];
+    }
+
+    // Render mana lightning arcs during impact
+    if (elapsed >= 4.3 && elapsed <= 5.2 && lightnings.length > 0) {
       ctx.save();
-      ctx.strokeStyle = 'rgba(125, 249, 255, ' + bolt.life + ')';
-      ctx.lineWidth = 1.8 * bolt.life;
-      ctx.shadowBlur = 12;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2.5;
+      ctx.shadowBlur = 18;
       ctx.shadowColor = '#00E5FF';
-      ctx.beginPath();
-      ctx.moveTo(bolt.pts[0].x, bolt.pts[0].y);
-      for (var pi = 1; pi < bolt.pts.length; pi++) {
-        ctx.lineTo(bolt.pts[pi].x, bolt.pts[pi].y);
+      for (var l = 0; l < lightnings.length; l++) {
+        var pts = lightnings[l];
+        ctx.beginPath();
+        for (var pi = 0; pi < pts.length; pi++) {
+          var pt = pts[pi];
+          var jitterX = (Math.random() - 0.5) * 5;
+          var jitterY = (Math.random() - 0.5) * 5;
+          if (pi === 0) ctx.moveTo(pt.x + jitterX, pt.y + jitterY);
+          else ctx.lineTo(pt.x + jitterX, pt.y + jitterY);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();
       ctx.restore();
     }
 
-    // --- 5. [ARISE] Seismic Shockwave & Spark Burst (1.6s+) ---
-    if (elapsed >= 1.6 && !shockwaveTriggered) {
-      shockwaveTriggered = true;
+    // --- 4. The Unbroken Heart Breakthrough & Arise (6.2s+) ---
+    if (elapsed >= 6.2 && !stageArise) {
+      stageArise = true;
       spawnShockwave();
     }
 
-    if (shockwaveTriggered && shockwaveRadius < Math.max(width, height) * 1.2) {
-      shockwaveRadius += (Math.max(width, height) * 0.05);
-      var waveAlpha = Math.max(0, 1 - shockwaveRadius / (Math.max(width, height) * 1.1));
+    // Sung Jin-woo eye flare emerging from the unbroken heart
+    if (elapsed >= 6.2) {
+      var eyeAlpha = Math.min(1, (elapsed - 6.2) * 1.2);
+      drawEyeFlare(cx, cy - 25, 1.15, eyeAlpha, elapsed);
+    }
+
+    // Expanding shockwave pulse & sparks
+    if (stageArise && shockwaveRadius < Math.max(width, height) * 1.3) {
+      shockwaveRadius += (Math.max(width, height) * 0.045);
+      var waveAlpha = Math.max(0, 1 - shockwaveRadius / (Math.max(width, height) * 1.2));
 
       ctx.save();
       ctx.strokeStyle = 'rgba(0, 229, 255, ' + (waveAlpha * 0.85) + ')';
-      ctx.lineWidth = Math.max(1, 8 * waveAlpha);
-      ctx.shadowBlur = 25;
+      ctx.lineWidth = Math.max(1, 6 * waveAlpha);
+      ctx.shadowBlur = 24;
       ctx.shadowColor = '#00E5FF';
       ctx.beginPath();
       ctx.arc(cx, cy, shockwaveRadius, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
 
-      // Render radial sparks
+      // Render sparks
       for (var s = 0; s < shockwaveSparks.length; s++) {
         var sp = shockwaveSparks[s];
         sp.x += sp.vx;
@@ -390,25 +337,53 @@ window.SYS = window.SYS || {};
       }
     }
 
-    // --- 6. DOM Stage Synchronizations ---
+    // --- 5. DOM Stage Synchronizations ---
     var badgeEl = document.getElementById('intro-badge');
+    var badgeText = document.getElementById('intro-badge-text');
+    var ecgHud = document.getElementById('intro-ecg-hud');
+    var bpmEl = document.getElementById('intro-bpm');
     var sysBoxEl = document.getElementById('intro-sys-box');
+    var sysTitleEl = document.getElementById('intro-sys-title');
+    var sysDescEl = document.getElementById('intro-sys-desc');
     var ariseEl = document.getElementById('intro-arise-banner');
-    var descEl = document.getElementById('intro-sys-desc');
 
     if (elapsed >= 0.2 && badgeEl && !badgeEl.classList.contains('active')) {
       badgeEl.classList.add('active');
     }
 
-    if (elapsed >= 0.8 && sysBoxEl && !sysBoxEl.classList.contains('active')) {
-      sysBoxEl.classList.add('active');
-      var pName = (S.state && S.state.profile && S.state.profile.hunterName && S.state.profile.hunterName !== 'PLAYER') ?
-        S.state.profile.hunterName.toUpperCase() : 'SUNG JIN-WOO';
-      if (descEl) descEl.textContent = 'SYNCHRONIZING WITH PLAYER: ' + pName + '...';
+    if (elapsed >= 0.6 && ecgHud && !ecgHud.classList.contains('active')) {
+      ecgHud.classList.add('active');
     }
 
-    if (elapsed >= 1.6 && ariseEl && !ariseEl.classList.contains('active')) {
+    // Fluctuating organic BPM counter
+    if (bpmEl && elapsed < 6.0) {
+      var currentBpm = Math.floor(140 + Math.sin(elapsed * 5) * 6);
+      bpmEl.textContent = currentBpm;
+    }
+
+    // Phase 1: Fortitude stone barrier
+    if (elapsed >= 2.0 && elapsed < 3.2 && badgeText) {
+      badgeText.textContent = '[FORTITUDE PROTOCOL // HARDENED STONE CARAPACE]';
+    }
+
+    // Phase 2: First impact
+    if (elapsed >= 3.2 && elapsed < 4.3) {
+      if (sysBoxEl && !sysBoxEl.classList.contains('active')) sysBoxEl.classList.add('active');
+      if (sysTitleEl) sysTitleEl.textContent = '[KINETIC IMPACT DEFLECTED]';
+      if (sysDescEl) sysDescEl.textContent = 'SURVIVAL PROTOCOL // STONE SHATTERED, CORE UNBROKEN';
+    }
+
+    // Phase 3: Fatal syringe piercing
+    if (elapsed >= 4.3 && elapsed < 6.2) {
+      if (sysTitleEl) sysTitleEl.textContent = '[FATAL DAMAGE ABSORPTION]';
+      if (sysDescEl) sysDescEl.textContent = 'TRAIT: RELENTLESS // HEALTH CHUNK RETAINED';
+      if (badgeText) badgeText.textContent = '[SYSTEM DIRECTIVE // DEATH OVERRULED]';
+    }
+
+    // Phase 4: Arise & Relentless Manifestation
+    if (elapsed >= 6.2 && ariseEl && !ariseEl.classList.contains('active')) {
       if (sysBoxEl) sysBoxEl.style.display = 'none';
+      if (ecgHud) ecgHud.style.display = 'none';
       ariseEl.classList.add('active');
     }
 
@@ -427,6 +402,17 @@ window.SYS = window.SYS || {};
     if (animFrameId) {
       cancelAnimationFrame(animFrameId);
       animFrameId = null;
+    }
+
+    if (video) {
+      try {
+        video.pause();
+        video.currentTime = 0;
+      } catch (e) {}
+    }
+
+    if (S.audio && S.audio.stopIntroAudio) {
+      S.audio.stopIntroAudio();
     }
 
     if (overlay) {
@@ -460,6 +446,9 @@ window.SYS = window.SYS || {};
       isPlaying = true;
       startTime = 0;
       shockwaveTriggered = false;
+      stageImpact1 = false;
+      stageImpact2 = false;
+      stageArise = false;
       lightnings = [];
 
       overlay.style.display = 'flex';
@@ -467,21 +456,44 @@ window.SYS = window.SYS || {};
 
       // Reset DOM element animations
       var badgeEl = document.getElementById('intro-badge');
+      var badgeText = document.getElementById('intro-badge-text');
+      var ecgHud = document.getElementById('intro-ecg-hud');
       var sysBoxEl = document.getElementById('intro-sys-box');
       var ariseEl = document.getElementById('intro-arise-banner');
+      var audioPrompt = document.getElementById('intro-audio-prompt');
+
       if (badgeEl) badgeEl.classList.remove('active');
+      if (badgeText) badgeText.textContent = '[SYSTEM DIRECTIVE // BIO-METRIC SYNCHRONIZATION]';
+      if (ecgHud) {
+        ecgHud.classList.remove('active');
+        ecgHud.style.display = 'flex';
+      }
       if (sysBoxEl) {
         sysBoxEl.classList.remove('active');
         sysBoxEl.style.display = 'block';
       }
       if (ariseEl) ariseEl.classList.remove('active');
+      if (audioPrompt) audioPrompt.style.display = 'block';
 
       resize();
       initEmbers();
 
-      // Trigger procedural audio sound suite
-      if (S.audio && S.audio.monarchIntro) {
-        try { S.audio.monarchIntro(); } catch (err) {}
+      // Start synchronized audio track (TikTok master audio + fallback)
+      if (S.audio && S.audio.playIntroAudio) {
+        try { S.audio.playIntroAudio(); } catch (err) {}
+      }
+
+      // Start synchronized video
+      if (video) {
+        video.currentTime = 0;
+        var playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.then(function () {
+            if (audioPrompt) audioPrompt.style.display = 'none';
+          }).catch(function (err) {
+            console.log('[INTRO VIDEO PLAYBACK]', err);
+          });
+        }
       }
 
       animFrameId = requestAnimationFrame(render);

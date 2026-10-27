@@ -3,7 +3,7 @@
    Offline-first caching, static shell pre-caching, dynamic tile caching,
    and instant service worker lifecycle management.
    ========================================================================== */
-var CACHE_NAME = 'solo-quest-v2.3';
+var CACHE_NAME = 'solo-quest-v2.4';
 
 var STATIC_ASSETS = [
   './',
@@ -23,6 +23,7 @@ var STATIC_ASSETS = [
   './js/gate.js',
   './js/ui.js',
   './js/app.js',
+  './audio/intro_relentless.mp3',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -106,8 +107,8 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
-  // 3. API & Cloud Database calls: Always bypass cache, direct network
-  if (url.pathname.startsWith('/api/') || url.hostname.indexOf('supabase.co') !== -1) {
+  // 3. API, Cloud Database & Range-Streamed Media (.mp4): Direct network
+  if (url.pathname.startsWith('/api/') || url.hostname.indexOf('supabase.co') !== -1 || url.pathname.endsWith('.mp4')) {
     return;
   }
 

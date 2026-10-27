@@ -392,6 +392,40 @@ window.SYS = window.SYS || {};
         A.playTone(1046.5, 'sine', 2.0, 0.25, 0.0001, 1.68);
         A.playTone(1567.98, 'triangle', 2.4, 0.2, 0.0001, 1.76);
       } catch (e) {}
+    },
+
+    /* --- Relentless Intro Audio (TikTok Master + Procedural Fallback) --- */
+    currentIntroAudio: null,
+    playIntroAudio: function () {
+      if (!A.enabled) return;
+      A.stopIntroAudio();
+
+      try {
+        var audio = new Audio('./audio/intro_relentless.mp3');
+        audio.volume = A.volume != null ? A.volume : 0.7;
+        audio.preload = 'auto';
+        A.currentIntroAudio = audio;
+
+        var playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(function (err) {
+            // Autoplay restricted before user gesture: use procedural audio fallback
+            if (A.monarchIntro) A.monarchIntro();
+          });
+        }
+      } catch (e) {
+        if (A.monarchIntro) A.monarchIntro();
+      }
+    },
+
+    stopIntroAudio: function () {
+      if (A.currentIntroAudio) {
+        try {
+          A.currentIntroAudio.pause();
+          A.currentIntroAudio.currentTime = 0;
+        } catch (e) {}
+        A.currentIntroAudio = null;
+      }
     }
   };
 

@@ -42,15 +42,22 @@
 
   <!-- Solo Leveling Monarch Opening Animation Overlay -->
   <div id="monarch-intro-overlay" class="monarch-intro-overlay" role="dialog" aria-label="System Reawakening Intro">
+    <div class="intro-media-wrapper" id="intro-media-wrap">
+      <video id="intro-vid" src="media/intro_relentless.mp4" playsinline muted preload="auto"></video>
+    </div>
     <canvas id="intro-canvas"></canvas>
     <div class="intro-hud-content">
       <div class="intro-telemetry-badge" id="intro-badge">
         <span class="db-status-dot pulsing" style="background:#00E5FF;"></span>
-        <span class="font-mono text-accent font-bold">[SYSTEM DIRECTIVE // REAWAKENING PROTOCOL]</span>
+        <span class="font-mono text-accent font-bold" id="intro-badge-text">[SYSTEM DIRECTIVE // BIO-METRIC SYNCHRONIZATION]</span>
+      </div>
+      <div class="intro-ecg-hud font-mono" id="intro-ecg-hud">
+        <div class="ecg-line-wrap"><div class="ecg-pulse-bar"></div></div>
+        <div class="ecg-stats"><span class="text-accent font-bold">PULSE: <span id="intro-bpm">142</span> BPM</span> &bull; <span class="text-gold font-bold">VIT: 99.8%</span> &bull; <span class="text-cyan font-bold">TRAIT: RELENTLESS</span></div>
       </div>
       <div class="intro-system-box" id="intro-sys-box">
-        <div class="intro-system-title font-display">[PLAYER REAWAKENING DETECTED]</div>
-        <div class="intro-system-desc font-mono" id="intro-sys-desc">SYNCHRONIZING WITH SHADOW DOMAIN...</div>
+        <div class="intro-system-title font-display" id="intro-sys-title">[FATAL IMPACT DEFLECTED]</div>
+        <div class="intro-system-desc font-mono" id="intro-sys-desc">TRAIT: RELENTLESS // HEALTH CHUNK RETAINED</div>
       </div>
       <div class="intro-arise-banner" id="intro-arise-banner">
         <div class="hangul-glyph">일어나라</div>
@@ -61,6 +68,9 @@
     <button type="button" class="intro-skip-btn" id="btn-intro-skip" title="Skip Animation">
       SKIP INTRO &rarr;
     </button>
+    <div class="intro-audio-prompt" id="intro-audio-prompt">
+      <span class="font-mono">[TAP SCREEN TO ENABLE SOUND]</span>
+    </div>
   </div>
 
   <!-- App Root Shell -->
