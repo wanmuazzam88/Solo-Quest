@@ -1626,8 +1626,8 @@ window.SYS = window.SYS || {};
           '<div class="font-display text-accent" style="font-size:14px; font-weight:700; margin-bottom:8px;">' + I('eye', 16) + ' [SYSTEM AWAKENING CINEMATIC]</div>' +
           '<div class="flex-between" style="padding:12px; background:rgba(0,229,255,0.03); border:1px solid rgba(0,229,255,0.2); clip-path:var(--clip-chamfer-sm); flex-wrap:wrap; gap:10px;">' +
             '<div>' +
-              '<div style="font-weight:700; color:var(--text-primary); font-size:13px;">Relentless Monarch Sequence</div>' +
-              '<div style="font-size:11px; color:var(--text-muted);">Replay the Relentless Trait cinematic: anatomical beating heart, stone carapace, kinetic impacts, and seismic ARISE shockwave with audio.</div>' +
+              '<div style="font-weight:700; color:var(--text-primary); font-size:13px;">Monarch Dual Daggers Sequence</div>' +
+              '<div style="font-size:11px; color:var(--text-muted);">Replay the Solo Leveling twin daggers slash clash, Kasaka\'s Fang & Knight Killer spark explosion, eye flare, and seismic ARISE shockwave.</div>' +
             '</div>' +
             '<button class="sys-btn primary" id="btn-replay-intro">' + I('play', 14) + ' REPLAY SYSTEM INTRO</button>' +
           '</div>' +

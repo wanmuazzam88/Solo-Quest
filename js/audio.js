@@ -394,38 +394,154 @@ window.SYS = window.SYS || {};
       } catch (e) {}
     },
 
-    /* --- Relentless Intro Audio (TikTok Master + Procedural Fallback) --- */
-    currentIntroAudio: null,
-    playIntroAudio: function () {
+    /* --- Twin Dagger Clash & Slash Synthesizer --- */
+    daggerWhoosh: function (delay) {
       if (!A.enabled) return;
-      A.stopIntroAudio();
+      var c = getCtx();
+      if (!c) return;
+      delay = delay || 0;
+      var now = c.currentTime + delay;
 
       try {
-        var audio = new Audio('./audio/intro_relentless.mp3');
-        audio.volume = A.volume != null ? A.volume : 0.7;
-        audio.preload = 'auto';
-        A.currentIntroAudio = audio;
+        var osc = c.createOscillator();
+        var gain = c.createGain();
+        var filter = c.createBiquadFilter();
 
-        var playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(function (err) {
-            // Autoplay restricted before user gesture: use procedural audio fallback
-            if (A.monarchIntro) A.monarchIntro();
-          });
-        }
-      } catch (e) {
-        if (A.monarchIntro) A.monarchIntro();
-      }
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.28);
+
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(800, now);
+        filter.frequency.linearRampToValueAtTime(350, now + 0.28);
+        filter.Q.setValueAtTime(3, now);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.35 * A.volume, now + 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(c.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } catch (e) {}
+    },
+
+    daggerClash: function (delay) {
+      if (!A.enabled) return;
+      var c = getCtx();
+      if (!c) return;
+      delay = delay || 0;
+      var now = c.currentTime + delay;
+
+      // 1. High-frequency metallic blade ring (dual overtones)
+      A.playTone(2140, 'triangle', 0.65, 0.45, 0.0001, delay);
+      A.playTone(2860, 'sine', 0.55, 0.35, 0.0001, delay + 0.005);
+      A.playTone(920, 'sine', 0.8, 0.3, 0.0001, delay + 0.01);
+
+      // 2. Kinetic punch / sub thump on collision
+      try {
+        var sub = c.createOscillator();
+        var subGain = c.createGain();
+        sub.type = 'triangle';
+        sub.frequency.setValueAtTime(160, now);
+        sub.frequency.exponentialRampToValueAtTime(45, now + 0.25);
+        subGain.gain.setValueAtTime(0.7 * A.volume, now);
+        subGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+        sub.connect(subGain);
+        subGain.connect(c.destination);
+        sub.start(now);
+        sub.stop(now + 0.3);
+      } catch (e) {}
+
+      // 3. Spark discharge crackle
+      try {
+        var zap = c.createOscillator();
+        var zapGain = c.createGain();
+        zap.type = 'square';
+        zap.frequency.setValueAtTime(1200, now + 0.02);
+        zap.frequency.exponentialRampToValueAtTime(320, now + 0.18);
+        zapGain.gain.setValueAtTime(0.25 * A.volume, now + 0.02);
+        zapGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+        zap.connect(zapGain);
+        zapGain.connect(c.destination);
+        zap.start(now + 0.02);
+        zap.stop(now + 0.22);
+      } catch (e) {}
+    },
+
+    /* --- Full Cinematic Solo Leveling Dual Dagger Intro Sound Suite --- */
+    dualDaggerIntro: function () {
+      if (!A.enabled) return;
+      var c = getCtx();
+      if (!c) return;
+      var now = c.currentTime;
+
+      // 0.0s: Ambient Shadow Void Drone
+      try {
+        var drone = c.createOscillator();
+        var droneGain = c.createGain();
+        drone.type = 'sawtooth';
+        drone.frequency.setValueAtTime(55, now);
+        drone.frequency.exponentialRampToValueAtTime(32, now + 1.2);
+        var droneFilter = c.createBiquadFilter();
+        droneFilter.type = 'lowpass';
+        droneFilter.frequency.setValueAtTime(110, now);
+        droneFilter.frequency.linearRampToValueAtTime(50, now + 1.2);
+        droneGain.gain.setValueAtTime(0.001, now);
+        droneGain.gain.linearRampToValueAtTime(0.35 * A.volume, now + 0.3);
+        droneGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.4);
+        drone.connect(droneFilter);
+        droneFilter.connect(droneGain);
+        droneGain.connect(c.destination);
+        drone.start(now);
+        drone.stop(now + 1.5);
+      } catch (e) {}
+
+      // 0.5s: Kasaka's Venom Fang Whoosh (Left Dagger)
+      A.daggerWhoosh(0.5);
+
+      // 0.75s: Knight Killer Whoosh (Right Dagger)
+      A.daggerWhoosh(0.75);
+
+      // 1.1s: THE X-CLASH IMPACT
+      A.daggerClash(1.1);
+
+      // 1.7s: High-Tech System Window Crystal Ping
+      A.playTone(1046.5, 'sine', 0.22, 0.35, 0.001, 1.65); // C6
+      A.playTone(2093.0, 'triangle', 0.35, 0.3, 0.0001, 1.72); // C7
+      A.playTone(3135.96, 'sine', 0.45, 0.15, 0.0001, 1.80); // G7
+
+      // 2.3s: Epic Seismic [ARISE] Sub-Bass Drop & Monarch Chime
+      try {
+        var sub = c.createOscillator();
+        var subGain = c.createGain();
+        sub.type = 'sawtooth';
+        sub.frequency.setValueAtTime(115, now + 2.3);
+        sub.frequency.exponentialRampToValueAtTime(26, now + 4.0);
+        var subFilter = c.createBiquadFilter();
+        subFilter.type = 'lowpass';
+        subFilter.frequency.setValueAtTime(240, now + 2.3);
+        subFilter.frequency.exponentialRampToValueAtTime(45, now + 4.0);
+        subGain.gain.setValueAtTime(0.85 * A.volume, now + 2.3);
+        subGain.gain.exponentialRampToValueAtTime(0.0001, now + 4.2);
+        sub.connect(subFilter);
+        subFilter.connect(subGain);
+        subGain.connect(c.destination);
+        sub.start(now + 2.3);
+        sub.stop(now + 4.3);
+
+        // Resonant Monarch Bells
+        A.playTone(523.25, 'sine', 2.0, 0.35, 0.0001, 2.35);
+        A.playTone(1046.5, 'sine', 2.2, 0.25, 0.0001, 2.42);
+        A.playTone(1567.98, 'triangle', 2.5, 0.2, 0.0001, 2.50);
+      } catch (e) {}
     },
 
     stopIntroAudio: function () {
-      if (A.currentIntroAudio) {
-        try {
-          A.currentIntroAudio.pause();
-          A.currentIntroAudio.currentTime = 0;
-        } catch (e) {}
-        A.currentIntroAudio = null;
-      }
+      // Clean stop hook
     }
   };
 

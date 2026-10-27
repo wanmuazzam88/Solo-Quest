@@ -3,7 +3,7 @@
    Offline-first caching, static shell pre-caching, dynamic tile caching,
    and instant service worker lifecycle management.
    ========================================================================== */
-var CACHE_NAME = 'solo-quest-v2.4';
+var CACHE_NAME = 'solo-quest-v2.5';
 
 var STATIC_ASSETS = [
   './',
@@ -23,7 +23,6 @@ var STATIC_ASSETS = [
   './js/gate.js',
   './js/ui.js',
   './js/app.js',
-  './audio/intro_relentless.mp3',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
