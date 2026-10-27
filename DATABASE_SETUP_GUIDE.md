@@ -54,16 +54,25 @@ Supabase gives you a 100% free hosted PostgreSQL database with built-in authenti
    - **Project URL** (e.g., `https://abcdefghijkl.supabase.co`)
    - **Project API Keys** -> `anon` / `public` (starts with `eyJ...`)
 
-### Step 4: Configure Solo Quest
-1. Open Solo Quest in your browser (e.g. `index.html` or your live URL).
-2. Click the **SYSTEM LINK** button in the top navigation bar (or go to **Config** -> **AWAKEN / LINK DATABASE**).
-3. Switch to the **DATABASE SETUP & PING** tab.
-4. Select **Supabase Cloud (PostgreSQL REST API)** from the dropdown.
-5. Paste your **Supabase Project URL** and **Anon Public Key**.
-6. Click **TEST PING** — the indicator will turn green and display your live latency (e.g. `ONLINE // 35 MS`).
-7. Click **SAVE CONFIGURATION**.
+### Step 4: Zero-Config Cloudflare Pages Integration (Recommended)
+Instead of requiring every user or device to manually paste keys into the app, you can integrate Supabase directly into **Cloudflare Pages Environment Variables**:
+1. In Cloudflare Pages Dashboard &rarr; Your Project &rarr; **Settings** &rarr; **Environment variables**.
+2. Add:
+   - `SUPABASE_URL` = Your Supabase Project URL (`https://xyz.supabase.co`)
+   - `SUPABASE_ANON_KEY` = Your Supabase `anon` `public` key (`eyJ...`)
+3. Deploy or Redeploy.
+4. **Result:** When players open the app on `https://your-project.pages.dev`, Cloudflare Pages Edge Functions automatically configure Supabase. Players only click **AWAKENING** or **LOGIN** — zero manual keys required in the app!
 
-### Step 5: Awaken Your Hunter Account
+### Step 5 (Alternative): Manual In-App Database Setup
+If running locally without Cloudflare Pages:
+1. Open Solo Quest in your browser.
+2. Click the **SYSTEM LINK** button in the top navigation bar.
+3. Switch to the **DATABASE SETUP & PING** tab.
+4. Select **Supabase Cloud (PostgreSQL REST API)**.
+5. Paste your **Supabase Project URL** and **Anon Public Key**.
+6. Click **TEST PING** & **SAVE CONFIGURATION**.
+
+### Step 6: Awaken Your Hunter Account
 1. In the terminal modal, click the **AWAKENING (REGISTER)** tab.
 2. Enter your **Hunter Name** (e.g. `Sung Jin-Woo`), **Email**, and **Passcode** (minimum 6 characters).
 3. Choose your Accountability Directive:

@@ -94,6 +94,16 @@ A dark-futuristic, tactical manhwa-styled web application modeled directly after
    - **iOS (Safari):** Tap the Share button and select *"Add to Home Screen"*.
    - The app launches in full standalone immersive display without browser address bars.
 
-4. **Data Persistence & Portability:**
+4. **Deploy to Cloudflare Pages (Recommended):**
+   - Push your code to GitHub.
+   - Go to [Cloudflare Dashboard](https://dash.cloudflare.com) &rarr; **Workers & Pages** &rarr; **Create application** &rarr; **Pages** &rarr; **Connect to Git**.
+   - Select your repository (`Solo-Quest`).
+   - Build settings: Framework: `None`, Build command: *(leave empty)*, Output directory: `/` or `.`.
+   - In project **Settings** &rarr; **Environment variables**, add:
+     - `SUPABASE_URL` = your Supabase project URL (`https://xyz.supabase.co`)
+     - `SUPABASE_ANON_KEY` = your Supabase anon public key
+   - Click **Save & Deploy**. Cloudflare Pages automatically configures Supabase for all hunters!
+
+5. **Data Persistence & Portability:**
    - All progress, runs, items, and settings synchronize automatically with your connected database and persist offline in local storage.
    - Full backup JSON import/export is available in the **Config** tab.

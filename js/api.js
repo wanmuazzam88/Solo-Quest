@@ -59,6 +59,8 @@ window.SYS = window.SYS || {};
     user: null,
     isConnected: false,
     lastPingMs: null,
+    isManagedCloud: false,
+    managedPlatform: null,
 
     init: function () {
       api.token = localStorage.getItem(TOKEN_KEY) || null;
@@ -77,13 +79,63 @@ window.SYS = window.SYS || {};
           api.supabaseUrl = cleanUrl(cfg.supabaseUrl);
           api.supabaseAnonKey = cleanKey(cfg.supabaseAnonKey);
           api.customUrl = cleanUrl(cfg.customUrl || 'http://localhost:3000');
+          api.isManagedCloud = Boolean(cfg.isManagedCloud);
+          api.managedPlatform = cfg.managedPlatform || null;
         }
       } catch (e) {}
 
-      // Auto-test connection on boot
-      if (api.provider !== 'local') {
-        api.testConnection().catch(function () {});
+      // Auto-detect Cloudflare Pages managed Supabase environment
+      api.autoDetectCloudflare().then(function (detected) {
+        if (!detected && api.provider !== 'local') {
+          api.testConnection().catch(function () {});
+        }
+      });
+    },
+
+    autoDetectCloudflare: async function () {
+      try {
+        var res = await fetch('/api/config', {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+          var data = await res.json();
+          if (data && data.configured && data.supabaseUrl && data.supabaseAnonKey) {
+            api.isManagedCloud = true;
+            api.managedPlatform = data.platform || 'Cloudflare Pages';
+            api.provider = 'supabase';
+            api.supabaseUrl = cleanUrl(data.supabaseUrl);
+            api.supabaseAnonKey = cleanKey(data.supabaseAnonKey);
+
+            try {
+              localStorage.setItem(CONFIG_KEY, JSON.stringify({
+                provider: 'supabase',
+                supabaseUrl: api.supabaseUrl,
+                supabaseAnonKey: api.supabaseAnonKey,
+                isManagedCloud: true,
+                managedPlatform: api.managedPlatform
+              }));
+            } catch (err) {}
+
+            var ping = await api.testConnection();
+            if (S.emit) {
+              S.emit('cloudConfigDetected', {
+                provider: 'supabase',
+                managed: true,
+                platform: api.managedPlatform,
+                ping: ping
+              });
+            }
+            if (S.auth && typeof S.auth.updateStatus === 'function') {
+              S.auth.updateStatus();
+            }
+            return true;
+          }
+        }
+      } catch (e) {
+        // Fallback silently if offline or running in standalone static environment
       }
+      return false;
     },
 
     saveConfig: function (cfg) {

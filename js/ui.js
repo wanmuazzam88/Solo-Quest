@@ -1554,13 +1554,13 @@ window.SYS = window.SYS || {};
             '<div class="font-display text-accent" style="font-size:14px; font-weight:700;">' + I('gate', 16) + ' [HUNTER NETWORK & CLOUD DATABASE TERMINAL]</div>' +
             '<span class="db-latency-badge ' + (isConnected ? 'online' : (!S.api || S.api.provider === 'local') ? 'testing' : 'offline') + '">' +
               '<span class="db-status-dot ' + (isConnected ? 'pulsing' : '') + '"></span>' +
-              (isConnected ? ((S.api.provider === 'supabase' ? 'SUPABASE POSTGRESQL' : 'CUSTOM NODE API') + ' ONLINE') : (!S.api || S.api.provider === 'local') ? 'LOCAL HUD (STANDALONE)' : 'STANDBY / OFFLINE') +
+              (isConnected ? (((S.api.provider === 'supabase' ? (S.api.isManagedCloud ? 'CLOUDFLARE ⚡ SUPABASE' : 'SUPABASE POSTGRESQL') : 'CUSTOM NODE API') + ' ONLINE')) : (!S.api || S.api.provider === 'local') ? 'LOCAL HUD (STANDALONE)' : 'STANDBY / OFFLINE') +
             '</span>' +
           '</div>' +
           '<div style="font-size:12px; color:var(--text-secondary); margin-bottom:12px; line-height:1.5;">' +
             (isAuth ?
               ('Authenticated as <strong>' + U.esc(S.api.user.hunterName) + '</strong> (' + U.esc(S.api.user.email) + '). All progression (points, stats, quests, GPS runs, and inventory) synchronizes directly to the database.') :
-              'Currently operating in Standalone Local HUD mode. Link your System profile or connect a Supabase/Node database to compete with real players on the global leaderboard.') +
+              (S.api && S.api.isManagedCloud ? 'Cloudflare Pages edge integration active. Click below to Awaken or Log In with your Hunter profile — no API keys required.' : 'Currently operating in Standalone Local HUD mode. Link your System profile or connect a Supabase/Node database to compete with real players on the global leaderboard.')) +
           '</div>' +
           '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
             '<button class="sys-btn primary" id="btn-settings-open-auth">' + I('user', 14) + ' ' + (isAuth ? 'MANAGE SYSTEM LINK & CLOUD' : 'AWAKEN / LINK DATABASE') + '</button>' +
@@ -2118,7 +2118,20 @@ window.SYS = window.SYS || {};
           '</form>';
         } else if (activeTab === 'DBCONFIG') {
           var prov = S.api.provider;
+          var managedCloudBanner = S.api.isManagedCloud ? (
+            '<div style="background:rgba(0, 229, 255, 0.08); border:1px solid rgba(0, 229, 255, 0.35); clip-path:var(--clip-chamfer-sm); padding:12px; margin-bottom:14px;">' +
+              '<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">' +
+                '<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--sys-cyan); box-shadow:0 0 10px var(--sys-cyan);"></span>' +
+                '<span class="text-cyan font-bold" style="letter-spacing:0.08em; font-size:12px;">[CLOUDFLARE PAGES EDGE ⚡ SUPABASE ACTIVE]</span>' +
+              '</div>' +
+              '<div style="font-size:11px; color:var(--text-secondary); line-height:1.45;">' +
+                'Database connection is managed automatically by Cloudflare Pages Environment Variables. Hunters can awaken, login, and sync progression without entering any API keys.' +
+              '</div>' +
+            '</div>'
+          ) : '';
+
           bodyHtml = '<form id="form-db-config">' +
+            managedCloudBanner +
             '<div id="db-config-status" style="margin-bottom:14px;">' +
               '<div class="flex-between" style="padding:10px; background:rgba(0,0,0,0.3); border:1px solid var(--sys-border); clip-path:var(--clip-chamfer-sm);">' +
                 '<div style="display:flex; align-items:center; gap:8px;">' +
@@ -2133,20 +2146,20 @@ window.SYS = window.SYS || {};
             '<div class="auth-form-group">' +
               '<label class="auth-form-label">DATABASE ARCHITECTURE PROVIDER</label>' +
               '<select class="sys-select" id="cfg-provider">' +
-                '<option value="supabase" ' + (prov === 'supabase' ? 'selected' : '') + '>Supabase Cloud (PostgreSQL REST API - Free Zero-Config Cloud)</option>' +
+                '<option value="supabase" ' + (prov === 'supabase' ? 'selected' : '') + '>Supabase Cloud (PostgreSQL REST API' + (S.api.isManagedCloud ? ' - Cloudflare Edge Managed' : '') + ')</option>' +
                 '<option value="custom" ' + (prov === 'custom' ? 'selected' : '') + '>Self-Hosted Node.js / SQLite Server (Localhost REST API)</option>' +
                 '<option value="local" ' + (prov === 'local' ? 'selected' : '') + '>Offline Local HUD Only (Browser Storage Standalone)</option>' +
               '</select>' +
-              '<div class="auth-form-hint">Supabase Cloud connects directly from your browser with zero server installation.</div>' +
+              '<div class="auth-form-hint">' + (S.api.isManagedCloud ? 'Cloudflare Pages injects connection credentials securely from Edge environment variables.' : 'Supabase Cloud connects directly from your browser with zero server installation.') + '</div>' +
             '</div>' +
             '<div id="cfg-supabase-fields" style="display:' + (prov === 'supabase' ? 'block' : 'none') + ';">' +
               '<div class="auth-form-group">' +
-                '<label class="auth-form-label">SUPABASE PROJECT URL</label>' +
+                '<label class="auth-form-label">SUPABASE PROJECT URL ' + (S.api.isManagedCloud ? '<span class="text-cyan">(CLOUDFLARE MANAGED)</span>' : '') + '</label>' +
                 '<input type="url" class="sys-input font-mono" id="cfg-sb-url" value="' + U.esc(S.api.supabaseUrl) + '" placeholder="https://xyzprojectid.supabase.co">' +
                 '<div class="auth-form-hint">Found in Supabase Dashboard &rarr; Project Settings &rarr; API &rarr; Project URL. (NOT the postgresql:// connection string).</div>' +
               '</div>' +
               '<div class="auth-form-group">' +
-                '<label class="auth-form-label">SUPABASE ANON PUBLIC KEY</label>' +
+                '<label class="auth-form-label">SUPABASE ANON PUBLIC KEY ' + (S.api.isManagedCloud ? '<span class="text-cyan">(CLOUDFLARE MANAGED)</span>' : '') + '</label>' +
                 '<input type="text" class="sys-input font-mono" id="cfg-sb-key" value="' + U.esc(S.api.supabaseAnonKey) + '" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">' +
                 '<div class="auth-form-hint">Found in Supabase Dashboard &rarr; Project Settings &rarr; API &rarr; Project API keys (anon public). Safe for browser use.</div>' +
               '</div>' +
@@ -2159,10 +2172,10 @@ window.SYS = window.SYS || {};
               '</div>' +
             '</div>' +
             '<div style="background:rgba(255,183,3,0.06); border:1px solid rgba(255,183,3,0.25); clip-path:var(--clip-chamfer-sm); padding:10px; margin:14px 0; font-size:11px; line-height:1.5;">' +
-              '<div class="text-gold font-bold" style="margin-bottom:4px;">[QUICK DATABASE SETUP STEPS]</div>' +
+              '<div class="text-gold font-bold" style="margin-bottom:4px;">[QUICK DATABASE SETUP & CLOUDFLARE INTEGRATION]</div>' +
               '1. In Supabase Dashboard, click <strong>SQL Editor</strong>, paste <code>supabase/schema.sql</code>, and click <strong>RUN</strong>.<br>' +
               '2. In Supabase Dashboard &rarr; <strong>Authentication</strong> &rarr; <strong>Providers</strong> &rarr; <strong>Email</strong>, turn off <em>Confirm email</em> for instant registration.<br>' +
-              '3. Copy Project URL and Anon Public Key from <strong>Project Settings &rarr; API</strong>, paste above, and click <strong>SAVE CONFIGURATION</strong>.' +
+              '3. <strong>Cloudflare Integration:</strong> Add <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> in Cloudflare Pages &rarr; Settings &rarr; Environment variables. All players connect automatically with zero manual setup!' +
             '</div>' +
             '<div style="display:flex; justify-content:flex-end; gap:8px;">' +
               '<button type="button" class="sys-btn btn-close-modal">CLOSE</button>' +
