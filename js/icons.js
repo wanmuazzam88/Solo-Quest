@@ -76,7 +76,8 @@ window.SYS = window.SYS || {};
     pace: '<path d="M12 3a9 9 0 0 0-9 9c0 3.6 2.1 6.7 5.2 8.1l1.8-3.1"/><path d="M12 3a9 9 0 0 1 9 9c0 3.6-2.1 6.7-5.2 8.1l-1.8-3.1"/><circle cx="12" cy="12" r="2"/><path d="M12 12l3-4"/>',
     steps: '<path d="M6 14.5c.5-2 1.5-3.5 3-4s2.5.5 3 2.5-1 4.5-3 5-3-1.5-3-3.5z"/><circle cx="10" cy="5" r="1.5" ' + F + '/><path d="M15 9.5c.5-2 1.5-3.5 3-4s2.5.5 3 2.5-1 4.5-3 5-3-1.5-3-3.5z" opacity=".7"/><circle cx="19" cy="3" r="1.2" ' + F + '/>',
     compass: '<circle cx="12" cy="12" r="9"/><polygon points="12,6 15,12 12,18 9,12" stroke-linejoin="round"/><circle cx="12" cy="12" r="1.5" ' + F + '/>',
-    signal: '<path d="M4 18v2M8 14v6M12 10v10M16 6v14M20 2v18"/>'
+    signal: '<path d="M4 18v2M8 14v6M12 10v10M16 6v14M20 2v18"/>',
+    crosshair: '<circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="1.5" ' + F + '/>'
   };
 
   S.ICON_PATHS = P;

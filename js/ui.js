@@ -1309,14 +1309,43 @@ window.SYS = window.SYS || {};
             '</div>' +
           '</div>';
         } else if (st.permissionStatus === 'granted') {
-          permissionBannerHtml = '<div class="run-permission-banner granted">' +
-            '<div class="permission-icon-wrap">' + I('check', 20) + '</div>' +
-            '<div class="permission-info">' +
-              '<div class="permission-title">[GPS SATELLITE LINK ESTABLISHED]</div>' +
-              '<div class="permission-desc">Device location permission active. Map locked to hunter position' + (st.accuracyMeters ? ' (±' + st.accuracyMeters + 'm precision)' : '') + '.</div>' +
-            '</div>' +
-            '<button class="sys-btn sm" id="btn-map-locate-header">' + I('compass', 14) + ' REFRESH GPS</button>' +
-          '</div>';
+          if (st.isCalibrated) {
+            permissionBannerHtml = '<div class="run-permission-banner granted">' +
+              '<div class="permission-icon-wrap">' + I('crosshair', 20) + '</div>' +
+              '<div class="permission-info">' +
+                '<div class="permission-title">[HUNTER PINPOINT CALIBRATED]</div>' +
+                '<div class="permission-desc">Doorstep location locked (±5m). Tap Adjust Pin or drag marker on map anytime to reposition.</div>' +
+              '</div>' +
+              '<div class="permission-actions" style="display:flex; gap:8px;">' +
+                '<button class="sys-btn sm ' + (st.isCalibratingPin ? 'primary' : '') + '" id="btn-adjust-pin">' + I('crosshair', 14) + ' ' + (st.isCalibratingPin ? 'LOCK PIN' : 'ADJUST PIN') + '</button>' +
+                '<button class="sys-btn sm" id="btn-map-locate-header">' + I('compass', 14) + ' SATELLITE</button>' +
+              '</div>' +
+            '</div>';
+          } else if (st.rawAccuracyMeters && st.rawAccuracyMeters > 80) {
+            permissionBannerHtml = '<div class="run-permission-banner warning">' +
+              '<div class="permission-icon-wrap">' + I('alert', 20) + '</div>' +
+              '<div class="permission-info">' +
+                '<div class="permission-title">[INDOOR / WI-FI LOCATION DETECTED]</div>' +
+                '<div class="permission-desc">Device estimated location via router (~' + st.rawAccuracyMeters + 'm). Tap Adjust Pin to set marker to your exact doorstep.</div>' +
+              '</div>' +
+              '<div class="permission-actions" style="display:flex; gap:8px;">' +
+                '<button class="sys-btn sm primary" id="btn-adjust-pin">' + I('crosshair', 14) + ' ' + (st.isCalibratingPin ? 'LOCK PIN' : 'ADJUST PIN') + '</button>' +
+                '<button class="sys-btn sm" id="btn-map-locate-header">' + I('compass', 14) + ' REFRESH</button>' +
+              '</div>' +
+            '</div>';
+          } else {
+            permissionBannerHtml = '<div class="run-permission-banner granted">' +
+              '<div class="permission-icon-wrap">' + I('check', 20) + '</div>' +
+              '<div class="permission-info">' +
+                '<div class="permission-title">[GPS SATELLITE LINK ESTABLISHED]</div>' +
+                '<div class="permission-desc">Device location permission active. Map locked to hunter position' + (st.accuracyMeters ? ' (±' + st.accuracyMeters + 'm precision)' : '') + '.</div>' +
+              '</div>' +
+              '<div class="permission-actions" style="display:flex; gap:8px;">' +
+                '<button class="sys-btn sm ' + (st.isCalibratingPin ? 'primary' : '') + '" id="btn-adjust-pin">' + I('crosshair', 14) + ' ' + (st.isCalibratingPin ? 'LOCK PIN' : 'ADJUST PIN') + '</button>' +
+                '<button class="sys-btn sm" id="btn-map-locate-header">' + I('compass', 14) + ' REFRESH GPS</button>' +
+              '</div>' +
+            '</div>';
+          }
         } else {
           // 'prompt' or 'unknown'
           permissionBannerHtml = '<div class="run-permission-banner prompt">' +
@@ -1414,7 +1443,9 @@ window.SYS = window.SYS || {};
           // Tactical OpenStreetMap Leaflet Map
           '<div class="run-map-wrapper">' +
             '<div id="run-map-canvas" class="run-map-canvas"></div>' +
+            (st.isCalibratingPin ? '<div class="pinpoint-calibrating-toast">[CALIBRATION ACTIVE] TAP MAP OR DRAG MARKER TO YOUR DOORSTEP</div>' : '') +
             '<div class="run-map-overlay-controls">' +
+              (!st.isActive ? '<button class="map-ctrl-btn ' + (st.isCalibratingPin ? 'active' : '') + '" id="btn-map-pinpoint" title="Adjust pin on map">' + I('crosshair', 14) + ' ' + (st.isCalibratingPin ? 'LOCK PIN' : 'ADJUST PIN') + '</button>' : '') +
               '<button class="map-ctrl-btn" id="btn-map-locate" title="Acquire device location">' + I('gps', 14) + ' LOCATE ME</button>' +
               '<button class="map-ctrl-btn" id="btn-map-recenter" title="Center map on track">' + I('compass', 14) + ' RECENTER</button>' +
             '</div>' +
@@ -1511,6 +1542,20 @@ window.SYS = window.SYS || {};
           if (confirm('Discard current run telemetry without logging?')) {
             tr.discard();
           }
+        });
+      }
+
+      var btnAdjustPin = container.querySelector('#btn-adjust-pin');
+      if (btnAdjustPin) {
+        btnAdjustPin.addEventListener('click', function () {
+          tr.togglePinpointCalibration();
+        });
+      }
+
+      var btnMapPinpoint = container.querySelector('#btn-map-pinpoint');
+      if (btnMapPinpoint) {
+        btnMapPinpoint.addEventListener('click', function () {
+          tr.togglePinpointCalibration();
         });
       }
 

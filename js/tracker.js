@@ -11,6 +11,7 @@ window.SYS = window.SYS || {};
   var U = S.util;
   var STORAGE_KEY = 'solo_quest_runs_v1';
   var PERMISSION_STORAGE_KEY = 'solo_quest_location_authorized';
+  var CALIBRATED_STORAGE_KEY = 'solo_quest_calibrated_location';
   var SILENT_AUDIO_URI = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==';
 
   /* ======================================================================
@@ -117,6 +118,11 @@ window.SYS = window.SYS || {};
     accuracyMeters: null,
     rawAccuracyMeters: null,
 
+    // Pinpoint Manual Calibration & Standby Satellite Watcher
+    isCalibratingPin: false,
+    calibratedPosition: null, // { lat, lng, time }
+    _standbyWatchId: null,
+
     // Internal precision & Kalman handles
     _kalman: null,
     _initialFixCount: 0,
@@ -163,6 +169,28 @@ window.SYS = window.SYS || {};
         tracker.permissionChecked = true;
       }
 
+      // Check stored calibrated pin location
+      var savedCalibrated = null;
+      try {
+        var rawCal = localStorage.getItem(CALIBRATED_STORAGE_KEY);
+        if (rawCal) savedCalibrated = JSON.parse(rawCal);
+      } catch (e) {}
+      if (savedCalibrated && typeof savedCalibrated.lat === 'number' && typeof savedCalibrated.lng === 'number') {
+        tracker.calibratedPosition = savedCalibrated;
+        tracker.currentPosition = {
+          lat: savedCalibrated.lat,
+          lng: savedCalibrated.lng,
+          accuracy: 5,
+          altitude: null,
+          heading: 0,
+          speed: 0,
+          timestamp: savedCalibrated.time || Date.now()
+        };
+        tracker.accuracyMeters = 5;
+        tracker.rawAccuracyMeters = 5;
+        tracker.gpsStatus = 'PINPOINT';
+      }
+
       // Initialize 2D GPS Kalman Filter
       if (!tracker._kalman) {
         tracker._kalman = new GpsKalmanFilter(2.8);
@@ -174,6 +202,11 @@ window.SYS = window.SYS || {};
         tracker.permissionStatus = 'unsupported';
       } else {
         tracker.queryPermissionStatus();
+      }
+
+      // Start standby satellite watcher if already authorized
+      if (tracker.permissionStatus === 'granted') {
+        tracker.startStandbyWatch();
       }
 
       // Background tracking recovery & visibility listeners
@@ -296,6 +329,24 @@ window.SYS = window.SYS || {};
           tracker.permissionChecked = true;
           try { localStorage.setItem(PERMISSION_STORAGE_KEY, 'granted'); } catch (e) {}
           tracker.rawAccuracyMeters = Math.round(crd.accuracy || 12);
+
+          // If user previously calibrated exact pin and incoming fix is coarse Wi-Fi (> 80m), respect pin
+          if (tracker.calibratedPosition && tracker.rawAccuracyMeters > 80) {
+            tracker.accuracyMeters = 5;
+            tracker.gpsStatus = 'PINPOINT';
+            if (tracker.map) {
+              tracker.map.flyTo([tracker.calibratedPosition.lat, tracker.calibratedPosition.lng], 16, { animate: true, duration: 1 });
+              tracker.updateMapHunterOnly(tracker.calibratedPosition.lat, tracker.calibratedPosition.lng, 5, crd.heading || 0);
+            }
+            tracker.startStandbyWatch();
+            if (interactive && S.ui) {
+              S.ui.showToast('[PINPOINT LOCKED]', 'Calibrated doorstep position active (±5m precision).', 'cyan');
+            }
+            if (S.ui && S.ui.render) S.ui.render();
+            if (callback) callback(null, tracker.currentPosition);
+            return;
+          }
+
           var effAcc = tracker.sanitizeAccuracy(crd.accuracy);
           if (!tracker._kalman) tracker._kalman = new GpsKalmanFilter(2.8);
           var kFix = tracker._kalman.update(crd.latitude, crd.longitude, effAcc, Date.now());
@@ -315,11 +366,12 @@ window.SYS = window.SYS || {};
             tracker.map.flyTo([kFix.lat, kFix.lng], 16, { animate: true, duration: 1 });
             tracker.updateMapHunterOnly(kFix.lat, kFix.lng, tracker.accuracyMeters, crd.heading || 0);
           }
+          tracker.startStandbyWatch();
           if (interactive && S.ui) {
             S.ui.showToast('[GPS SATELLITE LOCKED]', 'Location fix acquired (±' + tracker.accuracyMeters + 'm precision).', 'cyan');
             if (S.audio && S.audio.windowOpen) S.audio.windowOpen();
           }
-          if (S.ui && S.ui.renderRunView) S.ui.render();
+          if (S.ui && S.ui.render) S.ui.render();
           if (callback) callback(null, tracker.currentPosition);
         },
         function (err) {
@@ -355,7 +407,7 @@ window.SYS = window.SYS || {};
       }
 
       tracker.gpsStatus = 'SEARCHING';
-      if (S.ui && S.ui.renderRunView) S.ui.render();
+      if (S.ui && S.ui.render) S.ui.render();
 
       var options = {
         enableHighAccuracy: true,
@@ -369,6 +421,25 @@ window.SYS = window.SYS || {};
         tracker.permissionChecked = true;
         try { localStorage.setItem(PERMISSION_STORAGE_KEY, 'granted'); } catch (e) {}
         tracker.rawAccuracyMeters = Math.round(crd.accuracy || 12);
+
+        // If user previously calibrated exact pin and incoming fix is coarse Wi-Fi (> 80m), respect pin
+        if (tracker.calibratedPosition && tracker.rawAccuracyMeters > 80) {
+          tracker.accuracyMeters = 5;
+          tracker.gpsStatus = 'PINPOINT';
+          if (tracker.map) {
+            tracker.map.flyTo([tracker.calibratedPosition.lat, tracker.calibratedPosition.lng], 16, { animate: true, duration: 1.2 });
+            tracker.updateMapHunterOnly(tracker.calibratedPosition.lat, tracker.calibratedPosition.lng, 5, crd.heading || 0);
+          }
+          tracker.startStandbyWatch();
+          if (interactive) {
+            if (S.audio && S.audio.windowOpen) S.audio.windowOpen();
+            S.ui.showToast('[PINPOINT LOCKED]', 'Calibrated doorstep position active (±5m precision).', 'cyan');
+          }
+          if (S.ui && S.ui.render) S.ui.render();
+          if (callback) callback(null, tracker.currentPosition);
+          return;
+        }
+
         var effAcc = tracker.sanitizeAccuracy(crd.accuracy);
         if (!tracker._kalman) tracker._kalman = new GpsKalmanFilter(2.8);
         var kFix = tracker._kalman.update(crd.latitude, crd.longitude, effAcc, Date.now());
@@ -399,12 +470,14 @@ window.SYS = window.SYS || {};
           tracker.updateMapHunterOnly(kFix.lat, kFix.lng, tracker.accuracyMeters, crd.heading || 0);
         }
 
+        tracker.startStandbyWatch();
+
         if (interactive) {
           if (S.audio && S.audio.windowOpen) S.audio.windowOpen();
           if (S.ui) S.ui.showToast('[GPS SATELLITE LOCKED]', 'Location acquired (±' + tracker.accuracyMeters + 'm precision).', 'cyan');
         }
 
-        if (S.ui && S.ui.renderRunView) S.ui.render();
+        if (S.ui && S.ui.render) S.ui.render();
         if (callback) callback(null, tracker.currentPosition);
       }
 
@@ -443,7 +516,7 @@ window.SYS = window.SYS || {};
             S.ui.showToast('[GPS SEARCHING]', 'Acquiring satellite lock. Please move to open sky.', 'gold');
           }
         }
-        if (S.ui && S.ui.renderRunView) S.ui.render();
+        if (S.ui && S.ui.render) S.ui.render();
         if (callback) callback(err);
       }
 
@@ -452,6 +525,148 @@ window.SYS = window.SYS || {};
         onPositionError,
         options
       );
+    },
+
+    /* ======================================================================
+       Standby Satellite Convergence Watcher
+       Continuously refines GNSS coordinates in background before run starts
+       ====================================================================== */
+    startStandbyWatch: function () {
+      if (tracker.isActive || tracker._standbyWatchId !== null || !('geolocation' in navigator)) return;
+      var options = { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 };
+      tracker._standbyWatchId = navigator.geolocation.watchPosition(
+        function (pos) {
+          var crd = pos.coords;
+          var rawAcc = Math.round(crd.accuracy || 12);
+          tracker.rawAccuracyMeters = rawAcc;
+
+          // If user manually calibrated, keep pin locked
+          if (tracker.calibratedPosition) {
+            tracker.accuracyMeters = 5;
+            tracker.gpsStatus = 'PINPOINT';
+            if (tracker.map && tracker.currentPosition) {
+              tracker.updateMapHunterOnly(tracker.currentPosition.lat, tracker.currentPosition.lng, 5, crd.heading || 0);
+            }
+            return;
+          }
+
+          var effAcc = tracker.sanitizeAccuracy(crd.accuracy);
+          if (!tracker._kalman) tracker._kalman = new GpsKalmanFilter(2.8);
+          var kFix = tracker._kalman.update(crd.latitude, crd.longitude, effAcc, Date.now());
+          tracker.accuracyMeters = Math.round(kFix.accuracy);
+          tracker.gpsStatus = tracker.accuracyMeters <= 8 ? 'PINPOINT' : (tracker.accuracyMeters <= 20 ? 'LOCKED' : (tracker.accuracyMeters <= 45 ? 'GOOD' : 'FAIR'));
+          tracker.currentPosition = {
+            lat: kFix.lat,
+            lng: kFix.lng,
+            accuracy: tracker.accuracyMeters,
+            altitude: crd.altitude,
+            heading: crd.heading || 0,
+            speed: crd.speed,
+            timestamp: Date.now()
+          };
+
+          if (tracker.map && tracker._autoCenterMap) {
+            tracker.updateMapHunterOnly(kFix.lat, kFix.lng, tracker.accuracyMeters, crd.heading || 0);
+          }
+          tracker.updateLiveHudDom();
+        },
+        function () {},
+        options
+      );
+    },
+
+    stopStandbyWatch: function () {
+      if (tracker._standbyWatchId !== null && 'geolocation' in navigator) {
+        navigator.geolocation.clearWatch(tracker._standbyWatchId);
+        tracker._standbyWatchId = null;
+      }
+    },
+
+    /* ======================================================================
+       Pinpoint Map Calibration (Manual Doorstep & Street Adjustment)
+       ====================================================================== */
+    enablePinpointCalibration: function () {
+      if (tracker.isActive) return;
+      tracker.isCalibratingPin = true;
+      if (tracker.hunterMarker && tracker.hunterMarker.dragging) {
+        tracker.hunterMarker.dragging.enable();
+      }
+      if (tracker.map) {
+        tracker.map.getContainer().style.cursor = 'crosshair';
+      }
+      if (S.ui) {
+        S.ui.showToast('[CALIBRATION MODE]', 'Tap exact location on map or drag hunter marker.', 'cyan');
+        S.ui.render();
+      }
+    },
+
+    disablePinpointCalibration: function () {
+      tracker.isCalibratingPin = false;
+      if (tracker.hunterMarker && tracker.hunterMarker.dragging) {
+        tracker.hunterMarker.dragging.disable();
+      }
+      if (tracker.map) {
+        tracker.map.getContainer().style.cursor = '';
+      }
+      if (S.ui) {
+        S.ui.render();
+      }
+    },
+
+    togglePinpointCalibration: function () {
+      if (tracker.isCalibratingPin) {
+        tracker.disablePinpointCalibration();
+      } else {
+        tracker.enablePinpointCalibration();
+      }
+    },
+
+    applyCalibratedCoordinate: function (lat, lng) {
+      var now = Date.now();
+      tracker.calibratedPosition = { lat: lat, lng: lng, time: now };
+      try {
+        localStorage.setItem(CALIBRATED_STORAGE_KEY, JSON.stringify(tracker.calibratedPosition));
+      } catch (e) {}
+
+      // Anchor Kalman filter to calibrated coordinates
+      if (!tracker._kalman) tracker._kalman = new GpsKalmanFilter(2.8);
+      tracker._kalman.reset();
+      tracker._kalman.lat = lat;
+      tracker._kalman.lng = lng;
+      tracker._kalman.variance = 16.0;
+      tracker._kalman.lastTimeMs = now;
+
+      tracker.accuracyMeters = 5;
+      tracker.gpsStatus = 'PINPOINT';
+      tracker.currentPosition = {
+        lat: lat,
+        lng: lng,
+        accuracy: 5,
+        altitude: null,
+        heading: 0,
+        speed: 0,
+        timestamp: now
+      };
+
+      if (tracker.map) {
+        tracker.updateMapHunterOnly(lat, lng, 5, 0);
+        tracker.map.panTo([lat, lng], { animate: true, duration: 0.5 });
+      }
+      tracker.updateLiveHudDom();
+
+      if (S.ui) {
+        S.ui.showToast('[LOCATION PINPOINTED]', 'Pin calibrated to exact doorstep coordinates (±5m).', 'cyan');
+        if (S.audio && S.audio.windowOpen) S.audio.windowOpen();
+        S.ui.render();
+      }
+    },
+
+    clearCalibratedCoordinate: function () {
+      tracker.calibratedPosition = null;
+      try {
+        localStorage.removeItem(CALIBRATED_STORAGE_KEY);
+      } catch (e) {}
+      tracker.acquireInitialFix(true);
     },
 
     /* ======================================================================
@@ -530,6 +745,38 @@ window.SYS = window.SYS || {};
       tracker.accuracyMeters = null;
       tracker._autoCenterMap = true;
 
+      // Stop standby satellite watch & calibration mode
+      tracker.stopStandbyWatch();
+      tracker.disablePinpointCalibration();
+
+      // Anchor session to calibrated coordinates if available
+      if (tracker.calibratedPosition) {
+        var cLat = tracker.calibratedPosition.lat;
+        var cLng = tracker.calibratedPosition.lng;
+        var cPt = [cLat, cLng];
+        tracker.lastValidFix = { lat: cLat, lng: cLng, time: now, alt: null };
+        tracker.currentPosition = {
+          lat: cLat,
+          lng: cLng,
+          accuracy: 5,
+          altitude: null,
+          heading: 0,
+          speed: 0,
+          timestamp: now
+        };
+        tracker.coordinates.push(cPt);
+        tracker.routeHistory.push(tracker.currentPosition);
+        tracker._initialFixCount = 3;
+        tracker.gpsStatus = 'PINPOINT';
+        tracker.accuracyMeters = 5;
+        if (!tracker._kalman) tracker._kalman = new GpsKalmanFilter(2.8);
+        tracker._kalman.reset();
+        tracker._kalman.lat = cLat;
+        tracker._kalman.lng = cLng;
+        tracker._kalman.variance = 16.0;
+        tracker._kalman.lastTimeMs = now;
+      }
+
       // Acquire Screen WakeLock so device screen stays active when on
       tracker.requestWakeLock();
 
@@ -604,6 +851,9 @@ window.SYS = window.SYS || {};
       clearInterval(tracker._tickerInterval);
       tracker.isActive = false;
       tracker.isPaused = false;
+      if (tracker.permissionStatus === 'granted') {
+        tracker.startStandbyWatch();
+      }
 
       var distanceKm = tracker.totalDistanceMeters / 1000;
 
@@ -665,6 +915,9 @@ window.SYS = window.SYS || {};
       clearInterval(tracker._tickerInterval);
       tracker.isActive = false;
       tracker.isPaused = false;
+      if (tracker.permissionStatus === 'granted') {
+        tracker.startStandbyWatch();
+      }
       if (S.audio) S.audio.tap();
       if (S.ui) S.ui.render();
     },
@@ -1258,6 +1511,8 @@ window.SYS = window.SYS || {};
       var initialCenter = [37.5172, 127.0473];
       if (tracker.coordinates.length) {
         initialCenter = tracker.coordinates[tracker.coordinates.length - 1];
+      } else if (tracker.calibratedPosition) {
+        initialCenter = [tracker.calibratedPosition.lat, tracker.calibratedPosition.lng];
       } else if (tracker.currentPosition) {
         initialCenter = [tracker.currentPosition.lat, tracker.currentPosition.lng];
       }
@@ -1323,7 +1578,29 @@ window.SYS = window.SYS || {};
         iconAnchor: [18, 18]
       });
 
-      tracker.hunterMarker = L.marker(initialCenter, { icon: hunterIcon }).addTo(map);
+      tracker.hunterMarker = L.marker(initialCenter, {
+        icon: hunterIcon,
+        draggable: !!tracker.isCalibratingPin
+      }).addTo(map);
+
+      // Map click handler for doorstep pinpoint calibration
+      map.on('click', function (e) {
+        if (tracker.isCalibratingPin && !tracker.isActive) {
+          tracker.applyCalibratedCoordinate(e.latlng.lat, e.latlng.lng);
+        }
+      });
+
+      // Marker drag handler for calibration
+      tracker.hunterMarker.on('dragend', function (e) {
+        if (!tracker.isActive) {
+          var ll = e.target.getLatLng();
+          tracker.applyCalibratedCoordinate(ll.lat, ll.lng);
+        }
+      });
+
+      if (tracker.isCalibratingPin) {
+        map.getContainer().style.cursor = 'crosshair';
+      }
 
       // Detect manual drag/pan to pause auto-centering
       map.on('dragstart', function () {
@@ -1434,6 +1711,9 @@ window.SYS = window.SYS || {};
       return {
         isActive: tracker.isActive,
         isPaused: tracker.isPaused,
+        isCalibratingPin: tracker.isCalibratingPin,
+        isCalibrated: !!tracker.calibratedPosition,
+        calibratedPosition: tracker.calibratedPosition,
         linkedQuestId: tracker.linkedQuestId,
         permissionStatus: tracker.permissionStatus,
         permissionChecked: tracker.permissionChecked,

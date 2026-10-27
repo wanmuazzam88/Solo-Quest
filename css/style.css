@@ -1495,6 +1495,39 @@ body.grace-countdown-active .grace-warning-banner {
   color: var(--accent-core);
   box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
 }
+.map-ctrl-btn.active {
+  background: rgba(0, 229, 255, 0.22);
+  border-color: #00E5FF;
+  color: #00E5FF;
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.45);
+}
+.pinpoint-calibrating-toast {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  background: rgba(8, 14, 26, 0.94);
+  border: 1px solid #00E5FF;
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #00E5FF;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: pulse-border 1.8s infinite ease-in-out;
+}
+.run-permission-banner.warning {
+  border-color: rgba(255, 183, 3, 0.4);
+  background: rgba(255, 183, 3, 0.08);
+}
+.run-permission-banner.warning .permission-title {
+  color: #FFB703;
+}
 
 /* --- Run Control Action Buttons --- */
 .run-controls-row {
