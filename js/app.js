@@ -150,6 +150,68 @@ window.SYS = window.SYS || {};
     });
   }
 
+  /* ======================================================================
+     Netlify & Injected Watermark Suppressor
+     Guarantees the bottom mobile navigation dock remains unobstructed
+     ====================================================================== */
+  function suppressWatermarks() {
+    try {
+      var selectors = [
+        '#netlify-badge',
+        '.netlify-badge',
+        '[data-netlify-badge]',
+        '[data-testid*="netlify"]',
+        '[class*="netlify"]',
+        '[id*="netlify"]',
+        'a[href*="netlify.com"]',
+        'a[href*="netlify.app"]',
+        'iframe[src*="netlify"]'
+      ];
+      selectors.forEach(function (sel) {
+        document.querySelectorAll(sel).forEach(function (node) {
+          var container = node.closest('div[style*="fixed"]') || node.closest('div[style*="absolute"]') || node;
+          if (container && container !== document.body && container !== document.documentElement && !container.classList.contains('mobile-dock')) {
+            container.style.display = 'none';
+            container.style.visibility = 'hidden';
+            container.style.pointerEvents = 'none';
+            if (container.parentNode) container.parentNode.removeChild(container);
+          }
+        });
+      });
+
+      var floatingDivs = document.querySelectorAll('body > div');
+      floatingDivs.forEach(function (el) {
+        if (el.id === 'app-root' || el.id === 'system-modal' || el.id === 'toast-container' || el.id === 'grace-banner' || el.classList.contains('scanlines')) return;
+        var txt = (el.innerText || el.textContent || '').toLowerCase();
+        if (txt.indexOf('netlify') !== -1) {
+          el.style.display = 'none';
+          el.style.visibility = 'hidden';
+          el.style.pointerEvents = 'none';
+          if (el.parentNode) el.parentNode.removeChild(el);
+        }
+      });
+    } catch (e) {
+      // guard
+    }
+  }
+
+  function initWatermarkSuppressor() {
+    suppressWatermarks();
+    if (typeof MutationObserver !== 'undefined') {
+      var watermarkObserver = new MutationObserver(function () {
+        suppressWatermarks();
+      });
+      watermarkObserver.observe(document.documentElement, {
+        childList: true,
+        subtree: true
+      });
+    }
+    window.addEventListener('load', suppressWatermarks);
+  }
+
+  // Run watermark suppressor immediately
+  initWatermarkSuppressor();
+
   // Boot on DOM ready
   document.addEventListener('DOMContentLoaded', function () {
     if (S.audio) S.audio.init();
@@ -161,6 +223,7 @@ window.SYS = window.SYS || {};
     startClocks();
     setupModalBackdrop();
     initPWA();
+    suppressWatermarks();
 
     console.log('[PROJECT: ARISE] The System is fully operational.');
   });
