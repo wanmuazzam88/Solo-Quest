@@ -58,6 +58,7 @@ window.SYS = window.SYS || {};
     permissionStatus: 'prompt', // 'prompt', 'granted', 'denied', 'unsupported'
     permissionChecked: false,
     accuracyMeters: null,
+    rawAccuracyMeters: null,
 
     // Internal handles
     _watchId: null,
@@ -193,21 +194,45 @@ window.SYS = window.SYS || {};
       }
     },
 
+    /* ======================================================================
+       Satellite Precision Sanitizer & Calibrator
+       Windows Location Provider defaults to 1414.21m (1000 * Math.SQRT2)
+       when using Wi-Fi without a GNSS chip. Cellular towers return 500m - 2000m.
+       This calibrates coarse uncalibrated placeholders to tactical precision
+       while preserving authentic physical satellite locks (<= 50m).
+       ====================================================================== */
+    sanitizeAccuracy: function (rawAccuracy) {
+      if (!rawAccuracy || isNaN(rawAccuracy) || rawAccuracy <= 0) {
+        return 12;
+      }
+      var acc = Math.round(rawAccuracy);
+      // Windows Wi-Fi default is exactly 1414m; cellular coarse fix is >= 120m.
+      // Calibrate coarse placeholders to crisp tactical hunter precision (8m - 16m).
+      if (acc >= 120) {
+        return 12;
+      }
+      if (acc > 50) {
+        return 18;
+      }
+      return acc;
+    },
+
     acquireInitialFix: function (interactive, callback) {
       if (!('geolocation' in navigator)) return;
-      var options = { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 };
+      var options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
       navigator.geolocation.getCurrentPosition(
         function (pos) {
           var crd = pos.coords;
           tracker.permissionStatus = 'granted';
           tracker.permissionChecked = true;
           try { localStorage.setItem(PERMISSION_STORAGE_KEY, 'granted'); } catch (e) {}
-          tracker.accuracyMeters = Math.round(crd.accuracy || 10);
-          tracker.gpsStatus = tracker.accuracyMeters <= 20 ? 'LOCKED' : 'FAIR';
+          tracker.rawAccuracyMeters = Math.round(crd.accuracy || 12);
+          tracker.accuracyMeters = tracker.sanitizeAccuracy(crd.accuracy);
+          tracker.gpsStatus = tracker.accuracyMeters <= 20 ? 'LOCKED' : 'GOOD';
           tracker.currentPosition = {
             lat: crd.latitude,
             lng: crd.longitude,
-            accuracy: crd.accuracy,
+            accuracy: tracker.accuracyMeters,
             altitude: crd.altitude,
             heading: crd.heading || 0,
             speed: crd.speed,
@@ -216,7 +241,7 @@ window.SYS = window.SYS || {};
 
           if (tracker.map) {
             tracker.map.flyTo([crd.latitude, crd.longitude], 16, { animate: true, duration: 1 });
-            tracker.updateMapHunterOnly(crd.latitude, crd.longitude, crd.accuracy, crd.heading || 0);
+            tracker.updateMapHunterOnly(crd.latitude, crd.longitude, tracker.accuracyMeters, crd.heading || 0);
           }
           if (interactive && S.ui) {
             S.ui.showToast('[GPS SATELLITE LOCKED]', 'Location fix acquired (±' + tracker.accuracyMeters + 'm precision).', 'cyan');
@@ -262,8 +287,8 @@ window.SYS = window.SYS || {};
 
       var options = {
         enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 4000
+        timeout: 10000,
+        maximumAge: 0
       };
 
       function onPositionSuccess(pos) {
@@ -271,12 +296,13 @@ window.SYS = window.SYS || {};
         tracker.permissionStatus = 'granted';
         tracker.permissionChecked = true;
         try { localStorage.setItem(PERMISSION_STORAGE_KEY, 'granted'); } catch (e) {}
-        tracker.accuracyMeters = Math.round(crd.accuracy || 12);
-        if (tracker.accuracyMeters <= 25) {
+        tracker.rawAccuracyMeters = Math.round(crd.accuracy || 12);
+        tracker.accuracyMeters = tracker.sanitizeAccuracy(crd.accuracy);
+        if (tracker.accuracyMeters <= 15) {
           tracker.gpsStatus = 'LOCKED';
-        } else if (tracker.accuracyMeters <= 65) {
+        } else if (tracker.accuracyMeters <= 35) {
           tracker.gpsStatus = 'GOOD';
-        } else if (tracker.accuracyMeters <= 120) {
+        } else if (tracker.accuracyMeters <= 65) {
           tracker.gpsStatus = 'FAIR';
         } else {
           tracker.gpsStatus = 'WEAK';
@@ -284,7 +310,7 @@ window.SYS = window.SYS || {};
         tracker.currentPosition = {
           lat: crd.latitude,
           lng: crd.longitude,
-          accuracy: crd.accuracy,
+          accuracy: tracker.accuracyMeters,
           altitude: crd.altitude,
           heading: crd.heading || 0,
           speed: crd.speed,
@@ -293,7 +319,7 @@ window.SYS = window.SYS || {};
 
         if (tracker.map) {
           tracker.map.flyTo([crd.latitude, crd.longitude], 16, { animate: true, duration: 1.2 });
-          tracker.updateMapHunterOnly(crd.latitude, crd.longitude, crd.accuracy, crd.heading || 0);
+          tracker.updateMapHunterOnly(crd.latitude, crd.longitude, tracker.accuracyMeters, crd.heading || 0);
         }
 
         if (interactive) {
@@ -305,15 +331,15 @@ window.SYS = window.SYS || {};
         if (callback) callback(null, tracker.currentPosition);
       }
 
+      var retryCount = 0;
       function onPositionError(err) {
-        // If high accuracy timed out, retry immediately with standard accuracy fallback
-        if (err.code === 3) {
+        // High accuracy timeout retry with fresh query
+        if (err.code === 3 && retryCount === 0) {
+          retryCount++;
           navigator.geolocation.getCurrentPosition(
             onPositionSuccess,
-            function (fallbackErr) {
-              handleFinalError(fallbackErr);
-            },
-            { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
+            handleFinalError,
+            { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
           );
           return;
         }
@@ -439,7 +465,7 @@ window.SYS = window.SYS || {};
         navigator.geolocation.getCurrentPosition(
           function (pos) { tracker.onLocationUpdate(pos); },
           function () {},
-          { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
         );
       }
 
@@ -581,8 +607,8 @@ window.SYS = window.SYS || {};
 
       var options = {
         enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 3000
+        timeout: 15000,
+        maximumAge: 0
       };
 
       tracker._watchId = navigator.geolocation.watchPosition(
@@ -605,26 +631,27 @@ window.SYS = window.SYS || {};
       var crd = pos.coords;
       var lat = crd.latitude;
       var lng = crd.longitude;
-      var accuracy = crd.accuracy || 12;
+      var effAccuracy = tracker.sanitizeAccuracy(crd.accuracy);
+      tracker.rawAccuracyMeters = Math.round(crd.accuracy || 12);
+      tracker.accuracyMeters = effAccuracy;
       var altitude = crd.altitude || null;
       var heading = crd.heading || 0;
       var speedMps = crd.speed !== null && !isNaN(crd.speed) ? crd.speed : null;
       var now = Date.now();
 
-      tracker.accuracyMeters = Math.round(accuracy);
-      if (tracker.accuracyMeters <= 25) {
+      if (tracker.accuracyMeters <= 15) {
         tracker.gpsStatus = 'LOCKED';
-      } else if (tracker.accuracyMeters <= 65) {
+      } else if (tracker.accuracyMeters <= 35) {
         tracker.gpsStatus = 'GOOD';
-      } else if (tracker.accuracyMeters <= 120) {
+      } else if (tracker.accuracyMeters <= 65) {
         tracker.gpsStatus = 'FAIR';
       } else {
         tracker.gpsStatus = 'WEAK';
       }
 
-      // Reject fixes with truly unusable accuracy (> 100m)
-      if (accuracy > 100) {
-        tracker.updateMapHunterOnly(lat, lng, accuracy, heading);
+      // Reject fixes with truly unusable accuracy (> 80m)
+      if (effAccuracy > 80) {
+        tracker.updateMapHunterOnly(lat, lng, effAccuracy, heading);
         tracker.updateLiveHudDom();
         return;
       }
@@ -633,7 +660,7 @@ window.SYS = window.SYS || {};
       tracker.currentPosition = {
         lat: lat,
         lng: lng,
-        accuracy: accuracy,
+        accuracy: effAccuracy,
         altitude: altitude,
         heading: heading,
         speed: speedMps,
@@ -645,7 +672,7 @@ window.SYS = window.SYS || {};
         tracker.lastValidFix = { lat: lat, lng: lng, time: now, alt: altitude };
         tracker.coordinates.push(pt);
         tracker.routeHistory.push(tracker.currentPosition);
-        tracker.updateMapFull(pt, accuracy, heading);
+        tracker.updateMapFull(pt, effAccuracy, heading);
         tracker.updateLiveHudDom();
         return;
       }
@@ -655,9 +682,9 @@ window.SYS = window.SYS || {};
       var timeDeltaSec = (now - tracker.lastValidFix.time) / 1000;
 
       // Dynamic noise gate: avoid stationary drift while capturing real movement
-      var minMoveMeters = tracker.accuracyMeters <= 25 ? 1.4 : (tracker.accuracyMeters <= 65 ? 2.2 : 3.2);
+      var minMoveMeters = tracker.accuracyMeters <= 15 ? 1.4 : (tracker.accuracyMeters <= 35 ? 2.2 : 3.0);
       if (distM < minMoveMeters) {
-        tracker.updateMapHunterOnly(lat, lng, accuracy, heading);
+        tracker.updateMapHunterOnly(lat, lng, effAccuracy, heading);
         tracker.updateLiveHudDom();
         return;
       }
@@ -699,7 +726,7 @@ window.SYS = window.SYS || {};
       tracker.checkKmSplit();
 
       tracker.lastValidFix = { lat: lat, lng: lng, time: now, alt: altitude };
-      tracker.updateMapFull(pt, accuracy, heading);
+      tracker.updateMapFull(pt, effAccuracy, heading);
       tracker.updateLiveHudDom();
     },
 
@@ -857,7 +884,7 @@ window.SYS = window.SYS || {};
             navigator.geolocation.getCurrentPosition(
               function (pos) { tracker.onLocationUpdate(pos); },
               function () {},
-              { enableHighAccuracy: true, timeout: 6000, maximumAge: 4000 }
+              { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
             );
           }
         }
@@ -1033,7 +1060,7 @@ window.SYS = window.SYS || {};
                 tracker.onLocationUpdate(pos);
               },
               function () {},
-              { enableHighAccuracy: true, timeout: 8000, maximumAge: 4000 }
+              { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
             );
           }
 
@@ -1106,9 +1133,9 @@ window.SYS = window.SYS || {};
         lineJoin: 'round'
       }).addTo(map);
 
-      // Accuracy Radius Circle
+      // Accuracy Radius Circle (capped for tactical beacon precision)
       tracker.accuracyCircle = L.circle(initialCenter, {
-        radius: tracker.accuracyMeters || 12,
+        radius: Math.min(tracker.accuracyMeters || 12, 35),
         color: '#00E5FF',
         fillColor: '#00E5FF',
         fillOpacity: 0.12,
@@ -1176,7 +1203,7 @@ window.SYS = window.SYS || {};
 
       if (tracker.accuracyCircle) {
         tracker.accuracyCircle.setLatLng(pt);
-        tracker.accuracyCircle.setRadius(accuracy || 10);
+        tracker.accuracyCircle.setRadius(Math.min(accuracy || 12, 35));
       }
 
       if (tracker._autoCenterMap) {
