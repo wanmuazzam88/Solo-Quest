@@ -10,6 +10,16 @@ window.SYS = window.SYS || {};
   var CONFIG_KEY = 'solo_quest_cloud_config_v1';
   var TOKEN_KEY = 'solo_quest_auth_token_v1';
   var USER_KEY = 'solo_quest_auth_user_v1';
+  var REGISTRY_KEY = 'solo_quest_hunter_registry_v1';
+  var LAST_NAME_KEY = 'solo_quest_last_signup_name';
+
+  function sanitizeHunterName(name) {
+    if (!name || typeof name !== 'string') return '';
+    var trimmed = name.trim();
+    if (trimmed.includes('@')) return '';
+    if (trimmed.toUpperCase() === 'PLAYER') return '';
+    return trimmed.slice(0, 24);
+  }
 
   function cleanUrl(raw) {
     if (!raw) return '';
@@ -62,11 +72,79 @@ window.SYS = window.SYS || {};
     isManagedCloud: false,
     managedPlatform: null,
 
+    rememberHunterName: function (email, name) {
+      var clean = sanitizeHunterName(name);
+      if (!clean) return;
+
+      try {
+        localStorage.setItem(LAST_NAME_KEY, clean);
+        localStorage.setItem('solo_quest_remembered_name', clean);
+
+        var map = {};
+        try {
+          var raw = localStorage.getItem(REGISTRY_KEY);
+          if (raw) map = JSON.parse(raw);
+        } catch (e) {
+          map = {};
+        }
+
+        if (email && typeof email === 'string') {
+          var em = email.trim().toLowerCase();
+          if (em) {
+            map[em] = clean;
+            localStorage.setItem('solo_quest_name_' + em, clean);
+            var userPart = em.split('@')[0];
+            if (userPart) map[userPart] = clean;
+          }
+        }
+        localStorage.setItem(REGISTRY_KEY, JSON.stringify(map));
+      } catch (e) {
+        console.warn('[REGISTRY NOTICE]', e);
+      }
+    },
+
+    getRememberedHunterName: function (identifier) {
+      try {
+        if (identifier && typeof identifier === 'string') {
+          var key = identifier.trim().toLowerCase();
+          var raw = localStorage.getItem(REGISTRY_KEY);
+          if (raw) {
+            var map = JSON.parse(raw);
+            if (map[key] && sanitizeHunterName(map[key])) return map[key];
+            var userPart = key.split('@')[0];
+            if (map[userPart] && sanitizeHunterName(map[userPart])) return map[userPart];
+          }
+
+          var indiv = localStorage.getItem('solo_quest_name_' + key);
+          if (indiv && sanitizeHunterName(indiv)) return indiv;
+        }
+
+        var last = localStorage.getItem(LAST_NAME_KEY) || localStorage.getItem('solo_quest_remembered_name');
+        if (last && sanitizeHunterName(last)) return last;
+
+        if (S.state && S.state.profile && S.state.profile.hunterName) {
+          var fromState = sanitizeHunterName(S.state.profile.hunterName);
+          if (fromState) return fromState;
+        }
+      } catch (e) {}
+
+      return null;
+    },
+
     init: function () {
       api.token = localStorage.getItem(TOKEN_KEY) || null;
       try {
         var rawUser = localStorage.getItem(USER_KEY);
-        if (rawUser) api.user = JSON.parse(rawUser);
+        if (rawUser) {
+          api.user = JSON.parse(rawUser);
+          if (api.user && (!api.user.hunterName || api.user.hunterName.includes('@') || api.user.hunterName === 'Hunter')) {
+            var remembered = api.getRememberedHunterName(api.user.email);
+            if (remembered) {
+              api.user.hunterName = remembered;
+              localStorage.setItem(USER_KEY, JSON.stringify(api.user));
+            }
+          }
+        }
       } catch (e) {
         api.user = null;
       }
@@ -349,6 +427,10 @@ window.SYS = window.SYS || {};
           hunterName: hunterName
         };
 
+        if (hunterName && sanitizeHunterName(hunterName)) {
+          api.rememberHunterName(email, hunterName);
+        }
+
         if (token) {
           api.setSession(token, user);
         } else {
@@ -373,6 +455,10 @@ window.SYS = window.SYS || {};
         var json2 = await res2.json();
         if (!res2.ok) throw new Error(json2.error || 'Server registration failed');
 
+        if (hunterName && sanitizeHunterName(hunterName)) {
+          api.rememberHunterName(email, hunterName);
+        }
+
         api.setSession(json2.token, json2.user);
         return json2;
 
@@ -380,6 +466,9 @@ window.SYS = window.SYS || {};
         // Local Account Simulation
         var localId = 'local_' + Date.now();
         var localUser = { id: localId, email: email, hunterName: hunterName };
+        if (hunterName && sanitizeHunterName(hunterName)) {
+          api.rememberHunterName(email, hunterName);
+        }
         api.setSession('local_token_' + Date.now(), localUser);
         return { user: localUser, token: 'local_token' };
       }
@@ -438,8 +527,40 @@ window.SYS = window.SYS || {};
         }
 
         var token = json.access_token;
-        var meta = json.user.user_metadata || {};
-        var hunterName = meta.hunter_name || (json.user.email ? json.user.email.split('@')[0] : 'Hunter');
+        var meta = json.user.user_metadata || json.user.raw_user_meta_data || {};
+        var hunterName = sanitizeHunterName(meta.hunter_name);
+
+        // If not in token metadata, query hunter_profiles table directly
+        if (!hunterName) {
+          try {
+            var profileRes = await fetch(url + '/rest/v1/hunter_profiles?id=eq.' + json.user.id + '&select=hunter_name&limit=1', {
+              headers: {
+                'apikey': key,
+                'Authorization': 'Bearer ' + token
+              }
+            });
+            if (profileRes.ok) {
+              var pRows = await profileRes.json();
+              if (pRows && pRows.length && pRows[0].hunter_name) {
+                var cleanDbName = sanitizeHunterName(pRows[0].hunter_name);
+                if (cleanDbName) hunterName = cleanDbName;
+              }
+            }
+          } catch (e) {}
+        }
+
+        // If still not found, check remembered signup names
+        if (!hunterName) {
+          hunterName = api.getRememberedHunterName(json.user.email || emailOrName);
+        }
+
+        // Clean fallback: never display raw email
+        if (!hunterName) {
+          var cleanPart = (json.user.email ? json.user.email.split('@')[0] : 'Hunter');
+          hunterName = cleanPart.charAt(0).toUpperCase() + cleanPart.slice(1);
+        }
+
+        api.rememberHunterName(json.user.email, hunterName);
 
         var user = {
           id: json.user.id,
@@ -460,12 +581,30 @@ window.SYS = window.SYS || {};
         var json2 = await res2.json();
         if (!res2.ok) throw new Error(json2.error || 'Server login failed.');
 
+        var customName = sanitizeHunterName(json2.user.hunterName);
+        if (!customName) {
+          customName = api.getRememberedHunterName(json2.user.email || emailOrName) || (json2.user.email ? json2.user.email.split('@')[0] : 'Hunter');
+        }
+        json2.user.hunterName = customName;
+        api.rememberHunterName(json2.user.email, customName);
+
         api.setSession(json2.token, json2.user);
         return json2;
 
       } else {
         // Local mode fallback
-        var storedUser = api.user || { id: 'local_user', email: emailOrName, hunterName: emailOrName };
+        var localResolved = api.getRememberedHunterName(emailOrName);
+        if (!localResolved) {
+          if (S.state && S.state.profile && S.state.profile.hunterName && S.state.profile.hunterName !== 'PLAYER' && !S.state.profile.hunterName.includes('@')) {
+            localResolved = S.state.profile.hunterName;
+          } else {
+            var localPart = emailOrName.includes('@') ? emailOrName.split('@')[0] : emailOrName;
+            localResolved = localPart ? (localPart.charAt(0).toUpperCase() + localPart.slice(1)) : 'Hunter';
+          }
+        }
+        var cleanLocalEmail = emailOrName.includes('@') ? emailOrName : (S.state && S.state.profile && S.state.profile.email ? S.state.profile.email : emailOrName + '@solo.quest');
+        var storedUser = { id: 'local_user', email: cleanLocalEmail, hunterName: localResolved };
+        api.rememberHunterName(cleanLocalEmail, localResolved);
         api.setSession('local_token', storedUser);
         return { user: storedUser, token: 'local_token' };
       }

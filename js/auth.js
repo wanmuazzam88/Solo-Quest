@@ -65,10 +65,17 @@ window.SYS = window.SYS || {};
       if (!btn || !label) return;
 
       if (S.api.user) {
-        label.textContent = S.api.user.hunterName.toUpperCase();
+        var hName = S.api.user.hunterName;
+        if (!hName || hName.includes('@') || hName === 'PLAYER') {
+          hName = (S.api.getRememberedHunterName && S.api.getRememberedHunterName(S.api.user.email)) ||
+                  (S.state && S.state.profile && S.state.profile.hunterName && !S.state.profile.hunterName.includes('@') && S.state.profile.hunterName !== 'PLAYER' ? S.state.profile.hunterName : null) ||
+                  (S.api.user.email ? S.api.user.email.split('@')[0] : 'HUNTER');
+          S.api.user.hunterName = hName;
+        }
+        label.textContent = hName.toUpperCase();
         btn.classList.add('authenticated');
         btn.classList.remove('unauthenticated');
-        btn.title = 'Authenticated Hunter: ' + S.api.user.hunterName + ' // System Database Connected';
+        btn.title = 'Authenticated Hunter: ' + hName + ' // System Database Connected';
       } else {
         label.textContent = S.api.provider === 'local' ? 'LOCAL HUD' : 'SYSTEM LINK';
         btn.classList.remove('authenticated');
@@ -121,12 +128,31 @@ window.SYS = window.SYS || {};
       auth.updateTopbarBadge();
 
       try {
+        // Resolve clean non-email hunter name
+        var cleanName = user.hunterName;
+        if (!cleanName || cleanName.includes('@') || cleanName === 'PLAYER') {
+          cleanName = (S.api.getRememberedHunterName && S.api.getRememberedHunterName(user.email)) ||
+                      (S.state && S.state.profile && S.state.profile.hunterName && !S.state.profile.hunterName.includes('@') && S.state.profile.hunterName !== 'PLAYER' ? S.state.profile.hunterName : null) ||
+                      (user.email ? user.email.split('@')[0] : 'Hunter');
+        }
+        user.hunterName = cleanName;
+        if (S.api && S.api.user) S.api.user.hunterName = cleanName;
+        if (S.state && S.state.profile) S.state.profile.hunterName = cleanName;
+        if (S.api && S.api.rememberHunterName) S.api.rememberHunterName(user.email, cleanName);
+
         // Attempt to sync down remote saved state
         var remote = await S.api.syncDown();
         if (remote && remote.profile) {
           // Hydrate local state from remote database
           var p = remote.profile;
-          S.state.profile.hunterName = p.hunter_name || p.hunterName || S.state.profile.hunterName;
+          if (p.hunter_name && !p.hunter_name.includes('@') && p.hunter_name !== 'PLAYER') {
+            S.state.profile.hunterName = p.hunter_name;
+            user.hunterName = p.hunter_name;
+            if (S.api && S.api.user) S.api.user.hunterName = p.hunter_name;
+            if (S.api && S.api.rememberHunterName) S.api.rememberHunterName(user.email, p.hunter_name);
+          } else {
+            S.state.profile.hunterName = cleanName;
+          }
           if (p.level) S.state.profile.level = p.level;
           if (p.current_xp !== undefined) S.state.profile.currentXp = p.current_xp;
           if (p.ap !== undefined) S.state.profile.ap = p.ap;

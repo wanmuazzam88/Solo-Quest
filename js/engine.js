@@ -927,6 +927,9 @@ window.SYS = window.SYS || {};
     s.profile.hunterName = (name || 'PLAYER').trim().slice(0, 18) || 'PLAYER';
     s.profile.penaltyMode = mode === 'HARDCORE' ? 'HARDCORE' : 'OPTIONAL';
     if (email) s.profile.email = String(email).trim().toLowerCase();
+    if (S.api && typeof S.api.rememberHunterName === 'function' && s.profile.hunterName !== 'PLAYER') {
+      S.api.rememberHunterName(email, s.profile.hunterName);
+    }
     s.initialized = true;
     s.currentDate = S.today();
     s.settings = s.settings || {};

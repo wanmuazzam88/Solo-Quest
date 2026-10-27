@@ -1982,7 +1982,10 @@ window.SYS = window.SYS || {};
           }
         } else if (step === 'REGISTER') {
           var curProfile = (S.state && S.state.profile) || {};
-          var existingName = (curProfile.hunterName && curProfile.hunterName !== 'PLAYER') ? curProfile.hunterName : '';
+          var existingName = (curProfile.hunterName && curProfile.hunterName !== 'PLAYER' && !curProfile.hunterName.includes('@')) ? curProfile.hunterName : '';
+          if (!existingName && S.api && S.api.getRememberedHunterName) {
+            existingName = S.api.getRememberedHunterName() || '';
+          }
           var existingEmail = savedEmail || curProfile.email || (S.api && S.api.user ? S.api.user.email : '');
 
           UI.openModal(
@@ -2083,6 +2086,9 @@ window.SYS = window.SYS || {};
               S.awaken(name, mode, preset, email);
             } catch (awakenErr) {
               console.error('[AWAKEN ERROR]', awakenErr);
+            }
+            if (S.api && S.api.rememberHunterName && name !== 'PLAYER') {
+              S.api.rememberHunterName(email, name);
             }
 
             if (S.audio) {
@@ -2197,24 +2203,29 @@ window.SYS = window.SYS || {};
 
             try {
               var result = await S.api.login(identifier, pass);
-              if (S.auth && S.auth.pullFromCloud) {
-                try { await S.auth.pullFromCloud(); } catch (e) {}
+              var resolvedName = (result && result.user && result.user.hunterName) || (S.api && S.api.getRememberedHunterName && S.api.getRememberedHunterName(result && result.user ? result.user.email : identifier)) || 'Hunter';
+              if (result && result.user) {
+                result.user.hunterName = resolvedName;
               }
               if (S.state) {
                 S.state.initialized = true;
-                if (result && result.user && result.user.hunterName) {
-                  S.state.profile.hunterName = result.user.hunterName;
-                }
+                S.state.profile.hunterName = resolvedName;
                 if (result && result.user && result.user.email) {
                   S.state.profile.email = result.user.email;
                 }
                 S.commit();
               }
+              if (S.auth && S.auth.handlePostLogin && result && result.user) {
+                try { await S.auth.handlePostLogin(result.user); } catch (e) {}
+              }
+              if (S.auth && S.auth.updateTopbarBadge) {
+                S.auth.updateTopbarBadge();
+              }
               if (S.audio) {
                 try { S.audio.rankUp(); } catch (err) {}
               }
               UI.closeModal();
-              UI.showToast('[SYSTEM LINK ESTABLISHED]', 'Welcome back, Hunter ' + ((result && result.user && result.user.hunterName) || 'Player') + '. Progress restored.', 'gold');
+              UI.showToast('[SYSTEM LINK ESTABLISHED]', 'Welcome back, Hunter ' + resolvedName + '. Progress restored.', 'gold');
               UI.render();
             } catch (err) {
               if (btnSub) {
@@ -2312,11 +2323,13 @@ window.SYS = window.SYS || {};
 
         if (activeTab === 'PROFILE' && isAuth) {
           var u = S.api.user;
+          var hName = (u && u.hunterName) || (S.api.getRememberedHunterName && S.api.getRememberedHunterName(u.email)) || (S.state && S.state.profile && S.state.profile.hunterName) || 'HUNTER';
+          if (hName.includes('@')) hName = (S.api.getRememberedHunterName && S.api.getRememberedHunterName(hName)) || hName.split('@')[0];
           bodyHtml = '<div>' +
             '<div style="background:rgba(0,229,255,0.06); border:1px solid rgba(0,229,255,0.3); clip-path:var(--clip-chamfer-sm); padding:16px; margin-bottom:16px;">' +
               '<div class="flex-between" style="margin-bottom:8px;">' +
                 '<div>' +
-                  '<div class="font-display text-accent" style="font-size:18px; font-weight:700;">' + U.esc(u.hunterName || 'HUNTER').toUpperCase() + '</div>' +
+                  '<div class="font-display text-accent" style="font-size:18px; font-weight:700;">' + U.esc(hName).toUpperCase() + '</div>' +
                   '<div class="font-mono text-muted" style="font-size:11px;">' + U.esc(u.email || 'system@solo.quest') + '</div>' +
                 '</div>' +
                 '<span class="sys-badge font-display text-gold" style="font-size:14px;">RANK ' + S.rank().code + '</span>' +
@@ -2460,8 +2473,23 @@ window.SYS = window.SYS || {};
 
             try {
               var result = await S.api.login(id, pass);
+              var resolvedName = (result && result.user && result.user.hunterName) || (S.api && S.api.getRememberedHunterName && S.api.getRememberedHunterName(result && result.user ? result.user.email : id)) || 'Hunter';
+              if (result && result.user) {
+                result.user.hunterName = resolvedName;
+              }
+              if (S.state && S.state.profile) {
+                S.state.profile.hunterName = resolvedName;
+                if (result && result.user && result.user.email) S.state.profile.email = result.user.email;
+                S.commit();
+              }
+              if (S.auth && S.auth.handlePostLogin && result && result.user) {
+                try { await S.auth.handlePostLogin(result.user); } catch (e) {}
+              }
+              if (S.auth && S.auth.updateTopbarBadge) {
+                S.auth.updateTopbarBadge();
+              }
               UI.closeModal();
-              UI.showToast('[SYSTEM LINK ESTABLISHED]', 'Welcome, Hunter ' + (result.user.hunterName || 'Awakened') + '. Cloud sync active.', 'gold');
+              UI.showToast('[SYSTEM LINK ESTABLISHED]', 'Welcome, Hunter ' + resolvedName + '. Cloud sync active.', 'gold');
               if (S.audio) S.audio.rankUp();
               UI.render();
             } catch (err) {
@@ -2503,12 +2531,19 @@ window.SYS = window.SYS || {};
 
             try {
               var regRes = await S.api.register({ email: email, password: pass, hunterName: name, mode: mode });
+              if (S.api && S.api.rememberHunterName && name) {
+                S.api.rememberHunterName(email, name);
+              }
               S.state.profile.hunterName = name;
+              S.state.profile.email = email;
               S.state.profile.penaltyMode = mode;
               if (preset && (!S.state.quests || !S.state.quests.length)) {
                 S.installPreset();
               }
               S.save();
+              if (S.auth && S.auth.updateTopbarBadge) {
+                S.auth.updateTopbarBadge();
+              }
 
               if (regRes && regRes.emailConfirmationRequired) {
                 if (errEl) {
