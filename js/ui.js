@@ -449,7 +449,7 @@ window.SYS = window.SYS || {};
         } else {
           // Reps / KM Counter mode fast logging buttons
           var isKm = q.unit === 'KM' || q.category === 'RUNNING';
-          var runGpsBtn = isKm ? '<button class="sys-btn sm primary btn-start-run" data-quest-id="' + q.id + '" style="margin-bottom:6px; width:100%;">' + I('gps', 14) + ' OPEN GPS RUN TRACKER (STRAVA)</button>' : '';
+          var runGpsBtn = isKm ? '<button class="sys-btn sm primary btn-start-run" data-quest-id="' + q.id + '" style="margin-bottom:6px; width:100%;">' + I('gps', 14) + ' OPEN TACTICAL RUN TRACKER</button>' : '';
 
           progressControls = '<div style="display:flex; flex-direction:column; width:100%;">' +
             runGpsBtn +
@@ -1195,7 +1195,7 @@ window.SYS = window.SYS || {};
     },
 
     /* ======================================================================
-       VIEW: TACTICAL GPS & STEP RUN TRACKER (STRAVA SATELLITE HUD)
+       VIEW: TACTICAL GPS & STEP RUN TRACKER
        ====================================================================== */
     renderRunView: function (container) {
       var tr = S.tracker;
@@ -1279,8 +1279,7 @@ window.SYS = window.SYS || {};
       var actionControls = '';
       if (!st.isActive) {
         actionControls = '<div class="run-controls-row">' +
-          '<button class="sys-btn lg primary" id="btn-run-start" style="flex:2;">' + I('play', 20) + ' START GPS RUN</button>' +
-          '<button class="sys-btn lg" id="btn-run-demo" style="flex:1;" title="Simulate realistic GPS jog with steps">' + I('radar', 16) + ' DEMO SIMULATION</button>' +
+          '<button class="sys-btn lg primary" id="btn-run-start" style="flex:1;">' + I('play', 20) + ' START GPS RUN</button>' +
         '</div>';
       } else if (!st.isPaused) {
         actionControls = '<div class="run-controls-row">' +
@@ -1302,12 +1301,11 @@ window.SYS = window.SYS || {};
             '<div class="permission-icon-wrap">' + I('alert', 20) + '</div>' +
             '<div class="permission-info">' +
               '<div class="permission-title">[DEVICE LOCATION PERMISSION BLOCKED]</div>' +
-              '<div class="permission-desc">Location access was denied. Enable location in your browser site permissions to use live GPS, or switch to Demo Simulation.</div>' +
+              '<div class="permission-desc">Location access was denied. Enable location in your browser site permissions to use live GPS tracking.</div>' +
             '</div>' +
             '<div class="permission-actions">' +
               '<button class="sys-btn sm warning" id="btn-request-location">' + I('gps', 14) + ' RETRY ACCESS</button>' +
               '<button class="sys-btn sm" id="btn-location-help">' + I('info', 14) + ' HOW TO ALLOW</button>' +
-              '<button class="sys-btn sm primary" id="btn-run-demo-banner">' + I('radar', 14) + ' DEMO RUN</button>' +
             '</div>' +
           '</div>';
         } else if (st.permissionStatus === 'granted') {
@@ -1325,7 +1323,7 @@ window.SYS = window.SYS || {};
             '<div class="permission-icon-wrap">' + I('gps', 20) + '</div>' +
             '<div class="permission-info">' +
               '<div class="permission-title">[DEVICE LOCATION ACCESS REQUIRED]</div>' +
-              '<div class="permission-desc">Allow device location permission to calculate real-time distance, speed, pace, and route coordinates like Strava.</div>' +
+              '<div class="permission-desc">Allow device location permission to calculate real-time distance, speed, pace, and route coordinates.</div>' +
             '</div>' +
             '<button class="sys-btn primary" id="btn-request-location">' + I('gps', 16) + ' ALLOW LOCATION ACCESS</button>' +
           '</div>';
@@ -1335,7 +1333,7 @@ window.SYS = window.SYS || {};
       container.innerHTML = '<div class="run-view-layout">' +
         '<div class="system-panel">' +
           '<div class="panel-header">' +
-            '<div class="panel-title">' + I('gps', 18) + ' [TACTICAL RUN TRACKER // STRAVA SATELLITE HUD]</div>' +
+            '<div class="panel-title">' + I('gps', 18) + ' [TACTICAL RUN TRACKER]</div>' +
             '<div class="gps-badge ' + st.gpsStatus.toLowerCase() + '" id="run-stat-gps-status">' +
               st.gpsStatus + (st.accuracyMeters ? ' (±' + st.accuracyMeters + 'M)' : '') +
             '</div>' +
@@ -1363,7 +1361,7 @@ window.SYS = window.SYS || {};
               '<div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:' + runPct + '%"></div></div>' +
             '</div>' : '') +
 
-          // Big 4 Primary Strava Metrics Grid
+          // Big 4 Primary Run Metrics Grid
           '<div class="run-metrics-grid">' +
             // Distance
             '<div class="run-metric-card primary">' +
@@ -1475,27 +1473,11 @@ window.SYS = window.SYS || {};
         });
       }
 
-      var btnDemoBanner = container.querySelector('#btn-run-demo-banner');
-      if (btnDemoBanner) {
-        btnDemoBanner.addEventListener('click', function () {
-          var qId = selQuest ? selQuest.value : null;
-          tr.start(qId, true);
-        });
-      }
-
       var btnStart = container.querySelector('#btn-run-start');
       if (btnStart) {
         btnStart.addEventListener('click', function () {
           var qId = selQuest ? selQuest.value : null;
-          tr.start(qId, false);
-        });
-      }
-
-      var btnDemo = container.querySelector('#btn-run-demo');
-      if (btnDemo) {
-        btnDemo.addEventListener('click', function () {
-          var qId = selQuest ? selQuest.value : null;
-          tr.start(qId, true);
+          tr.start(qId);
         });
       }
 
@@ -2264,7 +2246,7 @@ window.SYS = window.SYS || {};
         '<div style="margin-top:12px; padding:10px; background:rgba(255,183,3,0.1); border:1px solid rgba(255,183,3,0.4); clip-path:var(--clip-chamfer-sm); font-size:11px; color:#FFB703;">' +
           '<strong>[SECURITY RESTRICTION: SECURE ORIGIN MANDATE]</strong><br>' +
           'Web browsers strictly restrict live GPS hardware access on <code>file:///</code> URLs. ' +
-          'To test live GPS on desktop, serve via localhost (e.g. <code>npx serve</code> or VS Code Live Server) or install as PWA. Alternatively, click below for instant <strong>Demo Simulation</strong>.' +
+          'To use live GPS on desktop, serve via localhost (e.g. <code>npx serve</code> or VS Code Live Server) or install as PWA.' +
         '</div>' : '';
 
       UI.openModal(
@@ -2288,7 +2270,6 @@ window.SYS = window.SYS || {};
           noteSecure +
           '<div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">' +
             '<button class="sys-btn primary" id="btn-modal-retry-perm" style="flex:1;">' + I('gps', 16) + ' RETRY AUTHORIZATION</button>' +
-            '<button class="sys-btn" id="btn-modal-start-demo" style="flex:1;">' + I('radar', 16) + ' USE DEMO SIMULATION</button>' +
             '<button class="sys-btn btn-close-modal">DISMISS</button>' +
           '</div>' +
         '</div>'
@@ -2299,14 +2280,6 @@ window.SYS = window.SYS || {};
         btnRetry.addEventListener('click', function () {
           UI.closeModal();
           if (S.tracker) S.tracker.requestLocationPermission(true);
-        });
-      }
-
-      var btnDemo = document.getElementById('btn-modal-start-demo');
-      if (btnDemo) {
-        btnDemo.addEventListener('click', function () {
-          UI.closeModal();
-          if (S.tracker) S.tracker.start(null, true);
         });
       }
     },

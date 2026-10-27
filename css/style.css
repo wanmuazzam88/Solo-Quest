@@ -1160,7 +1160,7 @@ body.grace-countdown-active .grace-warning-banner {
 .gap-10 { gap: 10px; }
 
 /* ==========================================================================
-   THE SYSTEM // Tactical GPS & Step Run Tracker (Strava OpenStreetMap HUD)
+   THE SYSTEM // Tactical GPS & Step Run Tracker (OpenStreetMap HUD)
    ========================================================================== */
 .run-view-layout {
   max-width: 980px;
@@ -1234,7 +1234,7 @@ body.grace-countdown-active .grace-warning-banner {
   max-width: 450px;
 }
 
-/* --- Big 4 Primary Strava Metrics --- */
+/* --- Big 4 Primary Run Metrics --- */
 .run-metrics-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

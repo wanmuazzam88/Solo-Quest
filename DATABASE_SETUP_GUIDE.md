@@ -131,7 +131,7 @@ Once authenticated:
 | **Ping shows "OFFLINE // UNREACHABLE"** | Invalid Supabase URL or Anon Key | Double check `https://` prefix and ensure you copied the `anon` public key (not the service_role key). |
 | **"Authentication failed" on register** | Email already in use or password < 6 chars | Use a unique email or log in using the **SYSTEM LINK (LOGIN)** tab. |
 | **"Failed to query Supabase leaderboard"** | `schema.sql` was not run in Supabase | Open the SQL Editor in Supabase, paste `supabase/schema.sql`, and execute it to enable public read policies. |
-| **Location permission denied during run** | Browser security restriction | Allow location in browser site settings or use the built-in Satellite Demo Simulation. |
+| **Location permission denied during run** | Browser security restriction | Allow location in browser site settings to enable live GPS tracking. |
 
 ---
 *THE SYSTEM // NEVER SINK INTO WEAKNESS. ARISE.*

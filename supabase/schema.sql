@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS public.hunter_quests (
 
 -- ==============================================================================
 -- TABLE: public.hunter_runs
--- Stores Strava-style GPS running telemetry, routes, splits, and paces
+-- Stores tactical GPS running telemetry, routes, splits, and paces
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.hunter_runs (
   id TEXT NOT NULL,

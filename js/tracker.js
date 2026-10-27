@@ -1,6 +1,6 @@
 /* ==========================================================================
    THE SYSTEM // PROJECT: ARISE — Tactical GPS & Step Run Tracker
-   Strava-style real-time running telemetry powered by OpenStreetMap & Leaflet.
+   Real-time running telemetry powered by OpenStreetMap & Leaflet.
    Live GPS geolocation, Haversine distance, motion sensor step counting,
    cadence, instantaneous & rolling pace, 1km splits, and quest integration.
    ========================================================================== */
@@ -19,7 +19,6 @@ window.SYS = window.SYS || {};
     // Session state
     isActive: false,
     isPaused: false,
-    isDemo: false,
     linkedQuestId: null,
 
     // Temporal metrics & Wall-Clock Background Tracking
@@ -63,7 +62,6 @@ window.SYS = window.SYS || {};
     // Internal handles
     _watchId: null,
     _tickerInterval: null,
-    _demoInterval: null,
     _wakeLock: null,
     _lastMotionTime: 0,
     _motionSmoothed: 0,
@@ -328,13 +326,8 @@ window.SYS = window.SYS || {};
     /* ======================================================================
        Run Control Lifecycle
        ====================================================================== */
-    start: function (questId, demoMode) {
+    start: function (questId) {
       if (tracker.isActive) return;
-
-      if (demoMode) {
-        tracker._beginRunSession(questId, true);
-        return;
-      }
 
       var storedAuth = null;
       try { storedAuth = localStorage.getItem(PERMISSION_STORAGE_KEY); } catch (e) {}
@@ -343,7 +336,7 @@ window.SYS = window.SYS || {};
       if (tracker.permissionStatus === 'granted' || storedAuth === 'granted') {
         tracker.permissionStatus = 'granted';
         tracker.permissionChecked = true;
-        tracker._beginRunSession(questId, false);
+        tracker._beginRunSession(questId);
         return;
       }
 
@@ -358,15 +351,14 @@ window.SYS = window.SYS || {};
       // First time only: explicitly request permission once and start
       tracker.requestLocationPermission(true, function (err) {
         if (!err) {
-          tracker._beginRunSession(questId, false);
+          tracker._beginRunSession(questId);
         }
       });
     },
 
-    _beginRunSession: function (questId, isDemo) {
+    _beginRunSession: function (questId) {
       tracker.isActive = true;
       tracker.isPaused = false;
-      tracker.isDemo = !!isDemo;
       tracker.linkedQuestId = questId || tracker.findActiveRunningQuestId();
 
       var now = Date.now();
@@ -398,7 +390,7 @@ window.SYS = window.SYS || {};
       tracker.cadenceSpm = 0;
       tracker.stepTimestamps = [];
       tracker.caloriesBurned = 0;
-      tracker.gpsStatus = tracker.isDemo ? 'SIMULATED' : 'SEARCHING';
+      tracker.gpsStatus = 'SEARCHING';
       tracker.accuracyMeters = null;
       tracker._autoCenterMap = true;
 
@@ -411,12 +403,8 @@ window.SYS = window.SYS || {};
       // Initialize Motion Sensor for step counting
       tracker.bindMotionSensor();
 
-      // Start GPS or Demo Simulation
-      if (tracker.isDemo) {
-        tracker.startDemoRoute();
-      } else {
-        tracker.startGeolocationWatch();
-      }
+      // Start GPS geolocation watch
+      tracker.startGeolocationWatch();
 
       // 1-second cadence ticker
       clearInterval(tracker._tickerInterval);
@@ -466,7 +454,6 @@ window.SYS = window.SYS || {};
       // Stop watchers, tickers, and background keep-alive
       tracker.stopGeolocationWatch();
       tracker.stopMotionSensor();
-      tracker.stopDemoRoute();
       tracker.releaseWakeLock();
       tracker.stopBackgroundKeepAlive();
       clearInterval(tracker._tickerInterval);
@@ -528,7 +515,6 @@ window.SYS = window.SYS || {};
     discard: function () {
       tracker.stopGeolocationWatch();
       tracker.stopMotionSensor();
-      tracker.stopDemoRoute();
       tracker.releaseWakeLock();
       tracker.stopBackgroundKeepAlive();
       clearInterval(tracker._tickerInterval);
@@ -801,16 +787,6 @@ window.SYS = window.SYS || {};
         // App was backgrounded or phone screen was locked!
         var sleepSec = Math.floor(deltaSec);
         tracker.movingSeconds += sleepSec;
-
-        // If in Demo Mode, advance distance along circuit proportionally
-        if (tracker.isDemo) {
-          var simulatedSpeedMps = 2.8; // ~10 km/h realistic running speed
-          var simulatedDistM = simulatedSpeedMps * sleepSec;
-          tracker.totalDistanceMeters += simulatedDistM;
-          tracker.caloriesBurned += (simulatedDistM / 1000) * 64;
-          tracker.totalSteps += Math.floor(simulatedDistM / 0.82);
-          tracker.checkKmSplit();
-        }
       } else {
         tracker.movingSeconds++;
       }
@@ -849,8 +825,6 @@ window.SYS = window.SYS || {};
             tracker.currentPaceSecKm = 1000 / segSpeedMps;
           }
         }
-      } else if (tracker.isDemo && tracker.currentSpeedKmh > 0) {
-        tracker.currentPaceSecKm = (1000 / (tracker.currentSpeedKmh / 3.6));
       }
 
       // Calories burned formula (Standard MET for running ~ 1.036 kcal / kg / km)
@@ -978,19 +952,11 @@ window.SYS = window.SYS || {};
           if (sleepDelta > 1.5) {
             var sleepSec = Math.floor(sleepDelta);
             tracker.movingSeconds += sleepSec;
-
-            if (tracker.isDemo) {
-              var simulatedDistM = 2.8 * sleepSec;
-              tracker.totalDistanceMeters += simulatedDistM;
-              tracker.caloriesBurned += (simulatedDistM / 1000) * 64;
-              tracker.totalSteps += Math.floor(simulatedDistM / 0.82);
-              tracker.checkKmSplit();
-            }
           }
           tracker.lastTickTime = now;
 
           // 2. Request immediate GPS fix to capture displacement while in background
-          if (!tracker.isDemo && 'geolocation' in navigator) {
+          if ('geolocation' in navigator) {
             navigator.geolocation.getCurrentPosition(
               function (pos) {
                 tracker.onLocationUpdate(pos);
@@ -1007,51 +973,6 @@ window.SYS = window.SYS || {};
           tracker.updateLiveHudDom();
           if (S.ui && S.ui.renderRunView) S.ui.render();
         }
-      }
-    },
-
-    /* ======================================================================
-       Simulation / Demo Route (For Instant Desktop / Indoor Testing)
-       ====================================================================== */
-    startDemoRoute: function () {
-      tracker.gpsStatus = 'SIMULATED';
-
-      // Default reference coordinate: Seoul Olympic Park / Hunter HQ
-      var baseLat = tracker.currentPosition ? tracker.currentPosition.lat : 37.5172;
-      var baseLng = tracker.currentPosition ? tracker.currentPosition.lng : 127.0473;
-
-      var stepAngle = 0;
-      var radiusLat = 0.0042; // ~500m radius circuit
-      var radiusLng = 0.0055;
-
-      tracker._demoInterval = setInterval(function () {
-        if (!tracker.isActive || tracker.isPaused) return;
-
-        stepAngle += 0.055; // advance along circuit
-        var curLat = baseLat + radiusLat * Math.sin(stepAngle) + (Math.sin(stepAngle * 3) * 0.0006);
-        var curLng = baseLng + radiusLng * Math.cos(stepAngle) + (Math.cos(stepAngle * 2) * 0.0004);
-
-        // Simulated steps: 3 steps per simulated second (~170 SPM)
-        tracker.totalSteps += 3;
-        tracker.stepTimestamps.push(Date.now(), Date.now() - 300, Date.now() - 600);
-
-        tracker.onLocationUpdate({
-          coords: {
-            latitude: curLat,
-            longitude: curLng,
-            accuracy: 6,
-            altitude: 45 + Math.sin(stepAngle) * 8,
-            heading: (Math.atan2(Math.cos(stepAngle), -Math.sin(stepAngle)) * 180 / Math.PI + 360) % 360,
-            speed: 3.1 // ~11.1 km/h
-          }
-        });
-      }, 1000);
-    },
-
-    stopDemoRoute: function () {
-      if (tracker._demoInterval) {
-        clearInterval(tracker._demoInterval);
-        tracker._demoInterval = null;
       }
     },
 
@@ -1246,7 +1167,6 @@ window.SYS = window.SYS || {};
       return {
         isActive: tracker.isActive,
         isPaused: tracker.isPaused,
-        isDemo: tracker.isDemo,
         linkedQuestId: tracker.linkedQuestId,
         permissionStatus: tracker.permissionStatus,
         permissionChecked: tracker.permissionChecked,

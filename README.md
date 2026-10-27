@@ -23,7 +23,7 @@ A dark-futuristic, tactical manhwa-styled web application modeled directly after
    - Modular Custom Quest Forge (Calisthenics, Gym, Running, Study, Focus, Habit).
    - Bonus Quest re-roll system (cooldown reduced by your `AGI` stat).
 
-3. **Strava-Style Tactical GPS & Step Run Tracker (OpenStreetMap):**
+3. **Tactical GPS & Step Run Tracker (OpenStreetMap):**
    - **Real-Time Geolocation & Device Permissions:** Proactive satellite authorization HUD with browser permission query lifecycle, high-accuracy GPS fix locking, iOS motion sensor authorization, and in-app permission troubleshooting directives.
    - **Haversine Distance Telemetry:** High-precision distance accumulator displayed in kilometers with live sub-counters.
    - **OpenStreetMap & Leaflet Integration:** Official standard free OpenStreetMap tile API (`tile.openstreetmap.org`) with glowing neon cyan route polylines and a pulsing radar hunter beacon.
@@ -31,7 +31,6 @@ A dark-futuristic, tactical manhwa-styled web application modeled directly after
    - **Motion Sensor Step Counter & Cadence:** Dynamic accelerometer peak-detection algorithm using `DeviceMotionEvent` with rolling Steps-Per-Minute (`SPM`) cadence calculation and stride-length fallback.
    - **1 KM Split Breakdowns:** Automatic split time and pace recording at every kilometer mark accompanied by procedural audio announcements.
    - **Quest Sync & History:** Direct integration with running quests (auto-increments progress upon run completion) and persistent local run dossier.
-   - **Desktop/Indoor Demo Mode:** Built-in GPS simulation route with realistic coordinates and steps for immediate testing on laptops.
 
 4. **Midnight Evaluation & The Dreaded Penalty Zone:**
    - Real-time countdown timer to `00:00:00` local time.
