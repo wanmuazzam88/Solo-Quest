@@ -54,8 +54,8 @@ Supabase gives you a 100% free hosted PostgreSQL database with built-in authenti
    - **Project URL** (e.g., `https://abcdefghijkl.supabase.co`)
    - **Project API Keys** -> `anon` / `public` (starts with `eyJ...`)
 
-### Step 4: Zero-Config Cloudflare Pages Integration (Recommended)
-Instead of requiring every user or device to manually paste keys into the app, you can integrate Supabase directly into **Cloudflare Pages Environment Variables**:
+### Step 4: Zero-Config Cloudflare Pages Integration
+Supabase is integrated directly into **Cloudflare Pages Environment Variables**:
 1. In Cloudflare Pages Dashboard &rarr; Your Project &rarr; **Settings** &rarr; **Environment variables**.
 2. Add:
    - `SUPABASE_URL` = Your Supabase Project URL (`https://xyz.supabase.co`)
@@ -63,23 +63,15 @@ Instead of requiring every user or device to manually paste keys into the app, y
 3. Deploy or Redeploy.
 4. **Result:** When players open the app on `https://your-project.pages.dev`, Cloudflare Pages Edge Functions automatically configure Supabase. Players only click **AWAKENING** or **LOGIN** — zero manual keys required in the app!
 
-### Step 5 (Alternative): Manual In-App Database Setup
-If running locally without Cloudflare Pages:
-1. Open Solo Quest in your browser.
-2. Click the **SYSTEM LINK** button in the top navigation bar.
-3. Switch to the **DATABASE SETUP & PING** tab.
-4. Select **Supabase Cloud (PostgreSQL REST API)**.
-5. Paste your **Supabase Project URL** and **Anon Public Key**.
-6. Click **TEST PING** & **SAVE CONFIGURATION**.
-
-### Step 6: Awaken Your Hunter Account
-1. In the terminal modal, click the **AWAKENING (REGISTER)** tab.
-2. Enter your **Hunter Name** (e.g. `Sung Jin-Woo`), **Email**, and **Passcode** (minimum 6 characters).
-3. Choose your Accountability Directive:
+### Step 5: Awaken Your Hunter Account
+1. Open Solo Quest in your browser and click **SYSTEM LINK** in the top navigation bar.
+2. In the modal, click the **AWAKENING (REGISTER)** tab.
+3. Enter your **Hunter Name** (e.g. `Sung Jin-Woo`), **Email**, and **Passcode** (minimum 6 characters).
+4. Choose your Accountability Directive:
    - *Standard*: Optional penalty quest with streak recovery.
    - *Hardcore Manhwa*: Mandatory Blood Crimson penalty zone if daily quests are missed by midnight.
-4. Click **AWAKEN & SAVE PROGRESS**.
-5. Your account is awakened, all local stats are uploaded to PostgreSQL, and your name appears on the live global leaderboard!
+5. Click **AWAKEN & SAVE PROGRESS**.
+6. Your account is awakened, all local stats are uploaded to PostgreSQL, and your name appears on the live global leaderboard!
 
 ---
 

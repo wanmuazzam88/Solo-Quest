@@ -1548,22 +1548,22 @@ window.SYS = window.SYS || {};
           '<div class="panel-title">' + I('settings', 20) + ' [SYSTEM CONFIGURATION & PROTOCOLS]</div>' +
         '</div>' +
 
-        // Hunter Network & Cloud Database Terminal Card
+        // Hunter Network & Cloud Sync Card
         '<div style="margin-bottom:18px; padding:14px; background:rgba(0,229,255,0.04); border:1px solid rgba(0,229,255,0.25); clip-path:var(--clip-chamfer-sm);">' +
           '<div class="flex-between" style="margin-bottom:8px; flex-wrap:wrap; gap:6px;">' +
-            '<div class="font-display text-accent" style="font-size:14px; font-weight:700;">' + I('gate', 16) + ' [HUNTER NETWORK & CLOUD DATABASE TERMINAL]</div>' +
+            '<div class="font-display text-accent" style="font-size:14px; font-weight:700;">' + I('gate', 16) + ' [HUNTER NETWORK // CLOUD SYNC]</div>' +
             '<span class="db-latency-badge ' + (isConnected ? 'online' : (!S.api || S.api.provider === 'local') ? 'testing' : 'offline') + '">' +
               '<span class="db-status-dot ' + (isConnected ? 'pulsing' : '') + '"></span>' +
-              (isConnected ? (((S.api.provider === 'supabase' ? (S.api.isManagedCloud ? 'CLOUDFLARE ⚡ SUPABASE' : 'SUPABASE POSTGRESQL') : 'CUSTOM NODE API') + ' ONLINE')) : (!S.api || S.api.provider === 'local') ? 'LOCAL HUD (STANDALONE)' : 'STANDBY / OFFLINE') +
+              (isConnected ? 'CLOUDFLARE ⚡ SUPABASE ONLINE' : 'STANDBY / OFFLINE') +
             '</span>' +
           '</div>' +
           '<div style="font-size:12px; color:var(--text-secondary); margin-bottom:12px; line-height:1.5;">' +
             (isAuth ?
-              ('Authenticated as <strong>' + U.esc(S.api.user.hunterName) + '</strong> (' + U.esc(S.api.user.email) + '). All progression (points, stats, quests, GPS runs, and inventory) synchronizes directly to the database.') :
-              (S.api && S.api.isManagedCloud ? 'Cloudflare Pages edge integration active. Click below to Awaken or Log In with your Hunter profile — no API keys required.' : 'Currently operating in Standalone Local HUD mode. Link your System profile or connect a Supabase/Node database to compete with real players on the global leaderboard.')) +
+              ('Authenticated as <strong>' + U.esc(S.api.user.hunterName) + '</strong> (' + U.esc(S.api.user.email) + '). All progression (points, stats, quests, GPS runs, and inventory) synchronizes directly to Cloudflare & Supabase.') :
+              'Database credentials are bound automatically to Cloudflare Pages. Awaken or Link your Hunter account to compete on the real global leaderboard.') +
           '</div>' +
           '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
-            '<button class="sys-btn primary" id="btn-settings-open-auth">' + I('user', 14) + ' ' + (isAuth ? 'MANAGE SYSTEM LINK & CLOUD' : 'AWAKEN / LINK DATABASE') + '</button>' +
+            '<button class="sys-btn primary" id="btn-settings-open-auth">' + I('user', 14) + ' ' + (isAuth ? 'MANAGE SYSTEM LINK' : 'AWAKEN / SYSTEM LINK') + '</button>' +
             (isAuth ? '<button class="sys-btn" id="btn-settings-force-sync">' + I('download', 14) + ' FORCE CLOUD SYNC</button>' : '') +
           '</div>' +
         '</div>' +
@@ -2023,7 +2023,14 @@ window.SYS = window.SYS || {};
           (isAuth ? '<button class="auth-tab-btn ' + (activeTab === 'PROFILE' ? 'active' : '') + '" data-tab="PROFILE">' + I('user', 14) + ' HUNTER IDENTITY</button>' : '') +
           (!isAuth ? '<button class="auth-tab-btn ' + (activeTab === 'LOGIN' ? 'active' : '') + '" data-tab="LOGIN">' + I('gate', 14) + ' SYSTEM LINK (LOGIN)</button>' : '') +
           (!isAuth ? '<button class="auth-tab-btn ' + (activeTab === 'REGISTER' ? 'active' : '') + '" data-tab="REGISTER">' + I('shield', 14) + ' AWAKENING (REGISTER)</button>' : '') +
-          '<button class="auth-tab-btn ' + (activeTab === 'DBCONFIG' ? 'active' : '') + '" data-tab="DBCONFIG">' + I('settings', 14) + ' DATABASE SETUP & PING</button>' +
+        '</div>';
+
+        var networkStatusHtml = '<div style="margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:rgba(0,0,0,0.3); border:1px solid var(--sys-border); clip-path:var(--clip-chamfer-sm); font-size:11px; font-family:var(--font-mono);">' +
+          '<div style="display:flex; align-items:center; gap:8px;">' +
+            '<span class="db-status-dot ' + (isConnected ? 'pulsing' : '') + '"></span>' +
+            '<span style="color:' + (isConnected ? 'var(--sys-cyan)' : 'var(--text-muted)') + ';">' + (isConnected ? ('ONLINE // ' + latencyText) : 'CONNECTING TO CLOUD EDGE...') + '</span>' +
+          '</div>' +
+          '<span style="color:var(--text-muted); font-size:10px; letter-spacing:0.05em;">CLOUDFLARE ⚡ SUPABASE</span>' +
         '</div>';
 
         var bodyHtml = '';
@@ -2065,6 +2072,7 @@ window.SYS = window.SYS || {};
           '</div>';
         } else if (activeTab === 'LOGIN') {
           bodyHtml = '<form id="form-auth-login">' +
+            networkStatusHtml +
             '<div id="auth-login-error" style="display:none; color:var(--penalty-crimson); font-size:12px; margin-bottom:12px; padding:8px; background:rgba(255,0,60,0.1); border:1px solid rgba(255,0,60,0.3); clip-path:var(--clip-chamfer-sm);"></div>' +
             '<div class="auth-form-group">' +
               '<label class="auth-form-label">ASSOCIATION IDENTIFIER (EMAIL OR HUNTER NAME)</label>' +
@@ -2081,6 +2089,7 @@ window.SYS = window.SYS || {};
           '</form>';
         } else if (activeTab === 'REGISTER') {
           bodyHtml = '<form id="form-auth-register">' +
+            networkStatusHtml +
             '<div id="auth-reg-error" style="display:none; color:var(--penalty-crimson); font-size:12px; margin-bottom:12px; padding:8px; background:rgba(255,0,60,0.1); border:1px solid rgba(255,0,60,0.3); clip-path:var(--clip-chamfer-sm);"></div>' +
             '<div class="auth-form-group">' +
               '<label class="auth-form-label">HUNTER AWAKENING NAME</label>' +
@@ -2116,78 +2125,12 @@ window.SYS = window.SYS || {};
               '<button type="submit" class="sys-btn primary lg" id="btn-submit-register">AWAKEN & SAVE PROGRESS</button>' +
             '</div>' +
           '</form>';
-        } else if (activeTab === 'DBCONFIG') {
-          var prov = S.api.provider;
-          var managedCloudBanner = S.api.isManagedCloud ? (
-            '<div style="background:rgba(0, 229, 255, 0.08); border:1px solid rgba(0, 229, 255, 0.35); clip-path:var(--clip-chamfer-sm); padding:12px; margin-bottom:14px;">' +
-              '<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">' +
-                '<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--sys-cyan); box-shadow:0 0 10px var(--sys-cyan);"></span>' +
-                '<span class="text-cyan font-bold" style="letter-spacing:0.08em; font-size:12px;">[CLOUDFLARE PAGES EDGE ⚡ SUPABASE ACTIVE]</span>' +
-              '</div>' +
-              '<div style="font-size:11px; color:var(--text-secondary); line-height:1.45;">' +
-                'Database connection is managed automatically by Cloudflare Pages Environment Variables. Hunters can awaken, login, and sync progression without entering any API keys.' +
-              '</div>' +
-            '</div>'
-          ) : '';
-
-          bodyHtml = '<form id="form-db-config">' +
-            managedCloudBanner +
-            '<div id="db-config-status" style="margin-bottom:14px;">' +
-              '<div class="flex-between" style="padding:10px; background:rgba(0,0,0,0.3); border:1px solid var(--sys-border); clip-path:var(--clip-chamfer-sm);">' +
-                '<div style="display:flex; align-items:center; gap:8px;">' +
-                  '<span class="db-latency-badge ' + (isConnected ? 'online' : prov === 'local' ? 'testing' : 'offline') + '" id="badge-modal-ping">' +
-                    '<span class="db-status-dot ' + (isConnected ? 'pulsing' : '') + '"></span>' +
-                    '<span id="txt-modal-ping">' + (isConnected ? ('ONLINE // ' + latencyText) : prov === 'local' ? 'LOCAL HUD (OFFLINE)' : 'OFFLINE // STANDBY') + '</span>' +
-                  '</span>' +
-                '</div>' +
-                '<button type="button" class="sys-btn sm" id="btn-modal-test-ping">' + I('radar', 13) + ' TEST PING</button>' +
-              '</div>' +
-            '</div>' +
-            '<div class="auth-form-group">' +
-              '<label class="auth-form-label">DATABASE ARCHITECTURE PROVIDER</label>' +
-              '<select class="sys-select" id="cfg-provider">' +
-                '<option value="supabase" ' + (prov === 'supabase' ? 'selected' : '') + '>Supabase Cloud (PostgreSQL REST API' + (S.api.isManagedCloud ? ' - Cloudflare Edge Managed' : '') + ')</option>' +
-                '<option value="custom" ' + (prov === 'custom' ? 'selected' : '') + '>Self-Hosted Node.js / SQLite Server (Localhost REST API)</option>' +
-                '<option value="local" ' + (prov === 'local' ? 'selected' : '') + '>Offline Local HUD Only (Browser Storage Standalone)</option>' +
-              '</select>' +
-              '<div class="auth-form-hint">' + (S.api.isManagedCloud ? 'Cloudflare Pages injects connection credentials securely from Edge environment variables.' : 'Supabase Cloud connects directly from your browser with zero server installation.') + '</div>' +
-            '</div>' +
-            '<div id="cfg-supabase-fields" style="display:' + (prov === 'supabase' ? 'block' : 'none') + ';">' +
-              '<div class="auth-form-group">' +
-                '<label class="auth-form-label">SUPABASE PROJECT URL ' + (S.api.isManagedCloud ? '<span class="text-cyan">(CLOUDFLARE MANAGED)</span>' : '') + '</label>' +
-                '<input type="url" class="sys-input font-mono" id="cfg-sb-url" value="' + U.esc(S.api.supabaseUrl) + '" placeholder="https://xyzprojectid.supabase.co">' +
-                '<div class="auth-form-hint">Found in Supabase Dashboard &rarr; Project Settings &rarr; API &rarr; Project URL. (NOT the postgresql:// connection string).</div>' +
-              '</div>' +
-              '<div class="auth-form-group">' +
-                '<label class="auth-form-label">SUPABASE ANON PUBLIC KEY ' + (S.api.isManagedCloud ? '<span class="text-cyan">(CLOUDFLARE MANAGED)</span>' : '') + '</label>' +
-                '<input type="text" class="sys-input font-mono" id="cfg-sb-key" value="' + U.esc(S.api.supabaseAnonKey) + '" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">' +
-                '<div class="auth-form-hint">Found in Supabase Dashboard &rarr; Project Settings &rarr; API &rarr; Project API keys (anon public). Safe for browser use.</div>' +
-              '</div>' +
-            '</div>' +
-            '<div id="cfg-custom-fields" style="display:' + (prov === 'custom' ? 'block' : 'none') + ';">' +
-              '<div class="auth-form-group">' +
-                '<label class="auth-form-label">CUSTOM NODE.JS API SERVER URL</label>' +
-                '<input type="url" class="sys-input font-mono" id="cfg-custom-url" value="' + U.esc(S.api.customUrl) + '" placeholder="http://localhost:3000">' +
-                '<div class="auth-form-hint">Start with <code>node server/server.js</code> in terminal.</div>' +
-              '</div>' +
-            '</div>' +
-            '<div style="background:rgba(255,183,3,0.06); border:1px solid rgba(255,183,3,0.25); clip-path:var(--clip-chamfer-sm); padding:10px; margin:14px 0; font-size:11px; line-height:1.5;">' +
-              '<div class="text-gold font-bold" style="margin-bottom:4px;">[QUICK DATABASE SETUP & CLOUDFLARE INTEGRATION]</div>' +
-              '1. In Supabase Dashboard, click <strong>SQL Editor</strong>, paste <code>supabase/schema.sql</code>, and click <strong>RUN</strong>.<br>' +
-              '2. In Supabase Dashboard &rarr; <strong>Authentication</strong> &rarr; <strong>Providers</strong> &rarr; <strong>Email</strong>, turn off <em>Confirm email</em> for instant registration.<br>' +
-              '3. <strong>Cloudflare Integration:</strong> Add <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> in Cloudflare Pages &rarr; Settings &rarr; Environment variables. All players connect automatically with zero manual setup!' +
-            '</div>' +
-            '<div style="display:flex; justify-content:flex-end; gap:8px;">' +
-              '<button type="button" class="sys-btn btn-close-modal">CLOSE</button>' +
-              '<button type="submit" class="sys-btn primary">SAVE CONFIGURATION</button>' +
-            '</div>' +
-          '</form>';
         }
 
         UI.openModal(
-          '<div class="system-panel" style="max-width:560px; margin:0 auto;">' +
+          '<div class="system-panel" style="max-width:540px; margin:0 auto;">' +
             '<div class="panel-header">' +
-              '<div class="panel-title">' + I('gate', 18) + ' [HUNTER NETWORK // DATABASE TERMINAL]</div>' +
+              '<div class="panel-title">' + I('gate', 18) + ' [HUNTER NETWORK // SYSTEM LINK]</div>' +
               '<button class="modal-close btn-close-modal">' + I('close', 16) + '</button>' +
             '</div>' +
             tabsHtml +
@@ -2321,94 +2264,6 @@ window.SYS = window.SYS || {};
               btnSub.disabled = false;
               btnSub.textContent = 'AWAKEN & SAVE PROGRESS';
             }
-          });
-        }
-
-        // Provider change in DB config
-        var selProv = document.getElementById('cfg-provider');
-        if (selProv) {
-          selProv.addEventListener('change', function () {
-            var val = selProv.value;
-            var sbFields = document.getElementById('cfg-supabase-fields');
-            var customFields = document.getElementById('cfg-custom-fields');
-            if (sbFields) sbFields.style.display = val === 'supabase' ? 'block' : 'none';
-            if (customFields) customFields.style.display = val === 'custom' ? 'block' : 'none';
-          });
-        }
-
-        // Test Ping button
-        var btnPing = document.getElementById('btn-modal-test-ping');
-        if (btnPing) {
-          btnPing.addEventListener('click', async function () {
-            var pVal = document.getElementById('cfg-provider') ? document.getElementById('cfg-provider').value : S.api.provider;
-            var sbUrl = document.getElementById('cfg-sb-url') ? document.getElementById('cfg-sb-url').value.trim() : S.api.supabaseUrl;
-            var sbKey = document.getElementById('cfg-sb-key') ? document.getElementById('cfg-sb-key').value.trim() : S.api.supabaseAnonKey;
-            var cUrl = document.getElementById('cfg-custom-url') ? document.getElementById('cfg-custom-url').value.trim() : S.api.customUrl;
-
-            var badge = document.getElementById('badge-modal-ping');
-            var txt = document.getElementById('txt-modal-ping');
-
-            if (badge) {
-              badge.className = 'db-latency-badge testing';
-            }
-            if (txt) txt.textContent = 'TESTING PING...';
-
-            try {
-              var res = await S.api.testConnection({
-                provider: pVal,
-                supabaseUrl: sbUrl,
-                supabaseAnonKey: sbKey,
-                customUrl: cUrl
-              });
-              var latency = res.latencyMs || res.pingMs || 1;
-              if (badge) badge.className = 'db-latency-badge online';
-              if (txt) txt.textContent = 'ONLINE // ' + latency + ' MS';
-
-              if (res.warning) {
-                UI.showToast('[DATABASE CONNECTED]', res.warning, 'gold');
-              } else {
-                UI.showToast('[DATABASE REACHABLE]', pVal.toUpperCase() + ' connection verified (' + latency + ' ms).', 'cyan');
-              }
-            } catch (err) {
-              if (badge) badge.className = 'db-latency-badge offline';
-              if (txt) txt.textContent = 'FAILED // UNREACHABLE';
-              UI.showToast('[CONNECTION FAILED]', err.message || 'Could not connect to database.', 'danger');
-            }
-          });
-        }
-
-        // Save DB config form
-        var formDb = document.getElementById('form-db-config');
-        if (formDb) {
-          formDb.addEventListener('submit', async function (e) {
-            e.preventDefault();
-            var pVal = document.getElementById('cfg-provider').value;
-            var sbUrl = document.getElementById('cfg-sb-url') ? document.getElementById('cfg-sb-url').value.trim() : '';
-            var sbKey = document.getElementById('cfg-sb-key') ? document.getElementById('cfg-sb-key').value.trim() : '';
-            var cUrl = document.getElementById('cfg-custom-url') ? document.getElementById('cfg-custom-url').value.trim() : '';
-
-            try {
-              var saveRes = await S.api.saveConfig({
-                provider: pVal,
-                supabaseUrl: sbUrl,
-                supabaseAnonKey: sbKey,
-                customUrl: cUrl
-              });
-
-              if (saveRes && saveRes.warning) {
-                UI.showToast('[CONFIG SAVED // TABLES MISSING]', saveRes.warning, 'gold');
-              } else {
-                UI.showToast('[CONFIG SAVED]', 'Database architecture switched to ' + pVal.toUpperCase() + '.', 'cyan');
-              }
-
-              if (S.auth) S.auth.updateStatus();
-              renderModal();
-              UI.render();
-            } catch (err) {
-              UI.showToast('[CONFIG SAVED: OFFLINE]', 'Settings saved, but connection test failed: ' + err.message, 'danger');
-              renderModal();
-            }
-          });
         }
 
         // Profile tab: Force sync
