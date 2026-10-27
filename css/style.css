@@ -1877,17 +1877,16 @@ body > div[style*="fixed"][style*="bottom"]:not(#toast-container):not(.mobile-do
 }
 
 /* ==========================================================================
-   SOLO LEVELING MONARCH OPENING INTRO ANIMATION
-   Tactical dark void, glowing Jin-woo cyan eye flare, rotating arcane runes,
-   chromatic glitch, and seismic [ARISE] command shockwave.
+   CINEMATIC "ARISE" TITLE CARD // SOLO LEVELING
+   Dramatic deep void, anamorphic laser flare, letter-by-letter bloom,
+   iridescent chromatic dispersion, and cinematic letterbox bars.
    ========================================================================== */
-.monarch-intro-overlay {
+.arise-intro {
   position: fixed;
   inset: 0;
   z-index: 99999;
-  background: #020408;
+  background: #020307;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   overflow: hidden;
@@ -1895,267 +1894,233 @@ body > div[style*="fixed"][style*="bottom"]:not(#toast-container):not(.mobile-do
   touch-action: none;
   cursor: pointer;
   opacity: 1;
-  transform: scale(1);
-  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.monarch-intro-overlay.hidden {
+.arise-intro.hidden {
   opacity: 0 !important;
-  transform: scale(1.08) !important;
+  transform: scale(1.06) !important;
   pointer-events: none !important;
   visibility: hidden;
 }
 
-#intro-canvas {
+.arise-canvas-wrap {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
   z-index: 1;
   pointer-events: none;
 }
+#arise-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
 
-.intro-hud-content {
-  position: relative;
+/* Ambient Radial Shadow Bloom */
+.arise-ambient-glow {
+  position: absolute;
+  width: 900px;
+  height: 450px;
+  max-width: 140vw;
+  background: radial-gradient(ellipse at center, rgba(0, 229, 255, 0.28) 0%, rgba(114, 9, 183, 0.22) 40%, rgba(2, 3, 7, 0) 75%);
+  filter: blur(40px);
   z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1), transform 1.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.arise-intro.active .arise-ambient-glow {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+/* Anamorphic Blue Flare Line */
+.arise-flare-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(138, 43, 226, 0.4) 20%, 
+    rgba(0, 229, 255, 0.95) 45%, 
+    #FFFFFF 50%, 
+    rgba(0, 229, 255, 0.95) 55%, 
+    rgba(138, 43, 226, 0.4) 80%, 
+    transparent 100%
+  );
+  box-shadow: 
+    0 0 15px rgba(0, 229, 255, 0.8),
+    0 0 40px rgba(0, 229, 255, 0.5),
+    0 0 80px rgba(138, 43, 226, 0.6);
+  z-index: 3;
+  pointer-events: none;
+  transform: translateY(-50%) scaleX(0);
+  opacity: 0;
+  transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.8s ease;
+}
+.arise-intro.active .arise-flare-line {
+  transform: translateY(-50%) scaleX(1);
+  opacity: 0.9;
+}
+
+/* Center Stage Content */
+.arise-center-stage {
+  position: relative;
+  z-index: 4;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   text-align: center;
-  width: 100%;
-  max-width: 580px;
   padding: 20px;
   pointer-events: none;
 }
 
-.intro-telemetry-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 14px;
-  background: rgba(0, 229, 255, 0.08);
-  border: 1px solid rgba(0, 229, 255, 0.4);
-  clip-path: var(--clip-chamfer-sm);
-  margin-bottom: 24px;
+/* Subtle Korean Hangul script above */
+.arise-hangul {
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  font-weight: 700;
+  font-size: clamp(14px, 2.8vw, 22px);
+  letter-spacing: 0.55em;
+  text-indent: 0.55em;
+  color: rgba(0, 229, 255, 0.7);
+  text-shadow: 0 0 12px rgba(0, 229, 255, 0.8), 0 0 30px rgba(114, 9, 183, 0.5);
+  margin-bottom: 8px;
   opacity: 0;
-  transform: translateY(-12px);
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(10px);
+  transition: opacity 0.8s ease 0.3s, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s;
 }
-.intro-telemetry-badge.active {
+.arise-intro.active .arise-hangul {
   opacity: 1;
   transform: translateY(0);
 }
 
-.intro-system-box {
-  background: linear-gradient(180deg, rgba(10, 17, 31, 0.9) 0%, rgba(4, 8, 15, 0.95) 100%);
-  border: 1px solid var(--sys-border-strong);
-  clip-path: var(--clip-chamfer);
-  padding: 14px 20px;
-  box-shadow: 0 0 30px rgba(0, 229, 255, 0.25), inset 0 0 15px rgba(0, 229, 255, 0.1);
-  margin-bottom: 24px;
-  opacity: 0;
-  transform: scale(0.92);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.intro-system-box.active {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.intro-system-title {
-  color: var(--accent-core);
-  font-weight: 700;
-  font-size: clamp(14px, 3.5vw, 17px);
-  letter-spacing: 0.12em;
-  text-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
-  margin-bottom: 4px;
-}
-
-.intro-system-desc {
-  color: var(--text-secondary);
-  font-size: clamp(11px, 2.8vw, 13px);
-  letter-spacing: 0.05em;
-}
-
-.intro-arise-banner {
-  opacity: 0;
-  transform: scale(0.7);
-  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.intro-arise-banner.active {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.hangul-glyph {
-  font-family: 'Space Grotesk', -apple-system, sans-serif;
-  font-weight: 800;
-  font-size: clamp(24px, 6vw, 36px);
-  color: rgba(0, 229, 255, 0.7);
-  letter-spacing: 0.35em;
-  text-indent: 0.35em;
-  text-shadow: 0 0 18px rgba(0, 229, 255, 0.8), 0 0 35px rgba(0, 102, 255, 0.5);
-  margin-bottom: 4px;
-}
-
-.arise-hero-title {
-  font-family: 'Rajdhani', sans-serif;
+/* Monumental ARISE Title */
+.arise-title {
+  margin: 0;
+  font-family: 'Cinzel', 'Rajdhani', serif;
   font-weight: 900;
-  font-size: clamp(52px, 14vw, 84px);
+  font-size: clamp(56px, 16vw, 130px);
   line-height: 0.95;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
   color: #FFFFFF;
-  letter-spacing: 0.22em;
-  text-indent: 0.22em;
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  text-transform: uppercase;
   text-shadow:
     0 0 10px #FFFFFF,
-    0 0 25px #00E5FF,
-    0 0 50px #0066FF,
-    0 0 90px #8A2BE2;
-  margin-bottom: 12px;
-  animation: monarch-pulse 1.6s infinite alternate;
+    0 0 25px rgba(0, 229, 255, 0.95),
+    0 0 55px rgba(0, 229, 255, 0.65),
+    0 0 95px rgba(114, 9, 183, 0.8),
+    0 0 140px rgba(58, 12, 163, 0.6);
+  filter: drop-shadow(0 0 30px rgba(0, 229, 255, 0.4));
+  transform: scale(0.92);
+  transition: transform 3.0s cubic-bezier(0.1, 1, 0.2, 1);
+}
+.arise-intro.active .arise-title {
+  transform: scale(1.04);
 }
 
-.arise-hero-subtitle {
-  font-size: clamp(10px, 2.5vw, 12px);
+/* Individual letter staggering effect */
+.arise-char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(16px) scale(0.85);
+  filter: blur(10px);
+  transition:
+    opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 0.08s + 0.1s),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 0.08s + 0.1s),
+    filter 0.7s ease calc(var(--i) * 0.08s + 0.1s);
+}
+.arise-intro.active .arise-char {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
+/* Subtitle Line */
+.arise-subline {
+  font-size: clamp(10px, 2vw, 13px);
   color: var(--accent-glow);
-  letter-spacing: 0.16em;
-  text-shadow: 0 0 12px rgba(0, 229, 255, 0.5);
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
   font-weight: 700;
+  margin-top: 18px;
+  text-shadow: 0 0 12px rgba(0, 229, 255, 0.6);
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.8s ease 0.6s, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.6s;
+}
+.arise-intro.active .arise-subline {
+  opacity: 0.9;
+  transform: translateY(0);
 }
 
-.intro-skip-btn {
+/* Cinematic Vignette */
+.arise-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 40%, rgba(2, 3, 7, 0.85) 100%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Cinematic Widescreen Letterbox Bars (Top & Bottom) */
+.arise-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: clamp(30px, 7vh, 70px);
+  background: #000000;
+  z-index: 6;
+  pointer-events: none;
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.arise-bar-top {
+  top: 0;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.15);
+}
+.arise-bar-bottom {
+  bottom: 0;
+  border-top: 1px solid rgba(0, 229, 255, 0.15);
+}
+.arise-intro.hidden .arise-bar-top {
+  transform: translateY(-100%);
+}
+.arise-intro.hidden .arise-bar-bottom {
+  transform: translateY(100%);
+}
+
+/* Minimalist Skip Button */
+.arise-skip-btn {
   position: absolute;
   top: max(20px, env(safe-area-inset-top, 20px));
   right: max(20px, env(safe-area-inset-right, 20px));
   z-index: 10;
-  background: rgba(10, 17, 31, 0.75);
-  border: 1px solid rgba(0, 229, 255, 0.4);
+  background: rgba(10, 17, 31, 0.65);
+  border: 1px solid rgba(0, 229, 255, 0.35);
   color: var(--text-secondary);
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 6px 14px;
+  letter-spacing: 0.1em;
+  padding: 5px 14px;
   clip-path: var(--clip-chamfer-sm);
   cursor: pointer;
   pointer-events: auto;
   transition: all 0.2s ease;
 }
-.intro-skip-btn:hover, .intro-skip-btn:active {
+.arise-skip-btn:hover, .arise-skip-btn:active {
   background: rgba(0, 229, 255, 0.15);
-  color: var(--accent-core);
-  border-color: var(--accent-core);
+  color: #00E5FF;
+  border-color: #00E5FF;
   box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
-}
-
-@keyframes monarch-pulse {
-  0% {
-    text-shadow:
-      0 0 10px #FFFFFF,
-      0 0 25px #00E5FF,
-      0 0 50px #0066FF,
-      0 0 80px #8A2BE2;
-    transform: scale(1);
-  }
-  100% {
-    text-shadow:
-      0 0 15px #FFFFFF,
-      0 0 35px #00E5FF,
-      0 0 70px #00E5FF,
-      0 0 110px #C77DFF;
-    transform: scale(1.02);
-  }
-}
-
-/* ECG Real-Time Vital HUD */
-.intro-ecg-hud {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 20px;
-  opacity: 0;
-  transform: translateY(-8px);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.intro-ecg-hud.active {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.ecg-line-wrap {
-  width: 200px;
-  height: 2px;
-  background: rgba(0, 229, 255, 0.2);
-  position: relative;
-  overflow: hidden;
-  clip-path: var(--clip-chamfer-sm);
-}
-.ecg-pulse-bar {
-  position: absolute;
-  top: 0;
-  left: -40px;
-  width: 50px;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, #00E5FF, #FFFFFF);
-  box-shadow: 0 0 8px #00E5FF;
-  animation: ecg-scan 1.2s infinite linear;
-}
-@keyframes ecg-scan {
-  0% { left: -50px; }
-  100% { left: 200px; }
-}
-
-.ecg-stats {
-  font-size: 11px;
-  color: var(--text-secondary);
-  letter-spacing: 0.1em;
-  text-shadow: 0 0 6px rgba(0, 229, 255, 0.4);
-}
-
-/* Kinetic Screen Shakes & Flashes */
-.shake-light {
-  animation: screen-shake-light 0.35s ease-out !important;
-}
-.shake-heavy {
-  animation: screen-shake-heavy 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) !important;
-}
-.flash-impact {
-  animation: screen-flash-anim 0.4s ease-out !important;
-}
-
-@keyframes screen-shake-light {
-  0%, 100% { transform: translate(0, 0); }
-  20% { transform: translate(-4px, 3px); }
-  40% { transform: translate(4px, -3px); }
-  60% { transform: translate(-2px, 2px); }
-  80% { transform: translate(2px, -1px); }
-}
-
-@keyframes screen-shake-heavy {
-  0%, 100% { transform: translate(0, 0); }
-  15% { transform: translate(-8px, 7px) rotate(-0.4deg); }
-  30% { transform: translate(8px, -6px) rotate(0.4deg); }
-  45% { transform: translate(-5px, 4px); }
-  60% { transform: translate(4px, -3px); }
-  75% { transform: translate(-2px, 2px); }
-}
-
-@keyframes screen-flash-anim {
-  0% { box-shadow: inset 0 0 100px rgba(0, 229, 255, 0.8), inset 0 0 180px rgba(255, 255, 255, 0.6); }
-  100% { box-shadow: none; }
-}
-
-.intro-audio-prompt {
-  position: absolute;
-  bottom: max(18px, env(safe-area-inset-bottom, 18px));
-  font-size: 11px;
-  color: var(--text-muted);
-  letter-spacing: 0.12em;
-  opacity: 0.8;
-  animation: pulse-glow 2s infinite ease-in-out;
-  pointer-events: none;
-  z-index: 10;
 }
 
 

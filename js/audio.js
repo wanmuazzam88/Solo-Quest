@@ -319,179 +319,26 @@ window.SYS = window.SYS || {};
       A.playTone(1320, 'triangle', 1.8, 0.15, 0.0001, 0.5);
     },
 
-    /* --- Full Cinematic Monarch Awakening Intro Sound Suite --- */
-    monarchIntro: function () {
+    /* --- Cinematic "ARISE" Title Card Sound Design --- */
+    ariseCinematicSound: function () {
       if (!A.enabled) return;
       var c = getCtx();
       if (!c) return;
       var now = c.currentTime;
 
-      // 1. Ominous Shadow Domain Drone (0s - 1.2s)
+      // 1. Initial Void Sub-Drone & Awakening Hum (0.0s)
       try {
         var drone = c.createOscillator();
         var droneGain = c.createGain();
-        drone.type = 'sawtooth';
-        drone.frequency.setValueAtTime(55, now);
-        drone.frequency.exponentialRampToValueAtTime(32, now + 1.2);
         var droneFilter = c.createBiquadFilter();
-        droneFilter.type = 'lowpass';
-        droneFilter.frequency.setValueAtTime(120, now);
-        droneFilter.frequency.linearRampToValueAtTime(60, now + 1.2);
-        droneGain.gain.setValueAtTime(0.001, now);
-        droneGain.gain.linearRampToValueAtTime(0.4 * A.volume, now + 0.3);
-        droneGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.4);
-        drone.connect(droneFilter);
-        droneFilter.connect(droneGain);
-        droneGain.connect(c.destination);
-        drone.start(now);
-        drone.stop(now + 1.5);
-      } catch (e) {}
-
-      // 2. High-Tech System Holographic Notification Chime (0.8s)
-      A.playTone(987.77, 'sine', 0.22, 0.35, 0.001, 0.75); // B5
-      A.playTone(1975.53, 'triangle', 0.35, 0.3, 0.0001, 0.82); // B6
-      A.playTone(2959.96, 'sine', 0.45, 0.15, 0.0001, 0.90); // F#7
-
-      // 3. Electric Mana Lightning Crackle (1.2s)
-      try {
-        var zap = c.createOscillator();
-        var zapGain = c.createGain();
-        zap.type = 'square';
-        zap.frequency.setValueAtTime(320, now + 1.15);
-        zap.frequency.exponentialRampToValueAtTime(1400, now + 1.35);
-        zapGain.gain.setValueAtTime(0.001, now + 1.15);
-        zapGain.gain.linearRampToValueAtTime(0.2 * A.volume, now + 1.25);
-        zapGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.45);
-        zap.connect(zapGain);
-        zapGain.connect(c.destination);
-        zap.start(now + 1.15);
-        zap.stop(now + 1.5);
-      } catch (e) {}
-
-      // 4. Epic Seismic [ARISE] Bass Drop & Mana Burst (1.6s)
-      try {
-        var sub = c.createOscillator();
-        var subGain = c.createGain();
-        sub.type = 'sawtooth';
-        sub.frequency.setValueAtTime(110, now + 1.55);
-        sub.frequency.exponentialRampToValueAtTime(28, now + 3.0);
-        var subFilter = c.createBiquadFilter();
-        subFilter.type = 'lowpass';
-        subFilter.frequency.setValueAtTime(260, now + 1.55);
-        subFilter.frequency.exponentialRampToValueAtTime(50, now + 3.0);
-        subGain.gain.setValueAtTime(0.8 * A.volume, now + 1.55);
-        subGain.gain.exponentialRampToValueAtTime(0.0001, now + 3.2);
-        sub.connect(subFilter);
-        subFilter.connect(subGain);
-        subGain.connect(c.destination);
-        sub.start(now + 1.55);
-        sub.stop(now + 3.3);
-
-        // Resonant Monarch Bells (1.7s)
-        A.playTone(523.25, 'sine', 1.8, 0.35, 0.0001, 1.6);
-        A.playTone(1046.5, 'sine', 2.0, 0.25, 0.0001, 1.68);
-        A.playTone(1567.98, 'triangle', 2.4, 0.2, 0.0001, 1.76);
-      } catch (e) {}
-    },
-
-    /* --- Twin Dagger Clash & Slash Synthesizer --- */
-    daggerWhoosh: function (delay) {
-      if (!A.enabled) return;
-      var c = getCtx();
-      if (!c) return;
-      delay = delay || 0;
-      var now = c.currentTime + delay;
-
-      try {
-        var osc = c.createOscillator();
-        var gain = c.createGain();
-        var filter = c.createBiquadFilter();
-
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(600, now);
-        osc.frequency.exponentialRampToValueAtTime(140, now + 0.28);
-
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(800, now);
-        filter.frequency.linearRampToValueAtTime(350, now + 0.28);
-        filter.Q.setValueAtTime(3, now);
-
-        gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.35 * A.volume, now + 0.06);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
-
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(c.destination);
-
-        osc.start(now);
-        osc.stop(now + 0.3);
-      } catch (e) {}
-    },
-
-    daggerClash: function (delay) {
-      if (!A.enabled) return;
-      var c = getCtx();
-      if (!c) return;
-      delay = delay || 0;
-      var now = c.currentTime + delay;
-
-      // 1. High-frequency metallic blade ring (dual overtones)
-      A.playTone(2140, 'triangle', 0.65, 0.45, 0.0001, delay);
-      A.playTone(2860, 'sine', 0.55, 0.35, 0.0001, delay + 0.005);
-      A.playTone(920, 'sine', 0.8, 0.3, 0.0001, delay + 0.01);
-
-      // 2. Kinetic punch / sub thump on collision
-      try {
-        var sub = c.createOscillator();
-        var subGain = c.createGain();
-        sub.type = 'triangle';
-        sub.frequency.setValueAtTime(160, now);
-        sub.frequency.exponentialRampToValueAtTime(45, now + 0.25);
-        subGain.gain.setValueAtTime(0.7 * A.volume, now);
-        subGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
-        sub.connect(subGain);
-        subGain.connect(c.destination);
-        sub.start(now);
-        sub.stop(now + 0.3);
-      } catch (e) {}
-
-      // 3. Spark discharge crackle
-      try {
-        var zap = c.createOscillator();
-        var zapGain = c.createGain();
-        zap.type = 'square';
-        zap.frequency.setValueAtTime(1200, now + 0.02);
-        zap.frequency.exponentialRampToValueAtTime(320, now + 0.18);
-        zapGain.gain.setValueAtTime(0.25 * A.volume, now + 0.02);
-        zapGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
-        zap.connect(zapGain);
-        zapGain.connect(c.destination);
-        zap.start(now + 0.02);
-        zap.stop(now + 0.22);
-      } catch (e) {}
-    },
-
-    /* --- Full Cinematic Solo Leveling Dual Dagger Intro Sound Suite --- */
-    dualDaggerIntro: function () {
-      if (!A.enabled) return;
-      var c = getCtx();
-      if (!c) return;
-      var now = c.currentTime;
-
-      // 0.0s: Ambient Shadow Void Drone
-      try {
-        var drone = c.createOscillator();
-        var droneGain = c.createGain();
         drone.type = 'sawtooth';
-        drone.frequency.setValueAtTime(55, now);
-        drone.frequency.exponentialRampToValueAtTime(32, now + 1.2);
-        var droneFilter = c.createBiquadFilter();
+        drone.frequency.setValueAtTime(50, now);
+        drone.frequency.exponentialRampToValueAtTime(28, now + 1.2);
         droneFilter.type = 'lowpass';
         droneFilter.frequency.setValueAtTime(110, now);
-        droneFilter.frequency.linearRampToValueAtTime(50, now + 1.2);
+        droneFilter.frequency.linearRampToValueAtTime(45, now + 1.2);
         droneGain.gain.setValueAtTime(0.001, now);
-        droneGain.gain.linearRampToValueAtTime(0.35 * A.volume, now + 0.3);
+        droneGain.gain.linearRampToValueAtTime(0.4 * A.volume, now + 0.2);
         droneGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.4);
         drone.connect(droneFilter);
         droneFilter.connect(droneGain);
@@ -500,44 +347,62 @@ window.SYS = window.SYS || {};
         drone.stop(now + 1.5);
       } catch (e) {}
 
-      // 0.5s: Kasaka's Venom Fang Whoosh (Left Dagger)
-      A.daggerWhoosh(0.5);
+      // 2. Anamorphic Laser Flare Crystalline Glint (0.12s)
+      try {
+        var flare = c.createOscillator();
+        var flareGain = c.createGain();
+        var flareFilter = c.createBiquadFilter();
+        flare.type = 'triangle';
+        flare.frequency.setValueAtTime(1400, now + 0.1);
+        flare.frequency.exponentialRampToValueAtTime(2800, now + 0.35);
+        flareFilter.type = 'bandpass';
+        flareFilter.frequency.setValueAtTime(2200, now + 0.1);
+        flareFilter.Q.setValueAtTime(4, now + 0.1);
+        flareGain.gain.setValueAtTime(0.001, now + 0.1);
+        flareGain.gain.linearRampToValueAtTime(0.22 * A.volume, now + 0.22);
+        flareGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+        flare.connect(flareFilter);
+        flareFilter.connect(flareGain);
+        flareGain.connect(c.destination);
+        flare.start(now + 0.1);
+        flare.stop(now + 0.48);
+      } catch (e) {}
 
-      // 0.75s: Knight Killer Whoosh (Right Dagger)
-      A.daggerWhoosh(0.75);
-
-      // 1.1s: THE X-CLASH IMPACT
-      A.daggerClash(1.1);
-
-      // 1.7s: High-Tech System Window Crystal Ping
-      A.playTone(1046.5, 'sine', 0.22, 0.35, 0.001, 1.65); // C6
-      A.playTone(2093.0, 'triangle', 0.35, 0.3, 0.0001, 1.72); // C7
-      A.playTone(3135.96, 'sine', 0.45, 0.15, 0.0001, 1.80); // G7
-
-      // 2.3s: Epic Seismic [ARISE] Sub-Bass Drop & Monarch Chime
+      // 3. Colossal Seismic "ARISE" Bass Braam & Shockwave (0.35s)
       try {
         var sub = c.createOscillator();
         var subGain = c.createGain();
-        sub.type = 'sawtooth';
-        sub.frequency.setValueAtTime(115, now + 2.3);
-        sub.frequency.exponentialRampToValueAtTime(26, now + 4.0);
         var subFilter = c.createBiquadFilter();
+        sub.type = 'sawtooth';
+        sub.frequency.setValueAtTime(125, now + 0.35);
+        sub.frequency.exponentialRampToValueAtTime(26, now + 2.5);
         subFilter.type = 'lowpass';
-        subFilter.frequency.setValueAtTime(240, now + 2.3);
-        subFilter.frequency.exponentialRampToValueAtTime(45, now + 4.0);
-        subGain.gain.setValueAtTime(0.85 * A.volume, now + 2.3);
-        subGain.gain.exponentialRampToValueAtTime(0.0001, now + 4.2);
+        subFilter.frequency.setValueAtTime(260, now + 0.35);
+        subFilter.frequency.exponentialRampToValueAtTime(45, now + 2.5);
+        subGain.gain.setValueAtTime(0.9 * A.volume, now + 0.35);
+        subGain.gain.exponentialRampToValueAtTime(0.0001, now + 2.7);
         sub.connect(subFilter);
         subFilter.connect(subGain);
         subGain.connect(c.destination);
-        sub.start(now + 2.3);
-        sub.stop(now + 4.3);
+        sub.start(now + 0.35);
+        sub.stop(now + 2.8);
 
-        // Resonant Monarch Bells
-        A.playTone(523.25, 'sine', 2.0, 0.35, 0.0001, 2.35);
-        A.playTone(1046.5, 'sine', 2.2, 0.25, 0.0001, 2.42);
-        A.playTone(1567.98, 'triangle', 2.5, 0.2, 0.0001, 2.50);
+        // Resonant Shadow Monarch Bells (Staggered with letter reveal)
+        A.playTone(523.25, 'sine', 1.8, 0.35, 0.0001, 0.38); // C5 (A)
+        A.playTone(659.25, 'sine', 1.9, 0.30, 0.0001, 0.46); // E5 (R)
+        A.playTone(783.99, 'sine', 2.0, 0.28, 0.0001, 0.54); // G5 (I)
+        A.playTone(1046.5, 'sine', 2.2, 0.26, 0.0001, 0.62); // C6 (S)
+        A.playTone(1318.5, 'triangle', 2.5, 0.22, 0.0001, 0.70); // E6 (E)
       } catch (e) {}
+    },
+
+    // Backward-compatible aliases
+    monarchIntro: function () {
+      this.ariseCinematicSound();
+    },
+
+    dualDaggerIntro: function () {
+      this.ariseCinematicSound();
     },
 
     stopIntroAudio: function () {
