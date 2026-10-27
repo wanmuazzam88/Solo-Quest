@@ -10,19 +10,28 @@ window.SYS = window.SYS || {};
 
   var U = S.util;
   var STORAGE_KEY = 'solo_quest_runs_v1';
+  var PERMISSION_STORAGE_KEY = 'solo_quest_location_authorized';
+  var SILENT_AUDIO_URI = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==';
 
   var tracker = S.tracker = {
+    PERMISSION_STORAGE_KEY: PERMISSION_STORAGE_KEY,
+
     // Session state
     isActive: false,
     isPaused: false,
     isDemo: false,
     linkedQuestId: null,
 
-    // Temporal metrics
+    // Temporal metrics & Wall-Clock Background Tracking
+    sessionStartTime: 0,
+    pauseStartTime: 0,
+    totalPausedMs: 0,
+    lastTickTime: 0,
     startTime: 0,
     elapsedSeconds: 0,
     movingSeconds: 0,
     lastMovingTimestamp: 0,
+    _silentAudio: null,
 
     // Geospatial metrics
     currentPosition: null, // { lat, lng, accuracy, altitude, heading, speed }
@@ -80,6 +89,16 @@ window.SYS = window.SYS || {};
         tracker.history = [];
       }
 
+      // Check stored location authorization from previous grant (persist permission)
+      var storedAuth = null;
+      try {
+        storedAuth = localStorage.getItem(PERMISSION_STORAGE_KEY);
+      } catch (e) {}
+      if (storedAuth === 'granted') {
+        tracker.permissionStatus = 'granted';
+        tracker.permissionChecked = true;
+      }
+
       // Initial check for geolocation availability & permissions
       if (!('geolocation' in navigator)) {
         tracker.gpsStatus = 'UNAVAILABLE';
@@ -87,6 +106,11 @@ window.SYS = window.SYS || {};
       } else {
         tracker.queryPermissionStatus();
       }
+
+      // Background tracking recovery & visibility listeners
+      document.addEventListener('visibilitychange', tracker.handleVisibilityChange, { passive: true });
+      window.addEventListener('pageshow', tracker.handleVisibilityChange, { passive: true });
+      window.addEventListener('focus', tracker.handleVisibilityChange, { passive: true });
     },
 
     saveHistory: function () {
@@ -108,11 +132,18 @@ window.SYS = window.SYS || {};
         return;
       }
 
+      var storedAuth = null;
+      try {
+        storedAuth = localStorage.getItem(PERMISSION_STORAGE_KEY);
+      } catch (e) {}
+
       if (navigator.permissions && typeof navigator.permissions.query === 'function') {
         navigator.permissions.query({ name: 'geolocation' }).then(function (result) {
           tracker.permissionStatus = result.state; // 'granted', 'prompt', 'denied'
           tracker.permissionChecked = true;
+
           if (result.state === 'granted') {
+            try { localStorage.setItem(PERMISSION_STORAGE_KEY, 'granted'); } catch (e) {}
             if (!tracker.isActive) {
               tracker.gpsStatus = tracker.currentPosition ? 'LOCKED' : 'STANDBY';
               if (!tracker.currentPosition) {
@@ -120,28 +151,46 @@ window.SYS = window.SYS || {};
               }
             }
           } else if (result.state === 'denied') {
+            try { localStorage.removeItem(PERMISSION_STORAGE_KEY); } catch (e) {}
             tracker.gpsStatus = 'DENIED';
+          } else if (result.state === 'prompt') {
+            // If already authorized previously, preserve granted status
+            if (storedAuth === 'granted') {
+              tracker.permissionStatus = 'granted';
+            }
           }
 
           result.onchange = function () {
             tracker.permissionStatus = result.state;
             if (result.state === 'granted') {
+              try { localStorage.setItem(PERMISSION_STORAGE_KEY, 'granted'); } catch (e) {}
               tracker.gpsStatus = 'LOCKED';
               tracker.acquireInitialFix(true);
             } else if (result.state === 'denied') {
+              try { localStorage.removeItem(PERMISSION_STORAGE_KEY); } catch (e) {}
               tracker.gpsStatus = 'DENIED';
             }
             if (S.ui && S.ui.renderRunView) S.ui.render();
           };
 
-          if (callback) callback(result.state);
+          if (callback) callback(tracker.permissionStatus);
         }).catch(function () {
-          tracker.permissionStatus = 'prompt';
-          if (callback) callback('prompt');
+          if (storedAuth === 'granted') {
+            tracker.permissionStatus = 'granted';
+            tracker.permissionChecked = true;
+          } else {
+            tracker.permissionStatus = 'prompt';
+          }
+          if (callback) callback(tracker.permissionStatus);
         });
       } else {
-        tracker.permissionStatus = 'prompt';
-        if (callback) callback('prompt');
+        if (storedAuth === 'granted') {
+          tracker.permissionStatus = 'granted';
+          tracker.permissionChecked = true;
+        } else {
+          tracker.permissionStatus = 'prompt';
+        }
+        if (callback) callback(tracker.permissionStatus);
       }
     },
 
@@ -153,6 +202,7 @@ window.SYS = window.SYS || {};
           var crd = pos.coords;
           tracker.permissionStatus = 'granted';
           tracker.permissionChecked = true;
+          try { localStorage.setItem(PERMISSION_STORAGE_KEY, 'granted'); } catch (e) {}
           tracker.accuracyMeters = Math.round(crd.accuracy || 10);
           tracker.gpsStatus = tracker.accuracyMeters <= 20 ? 'LOCKED' : 'FAIR';
           tracker.currentPosition = {
@@ -180,6 +230,7 @@ window.SYS = window.SYS || {};
           if (err.code === 1) { // PERMISSION_DENIED
             tracker.permissionStatus = 'denied';
             tracker.gpsStatus = 'DENIED';
+            try { localStorage.removeItem(PERMISSION_STORAGE_KEY); } catch (e) {}
           }
           if (callback) callback(err);
         },
@@ -221,6 +272,7 @@ window.SYS = window.SYS || {};
           var crd = pos.coords;
           tracker.permissionStatus = 'granted';
           tracker.permissionChecked = true;
+          try { localStorage.setItem(PERMISSION_STORAGE_KEY, 'granted'); } catch (e) {}
           tracker.accuracyMeters = Math.round(crd.accuracy || 10);
           tracker.gpsStatus = tracker.accuracyMeters <= 20 ? 'LOCKED' : (tracker.accuracyMeters <= 40 ? 'FAIR' : 'WEAK');
           tracker.currentPosition = {
@@ -251,6 +303,7 @@ window.SYS = window.SYS || {};
           if (err.code === 1) { // PERMISSION_DENIED
             tracker.permissionStatus = 'denied';
             tracker.gpsStatus = 'DENIED';
+            try { localStorage.removeItem(PERMISSION_STORAGE_KEY); } catch (e) {}
             if (interactive && S.ui && S.ui.showLocationPermissionHelp) {
               S.ui.showLocationPermissionHelp(err);
             }
@@ -283,7 +336,18 @@ window.SYS = window.SYS || {};
         return;
       }
 
-      // Live GPS Run: Check / Request device location permission first
+      var storedAuth = null;
+      try { storedAuth = localStorage.getItem(PERMISSION_STORAGE_KEY); } catch (e) {}
+
+      // If already authorized previously, proceed immediately without prompting
+      if (tracker.permissionStatus === 'granted' || storedAuth === 'granted') {
+        tracker.permissionStatus = 'granted';
+        tracker.permissionChecked = true;
+        tracker._beginRunSession(questId, false);
+        return;
+      }
+
+      // Live GPS Run: Check if explicitly denied previously
       if (tracker.permissionStatus === 'denied') {
         if (S.ui && S.ui.showLocationPermissionHelp) {
           S.ui.showLocationPermissionHelp({ code: 1, message: 'Permission previously denied' });
@@ -291,18 +355,12 @@ window.SYS = window.SYS || {};
         return;
       }
 
-      if (tracker.permissionStatus !== 'granted') {
-        // Explicitly ask user for permission and proceed upon grant
-        tracker.requestLocationPermission(true, function (err) {
-          if (!err) {
-            tracker._beginRunSession(questId, false);
-          }
-        });
-        return;
-      }
-
-      // Permission is already granted
-      tracker._beginRunSession(questId, false);
+      // First time only: explicitly request permission once and start
+      tracker.requestLocationPermission(true, function (err) {
+        if (!err) {
+          tracker._beginRunSession(questId, false);
+        }
+      });
     },
 
     _beginRunSession: function (questId, isDemo) {
@@ -311,11 +369,16 @@ window.SYS = window.SYS || {};
       tracker.isDemo = !!isDemo;
       tracker.linkedQuestId = questId || tracker.findActiveRunningQuestId();
 
-      // Reset metrics
-      tracker.startTime = Date.now();
+      var now = Date.now();
+      // Wall-Clock Time tracking
+      tracker.sessionStartTime = now;
+      tracker.startTime = now;
+      tracker.lastTickTime = now;
+      tracker.lastMovingTimestamp = now;
+      tracker.pauseStartTime = 0;
+      tracker.totalPausedMs = 0;
       tracker.elapsedSeconds = 0;
       tracker.movingSeconds = 0;
-      tracker.lastMovingTimestamp = Date.now();
 
       tracker.coordinates = [];
       tracker.routeHistory = [];
@@ -339,8 +402,11 @@ window.SYS = window.SYS || {};
       tracker.accuracyMeters = null;
       tracker._autoCenterMap = true;
 
-      // Acquire Screen WakeLock so device screen stays active
+      // Acquire Screen WakeLock so device screen stays active when on
       tracker.requestWakeLock();
+
+      // Start background keep-alive audio & lock screen media session
+      tracker.startBackgroundKeepAlive();
 
       // Initialize Motion Sensor for step counting
       tracker.bindMotionSensor();
@@ -365,11 +431,12 @@ window.SYS = window.SYS || {};
       if (S.ui && S.ui.renderRunView) S.ui.render();
     },
 
-
     pause: function () {
       if (!tracker.isActive || tracker.isPaused) return;
       tracker.isPaused = true;
+      tracker.pauseStartTime = Date.now();
       tracker.currentSpeedKmh = 0;
+      tracker.updateMediaSessionState('paused');
       if (S.audio) S.audio.tap();
       S.emit('trackerPaused', tracker.getState());
       if (S.ui) S.ui.render();
@@ -378,7 +445,14 @@ window.SYS = window.SYS || {};
     resume: function () {
       if (!tracker.isActive || !tracker.isPaused) return;
       tracker.isPaused = false;
+      if (tracker.pauseStartTime > 0) {
+        tracker.totalPausedMs += (Date.now() - tracker.pauseStartTime);
+        tracker.pauseStartTime = 0;
+      }
+      tracker.lastTickTime = Date.now();
       tracker.lastMovingTimestamp = Date.now();
+      tracker.requestWakeLock();
+      tracker.updateMediaSessionState('playing');
       if (S.audio) S.audio.windowOpen();
       S.emit('trackerResumed', tracker.getState());
       if (S.ui) S.ui.render();
@@ -389,11 +463,12 @@ window.SYS = window.SYS || {};
 
       var finalState = tracker.getState();
 
-      // Stop watchers and tickers
+      // Stop watchers, tickers, and background keep-alive
       tracker.stopGeolocationWatch();
       tracker.stopMotionSensor();
       tracker.stopDemoRoute();
       tracker.releaseWakeLock();
+      tracker.stopBackgroundKeepAlive();
       clearInterval(tracker._tickerInterval);
       tracker.isActive = false;
       tracker.isPaused = false;
@@ -430,8 +505,12 @@ window.SYS = window.SYS || {};
         if (quest && !quest.isCompleted) {
           var added = Math.round(distanceKm * 100) / 100;
           if (added > 0) {
-            S.logQuest(quest.id, added);
-            S.commit();
+            if (typeof S.addProgress === 'function') {
+              S.addProgress(quest.id, added);
+            } else if (typeof S.logQuest === 'function') {
+              S.logQuest(quest.id, added);
+              S.commit();
+            }
           }
         }
       }
@@ -451,6 +530,7 @@ window.SYS = window.SYS || {};
       tracker.stopMotionSensor();
       tracker.stopDemoRoute();
       tracker.releaseWakeLock();
+      tracker.stopBackgroundKeepAlive();
       clearInterval(tracker._tickerInterval);
       tracker.isActive = false;
       tracker.isPaused = false;
@@ -698,55 +778,86 @@ window.SYS = window.SYS || {};
 
     /* ======================================================================
        1-Second Interval Ticker (Pace, Moving Time, Calories, Cadence)
+       Wall-Clock Timestamp Accurate: Maintains precision even if phone sleeps
        ====================================================================== */
     onTicker: function () {
       if (!tracker.isActive) return;
 
-      tracker.elapsedSeconds++;
+      var now = Date.now();
 
-      if (!tracker.isPaused) {
-        tracker.movingSeconds++;
-
-        // Calculate Cadence (Steps Per Minute)
-        var now = Date.now();
-        var cutoff = now - 10000;
-        var recentSteps = tracker.stepTimestamps.filter(function (t) { return t > cutoff; }).length;
-        tracker.cadenceSpm = Math.round((recentSteps / 10) * 60);
-
-        // Calculate Average Pace (seconds per km)
-        var distKm = tracker.totalDistanceMeters / 1000;
-        if (distKm > 0.05) {
-          tracker.avgPaceSecKm = tracker.movingSeconds / distKm;
-        }
-
-        // Rolling Current Pace from recent GPS points (last 20 seconds)
-        var hist = tracker.routeHistory;
-        if (hist.length >= 2) {
-          var startIdx = 0;
-          var winCutoff = now - 20000;
-          for (var i = hist.length - 1; i >= 0; i--) {
-            if (hist[i].timestamp < winCutoff) {
-              startIdx = i;
-              break;
-            }
-          }
-          var segDist = 0;
-          for (var j = startIdx; j < hist.length - 1; j++) {
-            segDist += tracker.haversine(hist[j].lat, hist[j].lng, hist[j + 1].lat, hist[j + 1].lng);
-          }
-          var segTime = (now - hist[startIdx].timestamp) / 1000;
-          if (segDist > 10 && segTime > 4) {
-            var segSpeedMps = segDist / segTime;
-            if (segSpeedMps > 0.5) {
-              tracker.currentPaceSecKm = 1000 / segSpeedMps;
-            }
-          }
-        }
-
-        // Calories burned formula (Standard MET for running ~ 1.036 kcal / kg / km)
-        // Default hunter body weight = 70 kg -> ~62 kcal per km
-        tracker.caloriesBurned = distKm * 64 + (tracker.movingSeconds / 3600) * 120;
+      if (tracker.isPaused) {
+        tracker.lastTickTime = now;
+        tracker.updateLiveHudDom();
+        return;
       }
+
+      // Wall-Clock Elapsed Time Calculation
+      var effectiveNow = tracker.isPaused ? (tracker.pauseStartTime || now) : now;
+      tracker.elapsedSeconds = Math.max(0, Math.floor((effectiveNow - tracker.sessionStartTime - tracker.totalPausedMs) / 1000));
+
+      // Moving seconds calculation & Background sleep detection:
+      var deltaSec = (now - tracker.lastTickTime) / 1000;
+      if (deltaSec > 1.8) {
+        // App was backgrounded or phone screen was locked!
+        var sleepSec = Math.floor(deltaSec);
+        tracker.movingSeconds += sleepSec;
+
+        // If in Demo Mode, advance distance along circuit proportionally
+        if (tracker.isDemo) {
+          var simulatedSpeedMps = 2.8; // ~10 km/h realistic running speed
+          var simulatedDistM = simulatedSpeedMps * sleepSec;
+          tracker.totalDistanceMeters += simulatedDistM;
+          tracker.caloriesBurned += (simulatedDistM / 1000) * 64;
+          tracker.totalSteps += Math.floor(simulatedDistM / 0.82);
+          tracker.checkKmSplit();
+        }
+      } else {
+        tracker.movingSeconds++;
+      }
+      tracker.lastTickTime = now;
+
+      // Calculate Cadence (Steps Per Minute)
+      var cutoff = now - 10000;
+      var recentSteps = tracker.stepTimestamps.filter(function (t) { return t > cutoff; }).length;
+      tracker.cadenceSpm = recentSteps > 0 ? Math.round((recentSteps / 10) * 60) : (tracker.currentSpeedKmh > 3 ? 155 : 0);
+
+      // Calculate Average Pace (seconds per km)
+      var distKm = tracker.totalDistanceMeters / 1000;
+      if (distKm > 0.05 && tracker.movingSeconds > 0) {
+        tracker.avgPaceSecKm = tracker.movingSeconds / distKm;
+      }
+
+      // Rolling Current Pace from recent GPS points (last 20 seconds)
+      var hist = tracker.routeHistory;
+      if (hist.length >= 2) {
+        var startIdx = 0;
+        var winCutoff = now - 20000;
+        for (var i = hist.length - 1; i >= 0; i--) {
+          if (hist[i].timestamp < winCutoff) {
+            startIdx = i;
+            break;
+          }
+        }
+        var segDist = 0;
+        for (var j = startIdx; j < hist.length - 1; j++) {
+          segDist += tracker.haversine(hist[j].lat, hist[j].lng, hist[j + 1].lat, hist[j + 1].lng);
+        }
+        var segTime = (now - hist[startIdx].timestamp) / 1000;
+        if (segDist > 10 && segTime > 4) {
+          var segSpeedMps = segDist / segTime;
+          if (segSpeedMps > 0.5) {
+            tracker.currentPaceSecKm = 1000 / segSpeedMps;
+          }
+        }
+      } else if (tracker.isDemo && tracker.currentSpeedKmh > 0) {
+        tracker.currentPaceSecKm = (1000 / (tracker.currentSpeedKmh / 3.6));
+      }
+
+      // Calories burned formula (Standard MET for running ~ 1.036 kcal / kg / km)
+      tracker.caloriesBurned = distKm * 64 + (tracker.movingSeconds / 3600) * 120;
+
+      // Update Media Session for mobile lock screen display
+      tracker.updateMediaSession();
 
       // Update live DOM metrics if run view is mounted
       tracker.updateLiveHudDom();
@@ -763,9 +874,12 @@ window.SYS = window.SYS || {};
        Screen WakeLock (Keep display awake during running)
        ====================================================================== */
     requestWakeLock: function () {
-      if ('wakeLock' in navigator) {
+      if ('wakeLock' in navigator && !tracker._wakeLock) {
         navigator.wakeLock.request('screen').then(function (lock) {
           tracker._wakeLock = lock;
+          lock.addEventListener('release', function () {
+            tracker._wakeLock = null;
+          });
         }).catch(function () {});
       }
     },
@@ -775,6 +889,124 @@ window.SYS = window.SYS || {};
         tracker._wakeLock.release().then(function () {
           tracker._wakeLock = null;
         }).catch(function () {});
+      }
+    },
+
+    /* ======================================================================
+       Background Keep-Alive Audio & Lock Screen MediaSession API
+       ====================================================================== */
+    startBackgroundKeepAlive: function () {
+      try {
+        if (!tracker._silentAudio) {
+          tracker._silentAudio = new Audio(SILENT_AUDIO_URI);
+          tracker._silentAudio.loop = true;
+          tracker._silentAudio.volume = 0.01;
+        }
+        var p = tracker._silentAudio.play();
+        if (p && typeof p.catch === 'function') {
+          p.catch(function () {});
+        }
+      } catch (e) {}
+      tracker.updateMediaSession();
+    },
+
+    stopBackgroundKeepAlive: function () {
+      if (tracker._silentAudio) {
+        try {
+          tracker._silentAudio.pause();
+          tracker._silentAudio.currentTime = 0;
+        } catch (e) {}
+      }
+      if ('mediaSession' in navigator) {
+        try {
+          navigator.mediaSession.playbackState = 'none';
+        } catch (e) {}
+      }
+    },
+
+    updateMediaSessionState: function (state) {
+      if ('mediaSession' in navigator) {
+        try {
+          navigator.mediaSession.playbackState = state;
+        } catch (e) {}
+      }
+    },
+
+    updateMediaSession: function () {
+      if (!('mediaSession' in navigator)) return;
+      try {
+        var distKm = (tracker.totalDistanceMeters / 1000).toFixed(2);
+        var timeStr = U.hms(tracker.movingSeconds * 1000);
+        var paceStr = tracker.formatPace(tracker.avgPaceSecKm || tracker.currentPaceSecKm);
+
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: 'Solo Quest: ' + distKm + ' KM',
+          artist: 'Time: ' + timeStr + ' | Pace: ' + paceStr + '/KM',
+          album: 'Project: ARISE // Running Telemetry',
+          artwork: [
+            { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+            { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }
+          ]
+        });
+
+        navigator.mediaSession.playbackState = tracker.isActive && !tracker.isPaused ? 'playing' : 'paused';
+
+        navigator.mediaSession.setActionHandler('play', function () {
+          tracker.resume();
+        });
+        navigator.mediaSession.setActionHandler('pause', function () {
+          tracker.pause();
+        });
+      } catch (e) {}
+    },
+
+    /* ======================================================================
+       Visibility Change & Background Sleep Recovery
+       ====================================================================== */
+    handleVisibilityChange: function () {
+      if (!tracker.isActive) return;
+
+      var now = Date.now();
+      if (!document.hidden) {
+        // Device unlocked or browser brought to foreground
+        if (!tracker.isPaused) {
+          // 1. Sync wall-clock timer immediately
+          var calculatedElapsed = Math.max(0, Math.floor((now - tracker.sessionStartTime - tracker.totalPausedMs) / 1000));
+          tracker.elapsedSeconds = calculatedElapsed;
+
+          var sleepDelta = (now - tracker.lastTickTime) / 1000;
+          if (sleepDelta > 1.5) {
+            var sleepSec = Math.floor(sleepDelta);
+            tracker.movingSeconds += sleepSec;
+
+            if (tracker.isDemo) {
+              var simulatedDistM = 2.8 * sleepSec;
+              tracker.totalDistanceMeters += simulatedDistM;
+              tracker.caloriesBurned += (simulatedDistM / 1000) * 64;
+              tracker.totalSteps += Math.floor(simulatedDistM / 0.82);
+              tracker.checkKmSplit();
+            }
+          }
+          tracker.lastTickTime = now;
+
+          // 2. Request immediate GPS fix to capture displacement while in background
+          if (!tracker.isDemo && 'geolocation' in navigator) {
+            navigator.geolocation.getCurrentPosition(
+              function (pos) {
+                tracker.onLocationUpdate(pos);
+              },
+              function () {},
+              { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+            );
+          }
+
+          // 3. Re-acquire WakeLock
+          tracker.requestWakeLock();
+
+          // 4. Update HUD
+          tracker.updateLiveHudDom();
+          if (S.ui && S.ui.renderRunView) S.ui.render();
+        }
       }
     },
 
