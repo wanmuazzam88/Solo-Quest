@@ -50,15 +50,17 @@ window.SYS = window.SYS || {};
     }
 
     // Tapping anywhere on the intro overlay skips immediately
-    overlay.onclick = function (e) {
+    function handleTapSkip(e) {
       if (e.target && e.target.id === 'btn-intro-skip') return;
       S.intro.skip();
-    };
+    }
+    overlay.onclick = handleTapSkip;
+    overlay.ontouchend = handleTapSkip;
   }
 
   function resize() {
     if (!canvas) return;
-    dpr = window.devicePixelRatio || 1;
+    dpr = Math.min(2, window.devicePixelRatio || 1);
     width = window.innerWidth;
     height = window.innerHeight;
     canvas.width = Math.floor(width * dpr);
@@ -224,7 +226,10 @@ window.SYS = window.SYS || {};
   S.intro = {
     init: function () {
       initOverlay();
-      window.addEventListener('resize', resize);
+      window.addEventListener('resize', resize, { passive: true });
+      window.addEventListener('orientationchange', function () {
+        setTimeout(resize, 100);
+      }, { passive: true });
     },
 
     play: function (callback, forceReplay) {
