@@ -225,8 +225,19 @@ window.SYS = window.SYS || {};
     initPWA();
     suppressWatermarks();
 
-    // First thing to pop up when user opens the app
-    if (S.state && !S.state.initialized && S.ui) {
+    // Solo Leveling Opening Intro Animation
+    if (S.intro && typeof S.intro.play === 'function') {
+      S.intro.play(function () {
+        // After intro finishes: if user is not initialized, show the Narrator Awakening Modal
+        if (S.state && !S.state.initialized && S.ui) {
+          setTimeout(function () {
+            if (!S.state.initialized) {
+              S.ui.renderAwakeningModal();
+            }
+          }, 120);
+        }
+      });
+    } else if (S.state && !S.state.initialized && S.ui) {
       setTimeout(function () {
         if (!S.state.initialized) {
           S.ui.renderAwakeningModal();

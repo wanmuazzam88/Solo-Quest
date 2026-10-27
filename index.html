@@ -40,6 +40,29 @@
     [FOCUS TELEMETRY WARNING] WINDOW BLURRED // RETURN WITHIN 15 SECONDS OR SUFFER GATE BREACH
   </div>
 
+  <!-- Solo Leveling Monarch Opening Animation Overlay -->
+  <div id="monarch-intro-overlay" class="monarch-intro-overlay" role="dialog" aria-label="System Reawakening Intro">
+    <canvas id="intro-canvas"></canvas>
+    <div class="intro-hud-content">
+      <div class="intro-telemetry-badge" id="intro-badge">
+        <span class="db-status-dot pulsing" style="background:#00E5FF;"></span>
+        <span class="font-mono text-accent font-bold">[SYSTEM DIRECTIVE // REAWAKENING PROTOCOL]</span>
+      </div>
+      <div class="intro-system-box" id="intro-sys-box">
+        <div class="intro-system-title font-display">[PLAYER REAWAKENING DETECTED]</div>
+        <div class="intro-system-desc font-mono" id="intro-sys-desc">SYNCHRONIZING WITH SHADOW DOMAIN...</div>
+      </div>
+      <div class="intro-arise-banner" id="intro-arise-banner">
+        <div class="hangul-glyph">일어나라</div>
+        <div class="arise-hero-title">A R I S E</div>
+        <div class="arise-hero-subtitle font-mono">PROJECT: ARISE // LEVEL UP WITHOUT LIMITS</div>
+      </div>
+    </div>
+    <button type="button" class="intro-skip-btn" id="btn-intro-skip" title="Skip Animation">
+      SKIP INTRO &rarr;
+    </button>
+  </div>
+
   <!-- App Root Shell -->
   <div id="app-root">
     <!-- Tactical Topbar -->
@@ -174,6 +197,7 @@
   <script src="js/tracker.js"></script>
   <script src="js/gate.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/intro.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

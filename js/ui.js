@@ -1621,6 +1621,18 @@ window.SYS = window.SYS || {};
           '</div>' +
         '</div>' +
 
+        // Visuals & Solo Leveling Intro Animation
+        '<div style="margin-bottom:18px;">' +
+          '<div class="font-display text-accent" style="font-size:14px; font-weight:700; margin-bottom:8px;">' + I('eye', 16) + ' [SYSTEM AWAKENING CINEMATIC]</div>' +
+          '<div class="flex-between" style="padding:12px; background:rgba(0,229,255,0.03); border:1px solid rgba(0,229,255,0.2); clip-path:var(--clip-chamfer-sm); flex-wrap:wrap; gap:10px;">' +
+            '<div>' +
+              '<div style="font-weight:700; color:var(--text-primary); font-size:13px;">Monarch Awakening Sequence</div>' +
+              '<div style="font-size:11px; color:var(--text-muted);">Replay the Double Dungeon runic circle, Jin-woo cyan flare, and seismic ARISE shockwave.</div>' +
+            '</div>' +
+            '<button class="sys-btn primary" id="btn-replay-intro">' + I('play', 14) + ' REPLAY SYSTEM INTRO</button>' +
+          '</div>' +
+        '</div>' +
+
         // Simulation / Midnight Testing Protocol
         '<div>' +
           '<div class="font-display text-gold" style="font-size:14px; font-weight:700; margin-bottom:8px;">TIME ENGINE / MIDNIGHT SIMULATOR</div>' +
@@ -1695,6 +1707,16 @@ window.SYS = window.SYS || {};
       var btnSim = container.querySelector('#btn-sim-midnight');
       if (btnSim) btnSim.addEventListener('click', function () {
         S.simulateMidnight();
+      });
+
+      var btnReplay = container.querySelector('#btn-replay-intro');
+      if (btnReplay) btnReplay.addEventListener('click', function () {
+        if (S.intro && S.intro.play) {
+          S.intro.play(function () {
+            // Intro completed, refresh settings view
+            UI.render();
+          });
+        }
       });
     },
 

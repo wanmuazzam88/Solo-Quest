@@ -317,6 +317,81 @@ window.SYS = window.SYS || {};
       A.playTone(440, 'sine', 1.2, 0.3, 0.0001, 0.3);
       A.playTone(880, 'sine', 1.5, 0.2, 0.0001, 0.4);
       A.playTone(1320, 'triangle', 1.8, 0.15, 0.0001, 0.5);
+    },
+
+    /* --- Full Cinematic Monarch Awakening Intro Sound Suite --- */
+    monarchIntro: function () {
+      if (!A.enabled) return;
+      var c = getCtx();
+      if (!c) return;
+      var now = c.currentTime;
+
+      // 1. Ominous Shadow Domain Drone (0s - 1.2s)
+      try {
+        var drone = c.createOscillator();
+        var droneGain = c.createGain();
+        drone.type = 'sawtooth';
+        drone.frequency.setValueAtTime(55, now);
+        drone.frequency.exponentialRampToValueAtTime(32, now + 1.2);
+        var droneFilter = c.createBiquadFilter();
+        droneFilter.type = 'lowpass';
+        droneFilter.frequency.setValueAtTime(120, now);
+        droneFilter.frequency.linearRampToValueAtTime(60, now + 1.2);
+        droneGain.gain.setValueAtTime(0.001, now);
+        droneGain.gain.linearRampToValueAtTime(0.4 * A.volume, now + 0.3);
+        droneGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.4);
+        drone.connect(droneFilter);
+        droneFilter.connect(droneGain);
+        droneGain.connect(c.destination);
+        drone.start(now);
+        drone.stop(now + 1.5);
+      } catch (e) {}
+
+      // 2. High-Tech System Holographic Notification Chime (0.8s)
+      A.playTone(987.77, 'sine', 0.22, 0.35, 0.001, 0.75); // B5
+      A.playTone(1975.53, 'triangle', 0.35, 0.3, 0.0001, 0.82); // B6
+      A.playTone(2959.96, 'sine', 0.45, 0.15, 0.0001, 0.90); // F#7
+
+      // 3. Electric Mana Lightning Crackle (1.2s)
+      try {
+        var zap = c.createOscillator();
+        var zapGain = c.createGain();
+        zap.type = 'square';
+        zap.frequency.setValueAtTime(320, now + 1.15);
+        zap.frequency.exponentialRampToValueAtTime(1400, now + 1.35);
+        zapGain.gain.setValueAtTime(0.001, now + 1.15);
+        zapGain.gain.linearRampToValueAtTime(0.2 * A.volume, now + 1.25);
+        zapGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.45);
+        zap.connect(zapGain);
+        zapGain.connect(c.destination);
+        zap.start(now + 1.15);
+        zap.stop(now + 1.5);
+      } catch (e) {}
+
+      // 4. Epic Seismic [ARISE] Bass Drop & Mana Burst (1.6s)
+      try {
+        var sub = c.createOscillator();
+        var subGain = c.createGain();
+        sub.type = 'sawtooth';
+        sub.frequency.setValueAtTime(110, now + 1.55);
+        sub.frequency.exponentialRampToValueAtTime(28, now + 3.0);
+        var subFilter = c.createBiquadFilter();
+        subFilter.type = 'lowpass';
+        subFilter.frequency.setValueAtTime(260, now + 1.55);
+        subFilter.frequency.exponentialRampToValueAtTime(50, now + 3.0);
+        subGain.gain.setValueAtTime(0.8 * A.volume, now + 1.55);
+        subGain.gain.exponentialRampToValueAtTime(0.0001, now + 3.2);
+        sub.connect(subFilter);
+        subFilter.connect(subGain);
+        subGain.connect(c.destination);
+        sub.start(now + 1.55);
+        sub.stop(now + 3.3);
+
+        // Resonant Monarch Bells (1.7s)
+        A.playTone(523.25, 'sine', 1.8, 0.35, 0.0001, 1.6);
+        A.playTone(1046.5, 'sine', 2.0, 0.25, 0.0001, 1.68);
+        A.playTone(1567.98, 'triangle', 2.4, 0.2, 0.0001, 1.76);
+      } catch (e) {}
     }
   };
 
