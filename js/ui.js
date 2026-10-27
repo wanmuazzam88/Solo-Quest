@@ -154,10 +154,6 @@ window.SYS = window.SYS || {};
         default:
           UI.renderCommandCenter(container);
       }
-
-      if (!S.state.initialized) {
-        UI.renderAwakeningModal();
-      }
     },
 
     /* --- Topbar Updates --- */
@@ -1914,42 +1910,64 @@ window.SYS = window.SYS || {};
 
     renderAwakeningModal: function () {
       UI.openModal(
-        '<div>' +
-          '<div style="text-align:center; margin-bottom:16px;">' +
-            '<div class="sys-badge font-display text-accent" style="font-size:24px; letter-spacing:0.18em; margin-bottom:6px;">[THE SYSTEM HAS AWAKENED]</div>' +
-            '<p style="font-size:13px; color:var(--text-secondary);">You versus your old self, one quest at a time.</p>' +
+        '<div style="max-width:100%; box-sizing:border-box;">' +
+          '<div style="text-align:center; margin-bottom:10px;">' +
+            '<div class="font-display text-accent font-bold" style="font-size:clamp(16px, 4.4vw, 20px); letter-spacing:0.06em; line-height:1.2; text-shadow:0 0 10px rgba(0,229,255,0.4); text-transform:uppercase; word-break:break-word;">[THE SYSTEM HAS AWAKENED]</div>' +
+            '<p style="font-size:11px; color:var(--text-secondary); margin:3px 0 0; line-height:1.3;">You versus your old self, one quest at a time.</p>' +
           '</div>' +
-          '<form id="form-awaken" style="display:flex; flex-direction:column; gap:14px;">' +
+          '<form id="form-awaken" style="display:flex; flex-direction:column; gap:9px; margin:0; padding:0;">' +
             '<div>' +
-              '<label class="font-mono" style="font-size:11px; color:var(--text-muted);">HUNTER DESIGNATION (NAME)</label>' +
-              '<input type="text" class="sys-input" id="awaken-name" placeholder="SUNG JIN-WOO" maxlength="18" required>' +
+              '<label class="font-mono text-muted" style="display:block; font-size:10px; letter-spacing:0.05em; margin-bottom:3px;">HUNTER DESIGNATION (NAME)</label>' +
+              '<input type="text" class="sys-input" id="awaken-name" placeholder="SUNG JIN-WOO" maxlength="18" value="' + U.esc((S.state && S.state.profile && S.state.profile.hunterName && S.state.profile.hunterName !== 'PLAYER' ? S.state.profile.hunterName : '')) + '" style="width:100%; height:36px; padding:6px 10px; font-size:13px; box-sizing:border-box;">' +
             '</div>' +
             '<div>' +
-              '<label class="font-mono" style="font-size:11px; color:var(--text-muted);">ACCOUNTABILITY DIRECTIVE (PENALTY MODE)</label>' +
-              '<select class="sys-select" id="awaken-mode">' +
-                '<option value="OPTIONAL">Standard Accountability (Optional Penalty + Streak Recovery)</option>' +
-                '<option value="HARDCORE">Hardcore Manhwa Mode (Mandatory Blood Crimson Penalty Zone)</option>' +
+              '<label class="font-mono text-muted" style="display:block; font-size:10px; letter-spacing:0.05em; margin-bottom:3px;">ACCOUNTABILITY DIRECTIVE (PENALTY MODE)</label>' +
+              '<select class="sys-select" id="awaken-mode" style="width:100%; height:36px; padding:6px 10px; font-size:12px; box-sizing:border-box;">' +
+                '<option value="OPTIONAL">Standard Directive (Optional Penalty + Streak Recovery)</option>' +
+                '<option value="HARDCORE">Hardcore Directive (Mandatory Blood Crimson Zone)</option>' +
               '</select>' +
             '</div>' +
-            '<label class="font-mono" style="font-size:12px; display:flex; align-items:center; gap:8px;">' +
-              '<input type="checkbox" id="awaken-preset" checked style="accent-color:var(--accent-core);">' +
-              'INSTALL CANONICAL SYSTEM PRESET (PUSH-UPS, SIT-UPS, SQUATS, 10KM)' +
+            '<label class="font-mono" style="font-size:10px; line-height:1.3; display:flex; align-items:flex-start; gap:8px; color:var(--text-secondary); cursor:pointer; padding:2px 0;">' +
+              '<input type="checkbox" id="awaken-preset" checked style="accent-color:var(--accent-core); width:15px; height:15px; margin-top:1px; flex-shrink:0;">' +
+              '<span>Install Canonical Quests (100 Push-ups, 100 Sit-ups, 100 Squats, 10km Run)</span>' +
             '</label>' +
-            '<button type="submit" class="sys-btn lg primary" style="margin-top:10px;">ACCEPT PLAYER SYSTEM CONTRACT</button>' +
+            '<button type="button" class="sys-btn lg primary" id="btn-awaken-accept" style="width:100%; height:40px; font-size:13px; font-weight:700; letter-spacing:0.08em; margin-top:4px;">ACCEPT PLAYER SYSTEM CONTRACT</button>' +
           '</form>' +
         '</div>'
       );
 
       var form = document.getElementById('form-awaken');
-      if (form) {
-        form.addEventListener('submit', function (e) {
+      var btn = document.getElementById('btn-awaken-accept');
+
+      function handleAwaken(e) {
+        if (e) {
           e.preventDefault();
-          var name = document.getElementById('awaken-name').value;
-          var mode = document.getElementById('awaken-mode').value;
-          var preset = document.getElementById('awaken-preset').checked;
-          S.awaken(name, mode, preset);
-          if (S.audio) S.audio.windowOpen();
-          UI.closeModal();
+          e.stopPropagation();
+        }
+        var nameInput = document.getElementById('awaken-name');
+        var rawName = nameInput ? nameInput.value : '';
+        var name = (rawName || 'PLAYER').trim().slice(0, 18) || 'PLAYER';
+
+        var modeInput = document.getElementById('awaken-mode');
+        var mode = modeInput ? modeInput.value : 'OPTIONAL';
+
+        var presetInput = document.getElementById('awaken-preset');
+        var preset = presetInput ? presetInput.checked : true;
+
+        S.awaken(name, mode, preset);
+        if (S.audio) {
+          try { S.audio.rankUp(); } catch (err) {}
+        }
+        UI.closeModal();
+        UI.showToast('[THE SYSTEM AWAKENED]', 'Welcome, Hunter ' + name + '. System contract initialized.', 'gold');
+        UI.render();
+      }
+
+      if (form) form.addEventListener('submit', handleAwaken);
+      if (btn) {
+        btn.addEventListener('click', handleAwaken);
+        btn.addEventListener('touchend', function (e) {
+          handleAwaken(e);
         });
       }
     },

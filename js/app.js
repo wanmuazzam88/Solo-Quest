@@ -225,6 +225,15 @@ window.SYS = window.SYS || {};
     initPWA();
     suppressWatermarks();
 
+    // First thing to pop up when user opens the app
+    if (S.state && !S.state.initialized && S.ui) {
+      setTimeout(function () {
+        if (!S.state.initialized) {
+          S.ui.renderAwakeningModal();
+        }
+      }, 150);
+    }
+
     console.log('[PROJECT: ARISE] The System is fully operational.');
   });
 })(window.SYS);

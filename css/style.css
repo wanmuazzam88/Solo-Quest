@@ -1075,6 +1075,23 @@ body.grace-countdown-active .grace-warning-banner {
   transform: scale(1);
 }
 
+@media (max-width: 600px) {
+  .modal-overlay {
+    padding: 10px;
+  }
+  .modal-panel {
+    padding: 14px 12px;
+    max-width: 96vw;
+    max-height: calc(100vh - 24px);
+    clip-path: var(--clip-chamfer);
+  }
+}
+
+.sys-select option {
+  background: var(--bg-system-panel-solid);
+  color: var(--text-primary);
+}
+
 /* --- Toast Notifications (Notice System) --- */
 #toast-container {
   position: fixed;
