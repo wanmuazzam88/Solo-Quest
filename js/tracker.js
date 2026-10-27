@@ -13,6 +13,63 @@ window.SYS = window.SYS || {};
   var PERMISSION_STORAGE_KEY = 'solo_quest_location_authorized';
   var SILENT_AUDIO_URI = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==';
 
+  /* ======================================================================
+     Precision 2D Kalman Filter for Real-Time GPS Trajectory Smoothing
+     Balances sensor noise covariance against motion dynamics to eliminate
+     GPS multipath spikes, stationary jitter, and saw-tooth distance error.
+     ====================================================================== */
+  function GpsKalmanFilter(decayFactor) {
+    this.decay = decayFactor || 2.8;
+    this.lat = null;
+    this.lng = null;
+    this.variance = -1;
+    this.lastTimeMs = 0;
+  }
+
+  GpsKalmanFilter.prototype.reset = function () {
+    this.lat = null;
+    this.lng = null;
+    this.variance = -1;
+    this.lastTimeMs = 0;
+  };
+
+  GpsKalmanFilter.prototype.update = function (lat, lng, accuracyMeters, timestampMs) {
+    var acc = Math.max(1.0, accuracyMeters || 12.0);
+    var measurementVariance = acc * acc;
+
+    if (this.variance < 0 || this.lat === null || this.lng === null) {
+      this.lat = lat;
+      this.lng = lng;
+      this.variance = measurementVariance;
+      this.lastTimeMs = timestampMs;
+      return { lat: lat, lng: lng, accuracy: acc };
+    }
+
+    var timeDeltaSec = (timestampMs - this.lastTimeMs) / 1000.0;
+    if (timeDeltaSec <= 0) timeDeltaSec = 0.5;
+
+    // Process noise models expected displacement uncertainty over elapsed time
+    var processNoise = timeDeltaSec * this.decay * this.decay;
+    this.variance += processNoise;
+
+    // Kalman Gain K = P / (P + R)
+    var K = this.variance / (this.variance + measurementVariance);
+
+    // State update
+    this.lat += K * (lat - this.lat);
+    this.lng += K * (lng - this.lng);
+
+    // Variance update P = (1 - K) * P
+    this.variance = (1.0 - K) * this.variance;
+    this.lastTimeMs = timestampMs;
+
+    return {
+      lat: this.lat,
+      lng: this.lng,
+      accuracy: Math.sqrt(this.variance)
+    };
+  };
+
   var tracker = S.tracker = {
     PERMISSION_STORAGE_KEY: PERMISSION_STORAGE_KEY,
 
@@ -60,6 +117,13 @@ window.SYS = window.SYS || {};
     accuracyMeters: null,
     rawAccuracyMeters: null,
 
+    // Internal precision & Kalman handles
+    _kalman: null,
+    _initialFixCount: 0,
+    _smoothedSpeedMps: 0,
+    _lastHeadingDeg: null,
+    _altAccumulator: 0,
+
     // Internal handles
     _watchId: null,
     _tickerInterval: null,
@@ -97,6 +161,11 @@ window.SYS = window.SYS || {};
       if (storedAuth === 'granted') {
         tracker.permissionStatus = 'granted';
         tracker.permissionChecked = true;
+      }
+
+      // Initialize 2D GPS Kalman Filter
+      if (!tracker._kalman) {
+        tracker._kalman = new GpsKalmanFilter(2.8);
       }
 
       // Initial check for geolocation availability & permissions
@@ -227,11 +296,14 @@ window.SYS = window.SYS || {};
           tracker.permissionChecked = true;
           try { localStorage.setItem(PERMISSION_STORAGE_KEY, 'granted'); } catch (e) {}
           tracker.rawAccuracyMeters = Math.round(crd.accuracy || 12);
-          tracker.accuracyMeters = tracker.sanitizeAccuracy(crd.accuracy);
-          tracker.gpsStatus = tracker.accuracyMeters <= 20 ? 'LOCKED' : 'GOOD';
+          var effAcc = tracker.sanitizeAccuracy(crd.accuracy);
+          if (!tracker._kalman) tracker._kalman = new GpsKalmanFilter(2.8);
+          var kFix = tracker._kalman.update(crd.latitude, crd.longitude, effAcc, Date.now());
+          tracker.accuracyMeters = Math.round(kFix.accuracy);
+          tracker.gpsStatus = tracker.accuracyMeters <= 8 ? 'PINPOINT' : (tracker.accuracyMeters <= 20 ? 'LOCKED' : (tracker.accuracyMeters <= 45 ? 'GOOD' : 'FAIR'));
           tracker.currentPosition = {
-            lat: crd.latitude,
-            lng: crd.longitude,
+            lat: kFix.lat,
+            lng: kFix.lng,
             accuracy: tracker.accuracyMeters,
             altitude: crd.altitude,
             heading: crd.heading || 0,
@@ -240,8 +312,8 @@ window.SYS = window.SYS || {};
           };
 
           if (tracker.map) {
-            tracker.map.flyTo([crd.latitude, crd.longitude], 16, { animate: true, duration: 1 });
-            tracker.updateMapHunterOnly(crd.latitude, crd.longitude, tracker.accuracyMeters, crd.heading || 0);
+            tracker.map.flyTo([kFix.lat, kFix.lng], 16, { animate: true, duration: 1 });
+            tracker.updateMapHunterOnly(kFix.lat, kFix.lng, tracker.accuracyMeters, crd.heading || 0);
           }
           if (interactive && S.ui) {
             S.ui.showToast('[GPS SATELLITE LOCKED]', 'Location fix acquired (±' + tracker.accuracyMeters + 'm precision).', 'cyan');
@@ -297,19 +369,24 @@ window.SYS = window.SYS || {};
         tracker.permissionChecked = true;
         try { localStorage.setItem(PERMISSION_STORAGE_KEY, 'granted'); } catch (e) {}
         tracker.rawAccuracyMeters = Math.round(crd.accuracy || 12);
-        tracker.accuracyMeters = tracker.sanitizeAccuracy(crd.accuracy);
-        if (tracker.accuracyMeters <= 15) {
+        var effAcc = tracker.sanitizeAccuracy(crd.accuracy);
+        if (!tracker._kalman) tracker._kalman = new GpsKalmanFilter(2.8);
+        var kFix = tracker._kalman.update(crd.latitude, crd.longitude, effAcc, Date.now());
+        tracker.accuracyMeters = Math.round(kFix.accuracy);
+        if (tracker.accuracyMeters <= 8) {
+          tracker.gpsStatus = 'PINPOINT';
+        } else if (tracker.accuracyMeters <= 20) {
           tracker.gpsStatus = 'LOCKED';
-        } else if (tracker.accuracyMeters <= 35) {
+        } else if (tracker.accuracyMeters <= 45) {
           tracker.gpsStatus = 'GOOD';
-        } else if (tracker.accuracyMeters <= 65) {
+        } else if (tracker.accuracyMeters <= 80) {
           tracker.gpsStatus = 'FAIR';
         } else {
           tracker.gpsStatus = 'WEAK';
         }
         tracker.currentPosition = {
-          lat: crd.latitude,
-          lng: crd.longitude,
+          lat: kFix.lat,
+          lng: kFix.lng,
           accuracy: tracker.accuracyMeters,
           altitude: crd.altitude,
           heading: crd.heading || 0,
@@ -318,8 +395,8 @@ window.SYS = window.SYS || {};
         };
 
         if (tracker.map) {
-          tracker.map.flyTo([crd.latitude, crd.longitude], 16, { animate: true, duration: 1.2 });
-          tracker.updateMapHunterOnly(crd.latitude, crd.longitude, tracker.accuracyMeters, crd.heading || 0);
+          tracker.map.flyTo([kFix.lat, kFix.lng], 16, { animate: true, duration: 1.2 });
+          tracker.updateMapHunterOnly(kFix.lat, kFix.lng, tracker.accuracyMeters, crd.heading || 0);
         }
 
         if (interactive) {
@@ -432,6 +509,11 @@ window.SYS = window.SYS || {};
       tracker.lastValidFix = null;
       tracker.elevationGain = 0;
       tracker.lastAltitude = null;
+      if (tracker._kalman) tracker._kalman.reset();
+      tracker._initialFixCount = 0;
+      tracker._smoothedSpeedMps = 0;
+      tracker._lastHeadingDeg = null;
+      tracker._altAccumulator = 0;
 
       tracker.currentSpeedKmh = 0;
       tracker.maxSpeedKmh = 0;
@@ -629,94 +711,170 @@ window.SYS = window.SYS || {};
       if (!tracker.isActive || tracker.isPaused) return;
 
       var crd = pos.coords;
-      var lat = crd.latitude;
-      var lng = crd.longitude;
-      var effAccuracy = tracker.sanitizeAccuracy(crd.accuracy);
-      tracker.rawAccuracyMeters = Math.round(crd.accuracy || 12);
-      tracker.accuracyMeters = effAccuracy;
-      var altitude = crd.altitude || null;
-      var heading = crd.heading || 0;
-      var speedMps = crd.speed !== null && !isNaN(crd.speed) ? crd.speed : null;
+      var rawLat = crd.latitude;
+      var rawLng = crd.longitude;
+      var rawAccuracy = crd.accuracy || 12;
+      var altitude = crd.altitude !== null && !isNaN(crd.altitude) ? crd.altitude : null;
+      var rawHeading = crd.heading !== null && !isNaN(crd.heading) ? crd.heading : null;
+      var speedMps = crd.speed !== null && !isNaN(crd.speed) && crd.speed >= 0 ? crd.speed : null;
       var now = Date.now();
 
-      if (tracker.accuracyMeters <= 15) {
+      // Sanitize placeholder anomalies (e.g. Windows 1414m Wi-Fi constant)
+      var effAccuracy = tracker.sanitizeAccuracy(rawAccuracy);
+      tracker.rawAccuracyMeters = Math.round(rawAccuracy);
+
+      // Feed through Precision 2D Kalman Filter
+      if (!tracker._kalman) tracker._kalman = new GpsKalmanFilter(2.8);
+      var kFix = tracker._kalman.update(rawLat, rawLng, effAccuracy, now);
+      var lat = kFix.lat;
+      var lng = kFix.lng;
+      tracker.accuracyMeters = Math.round(kFix.accuracy);
+
+      // Determine Tactical Satellite Precision Status
+      if (tracker.accuracyMeters <= 8) {
+        tracker.gpsStatus = 'PINPOINT';
+      } else if (tracker.accuracyMeters <= 20) {
         tracker.gpsStatus = 'LOCKED';
-      } else if (tracker.accuracyMeters <= 35) {
+      } else if (tracker.accuracyMeters <= 45) {
         tracker.gpsStatus = 'GOOD';
-      } else if (tracker.accuracyMeters <= 65) {
+      } else if (tracker.accuracyMeters <= 80) {
         tracker.gpsStatus = 'FAIR';
       } else {
         tracker.gpsStatus = 'WEAK';
       }
 
-      // Reject fixes with truly unusable accuracy (> 80m)
+      // Reject outlier anomalies exceeding usable range
       if (effAccuracy > 80) {
-        tracker.updateMapHunterOnly(lat, lng, effAccuracy, heading);
+        tracker.updateMapHunterOnly(lat, lng, tracker.accuracyMeters, rawHeading);
         tracker.updateLiveHudDom();
         return;
       }
 
       var pt = [lat, lng];
-      tracker.currentPosition = {
-        lat: lat,
-        lng: lng,
-        accuracy: effAccuracy,
-        altitude: altitude,
-        heading: heading,
-        speed: speedMps,
-        timestamp: now
-      };
+
+      // Cold-start Satellite Refinement:
+      // Within first 3 fixes, refine start point to converged fix without accumulating fake distance
+      if (tracker._initialFixCount < 3) {
+        tracker._initialFixCount++;
+        tracker.lastValidFix = { lat: lat, lng: lng, time: now, alt: altitude };
+        var startPos = {
+          lat: lat,
+          lng: lng,
+          accuracy: tracker.accuracyMeters,
+          altitude: altitude,
+          heading: rawHeading || 0,
+          speed: speedMps,
+          timestamp: now
+        };
+        if (tracker.coordinates.length === 0) {
+          tracker.coordinates.push(pt);
+          tracker.routeHistory.push(startPos);
+        } else {
+          tracker.coordinates[0] = pt;
+          tracker.routeHistory[0] = startPos;
+        }
+        tracker.currentPosition = startPos;
+        tracker.updateMapFull(pt, tracker.accuracyMeters, rawHeading);
+        tracker.updateLiveHudDom();
+        return;
+      }
 
       if (!tracker.lastValidFix) {
-        // First valid coordinate fix
         tracker.lastValidFix = { lat: lat, lng: lng, time: now, alt: altitude };
         tracker.coordinates.push(pt);
+        tracker.currentPosition = {
+          lat: lat,
+          lng: lng,
+          accuracy: tracker.accuracyMeters,
+          altitude: altitude,
+          heading: rawHeading || 0,
+          speed: speedMps,
+          timestamp: now
+        };
         tracker.routeHistory.push(tracker.currentPosition);
-        tracker.updateMapFull(pt, effAccuracy, heading);
+        tracker.updateMapFull(pt, tracker.accuracyMeters, rawHeading);
         tracker.updateLiveHudDom();
         return;
       }
 
-      // Compute Haversine distance between last valid fix and current
+      // High-precision distance calculation on Kalman trajectory
       var distM = tracker.haversine(tracker.lastValidFix.lat, tracker.lastValidFix.lng, lat, lng);
       var timeDeltaSec = (now - tracker.lastValidFix.time) / 1000;
+      if (timeDeltaSec <= 0) timeDeltaSec = 0.5;
 
-      // Dynamic noise gate: avoid stationary drift while capturing real movement
-      var minMoveMeters = tracker.accuracyMeters <= 15 ? 1.4 : (tracker.accuracyMeters <= 35 ? 2.2 : 3.0);
+      // Dynamic Precision Noise Gate
+      // Since Kalman already filtered Gaussian noise, threshold can be tight (1.2m - 2.2m)
+      var minMoveMeters = tracker.accuracyMeters <= 10 ? 1.2 : (tracker.accuracyMeters <= 25 ? 1.8 : 2.5);
       if (distM < minMoveMeters) {
-        tracker.updateMapHunterOnly(lat, lng, effAccuracy, heading);
+        tracker.updateMapHunterOnly(lat, lng, tracker.accuracyMeters, tracker._lastHeadingDeg || rawHeading);
         tracker.updateLiveHudDom();
         return;
       }
 
-      // Speed Gate: Ignore physically impossible human sprint jumps (> 36 km/h / 10 m/s)
-      var calcSpeedMps = timeDeltaSec > 0.4 ? distM / timeDeltaSec : 0;
-      if (calcSpeedMps > 10.0) {
+      // Physical Speed Gate (human running maximum: 12.0 m/s = 43.2 km/h)
+      var calcSpeedMps = distM / timeDeltaSec;
+      if (calcSpeedMps > 12.0) {
         return; // Glitch spike rejected
       }
 
-      // Valid displacement confirmed!
-      tracker.totalDistanceMeters += distM;
-      tracker.coordinates.push(pt);
-      tracker.routeHistory.push(tracker.currentPosition);
+      // Compute heading / bearing if hardware compass is missing
+      var computedHeading = rawHeading;
+      if (computedHeading === null) {
+        computedHeading = tracker.calculateBearing(tracker.lastValidFix.lat, tracker.lastValidFix.lng, lat, lng);
+      }
+      if (computedHeading !== null) {
+        tracker._lastHeadingDeg = computedHeading;
+      }
 
-      // Speed calculation (prefer device sensor speed if valid, else computed)
-      var speedKmh = (speedMps !== null && speedMps >= 0 ? speedMps : calcSpeedMps) * 3.6;
+      // Velocity & Pace Smoothing (Exponential Moving Average)
+      var instantSpeedMps = (speedMps !== null && speedMps >= 0.4) ? speedMps : calcSpeedMps;
+      tracker._smoothedSpeedMps = tracker._smoothedSpeedMps > 0 ?
+        (0.65 * tracker._smoothedSpeedMps + 0.35 * instantSpeedMps) : instantSpeedMps;
+
+      var speedKmh = tracker._smoothedSpeedMps * 3.6;
       tracker.currentSpeedKmh = Math.round(speedKmh * 10) / 10;
       if (tracker.currentSpeedKmh > tracker.maxSpeedKmh) {
         tracker.maxSpeedKmh = tracker.currentSpeedKmh;
       }
 
-      // Elevation tracking
+      // Calculate instantaneous pace from smoothed velocity
+      if (tracker._smoothedSpeedMps >= 0.4) {
+        tracker.currentPaceSecKm = 1000 / tracker._smoothedSpeedMps;
+      } else {
+        tracker.currentPaceSecKm = 0;
+      }
+
+      // Distance accumulation
+      tracker.totalDistanceMeters += distM;
+      tracker.coordinates.push(pt);
+
+      tracker.currentPosition = {
+        lat: lat,
+        lng: lng,
+        accuracy: tracker.accuracyMeters,
+        altitude: altitude,
+        heading: tracker._lastHeadingDeg || 0,
+        speed: tracker._smoothedSpeedMps,
+        timestamp: now
+      };
+      tracker.routeHistory.push(tracker.currentPosition);
+
+      // Low-pass filtered Elevation tracking
       if (altitude !== null && tracker.lastAltitude !== null) {
-        var diff = altitude - tracker.lastAltitude;
-        if (diff > 0.8 && diff < 50) { // filter noise
-          tracker.elevationGain += diff;
+        var altDiff = altitude - tracker.lastAltitude;
+        if (Math.abs(altDiff) > 1.2 && Math.abs(altDiff) < 40) {
+          tracker._altAccumulator = (tracker._altAccumulator || 0) + altDiff;
+          if (tracker._altAccumulator > 2.5) {
+            tracker.elevationGain += tracker._altAccumulator;
+            tracker._altAccumulator = 0;
+          } else if (tracker._altAccumulator < -2.5) {
+            tracker._altAccumulator = 0;
+          }
         }
       }
       if (altitude !== null) tracker.lastAltitude = altitude;
 
-      // Fallback step estimation if device motion is absent
+      // Pedometer step estimation fallback if device motion accelerometer absent
       if (tracker.stepTimestamps.length === 0) {
         var estimatedSteps = Math.floor(tracker.totalDistanceMeters / 0.82);
         tracker.totalSteps = estimatedSteps;
@@ -726,7 +884,7 @@ window.SYS = window.SYS || {};
       tracker.checkKmSplit();
 
       tracker.lastValidFix = { lat: lat, lng: lng, time: now, alt: altitude };
-      tracker.updateMapFull(pt, effAccuracy, heading);
+      tracker.updateMapFull(pt, tracker.accuracyMeters, tracker._lastHeadingDeg);
       tracker.updateLiveHudDom();
     },
 
@@ -758,6 +916,17 @@ window.SYS = window.SYS || {};
               Math.sin(dLon / 2) * Math.sin(dLon / 2);
       var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
+    },
+
+    calculateBearing: function (lat1, lon1, lat2, lon2) {
+      var toRad = Math.PI / 180;
+      var toDeg = 180 / Math.PI;
+      var dLon = (lon2 - lon1) * toRad;
+      var y = Math.sin(dLon) * Math.cos(lat2 * toRad);
+      var x = Math.cos(lat1 * toRad) * Math.sin(lat2 * toRad) -
+              Math.sin(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.cos(dLon);
+      var brng = Math.atan2(y, x) * toDeg;
+      return Math.round((brng + 360) % 360);
     },
 
     checkKmSplit: function () {
@@ -1197,13 +1366,13 @@ window.SYS = window.SYS || {};
         var arrow = document.getElementById('hunter-heading-arrow');
         if (arrow && heading !== null && !isNaN(heading)) {
           arrow.style.transform = 'rotate(' + heading + 'deg)';
-          arrow.style.opacity = heading > 0 ? '1' : '0';
+          arrow.style.opacity = '1';
         }
       }
 
       if (tracker.accuracyCircle) {
         tracker.accuracyCircle.setLatLng(pt);
-        tracker.accuracyCircle.setRadius(Math.min(accuracy || 12, 35));
+        tracker.accuracyCircle.setRadius(Math.min(accuracy || 12, 30));
       }
 
       if (tracker._autoCenterMap) {
@@ -1282,6 +1451,9 @@ window.SYS = window.SYS || {};
         elevationGain: tracker.elevationGain,
         gpsStatus: tracker.gpsStatus,
         accuracyMeters: tracker.accuracyMeters,
+        rawAccuracyMeters: tracker.rawAccuracyMeters,
+        smoothedSpeedMps: tracker._smoothedSpeedMps,
+        headingDeg: tracker._lastHeadingDeg,
         splits: tracker.splits,
         coordinatesCount: tracker.coordinates.length
       };
