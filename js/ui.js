@@ -452,7 +452,7 @@ window.SYS = window.SYS || {};
 
       col.innerHTML = '<div class="system-panel">' +
         '<div class="panel-header" style="flex-wrap:wrap; gap:8px;">' +
-          '<div class="panel-title">' + I('quests', 18) + ' [DAILY QUESTS // TACTICAL PLANNER]</div>' +
+          '<div class="panel-title">' + I('quests', 18) + ' [DAILY QUEST]</div>' +
           '<div style="display:flex; align-items:center; gap:6px;">' +
             '<button class="sys-btn sm primary" id="btn-open-weekly-plan" title="Open 7-Day Routine Matrix & Presets">' + I('calendar', 14) + ' WEEKLY PLAN</button>' +
             '<button class="sys-btn sm" id="btn-reroll-bonus">' + I('reroll', 14) + ' BONUS</button>' +
