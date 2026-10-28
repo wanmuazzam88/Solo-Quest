@@ -61,6 +61,7 @@ window.SYS = window.SYS || {};
         stats: { STR: 10, AGI: 10, VIT: 10, INT: 10, PER: 10 }, createdAt: Date.now()
       },
       quests: [],
+      weeklyPlan: null,
       currentDate: today,
       dailyBonusClaimed: false,
       inventory: { owned: {}, seen: {}, shadows: {}, boxes: { BLESSED: 1, CURSED: 0 } },
@@ -282,16 +283,370 @@ window.SYS = window.SYS || {};
       { preset: 'running', title: 'Running', category: 'RUNNING', primaryStat: 'AGI', target: km, unit: 'KM' }
     ];
   };
-  S.installPreset = function () {
-    var s = S.state;
-    S.presetSpecs(s.profile.rankTierIndex).forEach(function (sp) {
-      if (s.quests.some(function (q) { return q.preset === sp.preset; })) return;
-      S.addQuest(Object.assign({ difficulty: 'D', mode: 'COUNTER', isMandatory: true, recurring: true }, sp), true);
-    });
+  S.dayCode = function (dateStr) {
+    var d = U.parseDate(dateStr || (S.state && S.state.currentDate) || S.today());
+    return ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][d.getDay()] || 'MON';
   };
-  S.removePreset = function () { S.state.quests = S.state.quests.filter(function (q) { return !q.preset; }); S.commit(); };
+
+  function normalizeSpec(o) {
+    var cat = S.CATS[o.category] || S.CATS.HABIT;
+    var unit = o.unit || 'REPS';
+    var mode = o.mode || (unit === 'CHECK' ? 'CHECK' : unit === 'MINS' ? 'DURATION' : 'COUNTER');
+    var target = mode === 'CHECK' ? 1 : Math.max(unit === 'KM' ? 0.5 : 1, Number(o.target != null ? o.target : o.targetProgress) || 1);
+    return {
+      title: String(o.title || 'Untitled Quest').trim().slice(0, 60) || 'Untitled Quest',
+      category: o.category || 'HABIT',
+      difficulty: o.difficulty || 'E',
+      primaryStat: o.primaryStat || cat.stat,
+      target: target,
+      unit: mode === 'CHECK' ? 'CHECK' : unit,
+      mode: mode,
+      isMandatory: o.isMandatory !== false,
+      preset: o.preset || null
+    };
+  }
+
+  S.ensureWeeklyPlan = function () {
+    var s = S.state;
+    if (!s) return null;
+    var daysList = S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    if (!s.weeklyPlan || !s.weeklyPlan.days) {
+      var wp = {
+        activePreset: 'canonical',
+        dayTags: {
+          MON: 'DAILY MANDATE', TUE: 'DAILY MANDATE', WED: 'DAILY MANDATE',
+          THU: 'DAILY MANDATE', FRI: 'DAILY MANDATE', SAT: 'DAILY MANDATE', SUN: 'DAILY MANDATE'
+        },
+        days: { MON: [], TUE: [], WED: [], THU: [], FRI: [], SAT: [], SUN: [] }
+      };
+      var todayCode = S.dayCode(s.currentDate);
+      var recurring = (s.quests || []).filter(function (q) {
+        return q.recurring && !q.isPenaltyQuest && !q.isExam && !q.isBonus && !q.isRedemption && !q.dungeon;
+      });
+      recurring.forEach(function (q) {
+        var gid = q.groupId || U.uid();
+        q.groupId = gid;
+        var sp = normalizeSpec(q);
+        daysList.forEach(function (d) {
+          var pid = (d === todayCode && q.planId) ? q.planId : U.uid();
+          if (d === todayCode) q.planId = pid;
+          wp.days[d].push(Object.assign({ planId: pid, groupId: gid }, sp));
+        });
+      });
+      s.weeklyPlan = wp;
+    } else {
+      s.weeklyPlan.dayTags = s.weeklyPlan.dayTags || {};
+      daysList.forEach(function (d) {
+        if (!Array.isArray(s.weeklyPlan.days[d])) s.weeklyPlan.days[d] = [];
+        if (!s.weeklyPlan.dayTags[d]) s.weeklyPlan.dayTags[d] = 'DAILY MANDATE';
+      });
+    }
+    return s.weeklyPlan;
+  };
+
+  S.getDayPlan = function (dayCode) {
+    var wp = S.ensureWeeklyPlan();
+    var d = dayCode || S.dayCode();
+    return (wp && wp.days && wp.days[d]) ? wp.days[d] : [];
+  };
+
+  S.getDayTag = function (dayCode) {
+    var wp = S.ensureWeeklyPlan();
+    var d = dayCode || S.dayCode();
+    return (wp && wp.dayTags && wp.dayTags[d]) ? wp.dayTags[d] : 'DAILY DIRECTIVE';
+  };
+
+  S.setDayTag = function (dayCode, tag) {
+    var wp = S.ensureWeeklyPlan();
+    if (!wp || !dayCode) return;
+    wp.dayTags[dayCode] = String(tag || '').trim().toUpperCase().slice(0, 28) || 'CUSTOM DIRECTIVE';
+    S.commit();
+  };
+
+  S.getQuestScheduledDays = function (item) {
+    var wp = S.ensureWeeklyPlan();
+    if (!wp || !item) return [S.dayCode()];
+    var out = [];
+    (S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']).forEach(function (d) {
+      var list = wp.days[d] || [];
+      var match = list.some(function (p) {
+        if (item.groupId && p.groupId === item.groupId) return true;
+        if (item.planId && p.planId === item.planId) return true;
+        if (item.preset && p.preset === item.preset) return true;
+        return p.title.toLowerCase() === String(item.title || '').toLowerCase() && p.category === item.category && p.unit === item.unit;
+      });
+      if (match) out.push(d);
+    });
+    return out.length ? out : [S.dayCode()];
+  };
+
+  S.syncTodayQuestsFromPlan = function (resetProgress) {
+    var s = S.state;
+    if (!s) return;
+    var wp = S.ensureWeeklyPlan();
+    var todayCode = S.dayCode(s.currentDate);
+    var todayPlan = (wp && wp.days && wp.days[todayCode]) || [];
+
+    var specialQuests = (s.quests || []).filter(function (q) {
+      return q.isPenaltyQuest || q.isExam || q.isBonus || q.isRedemption || q.dungeon || q.oneOff;
+    });
+    var existingPlanQuests = (s.quests || []).filter(function (q) {
+      return !q.isPenaltyQuest && !q.isExam && !q.isBonus && !q.isRedemption && !q.dungeon && !q.oneOff;
+    });
+
+    var usedIds = {};
+    var nextPlanQuests = todayPlan.map(function (pItem) {
+      var spec = normalizeSpec(pItem);
+      var existing = null;
+      if (!resetProgress) {
+        existing = existingPlanQuests.find(function (q) {
+          if (usedIds[q.id]) return false;
+          if (pItem.planId && q.planId === pItem.planId) return true;
+          if (pItem.groupId && q.groupId === pItem.groupId) return true;
+          if (pItem.preset && q.preset === pItem.preset) return true;
+          return q.title.toLowerCase() === spec.title.toLowerCase() && q.category === spec.category;
+        });
+      }
+      if (existing) {
+        usedIds[existing.id] = true;
+        existing.title = spec.title;
+        existing.category = spec.category;
+        existing.difficulty = spec.difficulty;
+        existing.primaryStat = spec.primaryStat;
+        existing.targetProgress = spec.target;
+        existing.unit = spec.unit;
+        existing.mode = spec.mode;
+        existing.isMandatory = spec.isMandatory;
+        existing.preset = spec.preset;
+        existing.planId = pItem.planId;
+        existing.groupId = pItem.groupId;
+        existing.recurring = true;
+        if (existing.currentProgress > existing.targetProgress) {
+          existing.currentProgress = existing.targetProgress;
+        }
+        if (existing.isCompleted && existing.currentProgress < existing.targetProgress) {
+          existing.isCompleted = false;
+          existing.completedAt = null;
+        }
+        return existing;
+      } else {
+        return {
+          id: U.uid(),
+          planId: pItem.planId || U.uid(),
+          groupId: pItem.groupId || U.uid(),
+          title: spec.title,
+          category: spec.category,
+          difficulty: spec.difficulty,
+          primaryStat: spec.primaryStat,
+          currentProgress: 0,
+          targetProgress: spec.target,
+          unit: spec.unit,
+          mode: spec.mode,
+          xpReward: 0,
+          goldReward: 0,
+          isCompleted: false,
+          isMandatory: spec.isMandatory,
+          recurring: true,
+          isPenaltyQuest: false,
+          isExam: false,
+          isBonus: false,
+          isRedemption: false,
+          dungeon: null,
+          preset: spec.preset,
+          dScalar: null,
+          expiresAt: null,
+          createdAt: Date.now(),
+          completedAt: null
+        };
+      }
+    });
+
+    s.quests = nextPlanQuests.concat(specialQuests);
+  };
+
+  S.savePlannedQuest = function (rawSpec, daysArray, editCtx) {
+    var s = S.state;
+    var spec = normalizeSpec(rawSpec);
+    var wp = S.ensureWeeklyPlan();
+    var allDays = S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+    if (daysArray && daysArray.indexOf('TODAY_ONLY') >= 0) {
+      if (editCtx && editCtx.questId) {
+        var q = S.getQuest(editCtx.questId);
+        if (q) {
+          q.title = spec.title;
+          q.category = spec.category;
+          q.difficulty = spec.difficulty;
+          q.primaryStat = spec.primaryStat;
+          q.targetProgress = spec.target;
+          q.unit = spec.unit;
+          q.mode = spec.mode;
+          q.isMandatory = spec.isMandatory;
+          q.oneOff = true;
+          q.recurring = false;
+        }
+      } else {
+        S.addQuest(Object.assign({}, spec, { recurring: false, oneOff: true }), true);
+      }
+      S.commit();
+      return;
+    }
+
+    var targetDays = (Array.isArray(daysArray) && daysArray.length) ? daysArray : [S.dayCode()];
+    var groupId = (editCtx && editCtx.groupId) ? editCtx.groupId : U.uid();
+
+    allDays.forEach(function (d) {
+      var list = wp.days[d] || (wp.days[d] = []);
+      var idx = -1;
+      if (editCtx) {
+        idx = list.findIndex(function (item) {
+          if (editCtx.groupId && item.groupId === editCtx.groupId) return true;
+          if (d === editCtx.sourceDay && editCtx.planId && item.planId === editCtx.planId) return true;
+          if (editCtx.origTitle && item.title.toLowerCase() === editCtx.origTitle.toLowerCase() && item.category === editCtx.origCategory) return true;
+          return false;
+        });
+      }
+      var shouldBeOnDay = targetDays.indexOf(d) >= 0;
+      if (shouldBeOnDay) {
+        if (idx >= 0) {
+          list[idx] = Object.assign({}, list[idx], spec, { groupId: groupId, preset: spec.preset || null });
+        } else {
+          list.push(Object.assign({ planId: U.uid(), groupId: groupId }, spec));
+        }
+      } else if (editCtx && idx >= 0) {
+        list.splice(idx, 1);
+      }
+    });
+
+    wp.activePreset = 'custom';
+    S.syncTodayQuestsFromPlan(false);
+    checkDailyBonus();
+    S.commit();
+  };
+
+  S.removePlannedQuest = function (dayCode, planId, removeAllDays) {
+    var wp = S.ensureWeeklyPlan();
+    if (!wp) return;
+    var targetItem = null;
+    if (dayCode && wp.days[dayCode]) {
+      targetItem = wp.days[dayCode].find(function (x) { return x.planId === planId; });
+    }
+    if (removeAllDays && targetItem && targetItem.groupId) {
+      (S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']).forEach(function (d) {
+        wp.days[d] = (wp.days[d] || []).filter(function (x) { return x.groupId !== targetItem.groupId; });
+      });
+    } else if (dayCode && wp.days[dayCode]) {
+      wp.days[dayCode] = wp.days[dayCode].filter(function (x) { return x.planId !== planId; });
+    }
+    wp.activePreset = 'custom';
+    S.syncTodayQuestsFromPlan(false);
+    checkDailyBonus();
+    S.commit();
+  };
+
+  S.copyDayPlan = function (fromDay, toDays) {
+    var wp = S.ensureWeeklyPlan();
+    if (!wp || !fromDay || !wp.days[fromDay]) return;
+    var src = wp.days[fromDay];
+    var srcTag = wp.dayTags[fromDay] || 'CUSTOM DIRECTIVE';
+    (toDays || []).forEach(function (d) {
+      if (d === fromDay || !wp.days[d]) return;
+      wp.days[d] = src.map(function (item) {
+        return Object.assign({}, item, { planId: U.uid(), groupId: item.groupId || U.uid() });
+      });
+      wp.dayTags[d] = srcTag;
+    });
+    wp.activePreset = 'custom';
+    S.syncTodayQuestsFromPlan(false);
+    checkDailyBonus();
+    S.commit();
+  };
+
+  S.clearDayPlan = function (dayCode) {
+    var wp = S.ensureWeeklyPlan();
+    if (!wp || !dayCode || !wp.days[dayCode]) return;
+    wp.days[dayCode] = [];
+    wp.dayTags[dayCode] = 'REST & RECOVERY';
+    wp.activePreset = 'custom';
+    S.syncTodayQuestsFromPlan(false);
+    checkDailyBonus();
+    S.commit();
+  };
+
+  S.applyPlanPreset = function (presetId) {
+    var s = S.state;
+    var wp = S.ensureWeeklyPlan();
+    var allDays = S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    if (presetId === 'canonical') {
+      var specs = S.presetSpecs(s.profile.rankTierIndex);
+      var groupMap = {};
+      specs.forEach(function (sp) { groupMap[sp.preset] = U.uid(); });
+      allDays.forEach(function (d) {
+        wp.dayTags[d] = 'CANONICAL MANDATE';
+        wp.days[d] = specs.map(function (sp) {
+          return Object.assign({ planId: U.uid(), groupId: groupMap[sp.preset] }, normalizeSpec(Object.assign({ difficulty: 'D', mode: 'COUNTER', isMandatory: true }, sp)));
+        });
+      });
+      wp.activePreset = 'canonical';
+    } else if (presetId === 'blank') {
+      allDays.forEach(function (d) {
+        wp.dayTags[d] = 'CUSTOM DIRECTIVE';
+        wp.days[d] = [];
+      });
+      wp.activePreset = 'blank';
+    } else {
+      var presetObj = (S.PLAN_PRESETS || []).find(function (p) { return p.id === presetId; });
+      if (!presetObj || !presetObj.days) return false;
+      allDays.forEach(function (d) {
+        wp.dayTags[d] = (presetObj.dayTags && presetObj.dayTags[d]) || 'TACTICAL DIRECTIVE';
+        var daySpecs = presetObj.days[d] || [];
+        wp.days[d] = daySpecs.map(function (sp) {
+          return Object.assign({ planId: U.uid(), groupId: U.uid() }, normalizeSpec(sp));
+        });
+      });
+      wp.activePreset = presetId;
+    }
+    S.syncTodayQuestsFromPlan(false);
+    checkDailyBonus();
+    S.commit();
+    return true;
+  };
+
+  S.installPresetLegacy = S.installPreset = function () {
+    var s = S.state;
+    var wp = S.ensureWeeklyPlan();
+    var allDays = S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    S.presetSpecs(s.profile.rankTierIndex).forEach(function (sp) {
+      var gid = U.uid();
+      var norm = normalizeSpec(Object.assign({ difficulty: 'D', mode: 'COUNTER', isMandatory: true }, sp));
+      allDays.forEach(function (d) {
+        if (!wp.days[d].some(function (x) { return x.preset === sp.preset; })) {
+          wp.days[d].push(Object.assign({ planId: U.uid(), groupId: gid }, norm));
+        }
+      });
+    });
+    S.syncTodayQuestsFromPlan(false);
+  };
+  S.removePreset = function () {
+    var wp = S.ensureWeeklyPlan();
+    (S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']).forEach(function (d) {
+      wp.days[d] = (wp.days[d] || []).filter(function (q) { return !q.preset; });
+    });
+    S.state.quests = S.state.quests.filter(function (q) { return !q.preset; });
+    S.commit();
+  };
   function refreshPresetTargets() {
     var specs = S.presetSpecs(S.state.profile.rankTierIndex);
+    var wp = S.ensureWeeklyPlan();
+    if (wp && wp.days) {
+      (S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']).forEach(function (d) {
+        (wp.days[d] || []).forEach(function (item) {
+          if (!item.preset) return;
+          var sp = specs.find(function (x) { return x.preset === item.preset; });
+          if (sp) item.target = sp.target;
+        });
+      });
+    }
     S.state.quests.forEach(function (q) {
       if (!q.preset) return;
       var sp = specs.find(function (x) { return x.preset === q.preset; });
@@ -347,7 +702,23 @@ window.SYS = window.SYS || {};
       if (changed) S.save();
     }
   })();
-  S.deleteQuest = function (id) { S.state.quests = S.state.quests.filter(function (q) { return q.id !== id || q.isPenaltyQuest || q.isExam; }); S.commit(); };
+  S.ensureWeeklyPlan();
+  S.deleteQuest = function (id) {
+    var q = S.getQuest(id);
+    if (!q || q.isPenaltyQuest || q.isExam) return;
+    var wp = S.ensureWeeklyPlan();
+    var todayCode = S.dayCode(S.state.currentDate);
+    if (wp && wp.days && wp.days[todayCode]) {
+      wp.days[todayCode] = wp.days[todayCode].filter(function (p) {
+        if (q.planId && p.planId === q.planId) return false;
+        if (q.groupId && p.groupId === q.groupId) return false;
+        return !(p.title.toLowerCase() === q.title.toLowerCase() && p.category === q.category);
+      });
+    }
+    S.state.quests = S.state.quests.filter(function (x) { return x.id !== id; });
+    checkDailyBonus();
+    S.commit();
+  };
   S.getQuest = function (id) { return S.state.quests.find(function (q) { return q.id === id; }); };
 
   S.addProgress = function (id, delta) {
@@ -494,7 +865,10 @@ window.SYS = window.SYS || {};
       if (q.recurring) return true;
       return !q.isCompleted;
     });
-    s.quests.forEach(function (q) { if (q.recurring) { q.currentProgress = 0; q.isCompleted = false; q.completedAt = null; q.xpReward = 0; } });
+    s.currentDate = date;
+    S.ensureWeeklyPlan();
+    s.quests = s.quests.filter(function (q) { return q.isPenaltyQuest || q.isRedemption || q.dungeon || q.oneOff; });
+    S.syncTodayQuestsFromPlan(true);
     refreshPresetTargets();
     p.fatigue = Math.max(0, p.fatigue - (30 + p.stats.VIT * 0.2));
     s.dailyBonusClaimed = false;
@@ -961,6 +1335,8 @@ window.SYS = window.SYS || {};
     try { S.dayLog(); } catch (e) {}
     if (usePreset !== false) {
       try { S.installPreset(); } catch (e) {}
+    } else {
+      try { S.applyPlanPreset('blank'); } catch (e) {}
     }
     try {
       grant('c_pot_low', 1);

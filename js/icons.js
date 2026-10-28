@@ -77,7 +77,11 @@ window.SYS = window.SYS || {};
     steps: '<path d="M6 14.5c.5-2 1.5-3.5 3-4s2.5.5 3 2.5-1 4.5-3 5-3-1.5-3-3.5z"/><circle cx="10" cy="5" r="1.5" ' + F + '/><path d="M15 9.5c.5-2 1.5-3.5 3-4s2.5.5 3 2.5-1 4.5-3 5-3-1.5-3-3.5z" opacity=".7"/><circle cx="19" cy="3" r="1.2" ' + F + '/>',
     compass: '<circle cx="12" cy="12" r="9"/><polygon points="12,6 15,12 12,18 9,12" stroke-linejoin="round"/><circle cx="12" cy="12" r="1.5" ' + F + '/>',
     signal: '<path d="M4 18v2M8 14v6M12 10v10M16 6v14M20 2v18"/>',
-    crosshair: '<circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="1.5" ' + F + '/>'
+    crosshair: '<circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="1.5" ' + F + '/>',
+    calendar: '<path d="M3.5 5h17v15.5h-17z"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5"/><path d="M7.5 13h2M11 13h2M14.5 13h2M7.5 16.5h2M11 16.5h2M14.5 16.5h2"/>',
+    edit: '<path d="M16.5 3.5l4 4L8 20H4v-4z"/><path d="M14 6l4 4"/><path d="M4 21h16" opacity=".45"/>',
+    copy: '<path d="M8 8h12v13H8z"/><path d="M16 8V4H4v13h4"/>',
+    layers: '<path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/><path d="M3 16.5L12 21l9-4.5"/>'
   };
 
   S.ICON_PATHS = P;

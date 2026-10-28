@@ -355,7 +355,142 @@ window.SYS = window.SYS || {};
     { title: 'Journal Entry', category: 'FOCUS', difficulty: 'E', mode: 'CHECK', target: 1, unit: 'CHECK' },
     { title: 'Drink 8 Glasses of Water', category: 'HABIT', difficulty: 'E', mode: 'COUNTER', target: 8, unit: 'REPS' },
     { title: 'Sleep Before 23:00', category: 'HABIT', difficulty: 'D', mode: 'CHECK', target: 1, unit: 'CHECK' },
-    { title: 'Stretching Routine', category: 'HABIT', difficulty: 'E', mode: 'CHECK', target: 1, unit: 'CHECK' }
+    { title: 'Stretching Routine', category: 'HABIT', difficulty: 'E', mode: 'CHECK', target: 1, unit: 'CHECK' },
+    { title: 'Push-ups', category: 'CALISTHENICS', difficulty: 'D', mode: 'COUNTER', target: 50, unit: 'REPS' },
+    { title: 'Sit-ups / Core', category: 'CALISTHENICS', difficulty: 'D', mode: 'COUNTER', target: 50, unit: 'REPS' },
+    { title: 'Squats', category: 'CALISTHENICS', difficulty: 'D', mode: 'COUNTER', target: 50, unit: 'REPS' }
+  ];
+
+  /* ---------- Weekly Quest Plan Days & Tactical Routine Presets ---------- */
+  S.DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  S.DAY_NAMES = {
+    MON: 'Monday', TUE: 'Tuesday', WED: 'Wednesday', THU: 'Thursday',
+    FRI: 'Friday', SAT: 'Saturday', SUN: 'Sunday'
+  };
+  S.DAY_SHORT = {
+    MON: 'MON', TUE: 'TUE', WED: 'WED', THU: 'THU',
+    FRI: 'FRI', SAT: 'SAT', SUN: 'SUN'
+  };
+
+  S.PLAN_PRESETS = [
+    {
+      id: 'canonical',
+      name: 'Canonical Monarch Protocol',
+      badge: 'DAILY UNIFORM',
+      desc: 'The classic Solo Leveling daily conditioning mandate across all 7 days (Push-ups, Sit-ups, Squats, Running) scaled to your Rank.',
+      icon: 'arise'
+    },
+    {
+      id: 'ppl_split',
+      name: 'Hunter Push / Pull / Legs + Focus',
+      badge: '7-DAY SPLIT',
+      desc: 'Structured tactical split: Push & Study (Mon/Thu), Pull & Run (Tue/Fri), Legs & Core (Wed/Sat), and Active Recovery (Sun).',
+      icon: 'barbell',
+      dayTags: {
+        MON: 'PUSH & DEEP STUDY',
+        TUE: 'PULL & ENDURANCE',
+        WED: 'LEGS & CONDITIONING',
+        THU: 'UPPER HYPERTROPHY',
+        FRI: 'PULL & TEMPO RUN',
+        SAT: 'LOWER & FOCUS GATE',
+        SUN: 'ACTIVE RECOVERY'
+      },
+      days: {
+        MON: [
+          { title: 'Push-ups', category: 'CALISTHENICS', difficulty: 'D', target: 60, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
+          { title: 'Bench Press', category: 'GYM', difficulty: 'C', target: 5, unit: 'SETS', mode: 'COUNTER', isMandatory: true },
+          { title: 'Deep Study Gate', category: 'STUDY', difficulty: 'C', target: 45, unit: 'MINS', mode: 'DURATION', isMandatory: true }
+        ],
+        TUE: [
+          { title: 'Pull-ups', category: 'CALISTHENICS', difficulty: 'D', target: 35, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
+          { title: '3 km Tempo Run', category: 'RUNNING', difficulty: 'C', target: 3, unit: 'KM', mode: 'COUNTER', isMandatory: true },
+          { title: 'Read 25 Pages', category: 'STUDY', difficulty: 'D', target: 25, unit: 'REPS', mode: 'COUNTER', isMandatory: false }
+        ],
+        WED: [
+          { title: 'Squats', category: 'CALISTHENICS', difficulty: 'D', target: 80, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
+          { title: 'Sit-ups / Core', category: 'CALISTHENICS', difficulty: 'D', target: 60, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
+          { title: 'Meditation', category: 'FOCUS', difficulty: 'D', target: 15, unit: 'MINS', mode: 'DURATION', isMandatory: true }
+        ],
+        THU: [
+          { title: 'Incline Push-ups / Dips', category: 'CALISTHENICS', difficulty: 'C', target: 60, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
+          { title: 'Overhead / Shoulder Sets', category: 'GYM', difficulty: 'C', target: 4, unit: 'SETS', mode: 'COUNTER', isMandatory: true },
+          { title: 'Deep Work Session', category: 'STUDY', difficulty: 'B', target: 60, unit: 'MINS', mode: 'DURATION', isMandatory: true }
+        ],
+        FRI: [
+          { title: 'Pull-ups / Rows', category: 'CALISTHENICS', difficulty: 'C', target: 40, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
+          { title: '5 km Endurance Run', category: 'RUNNING', difficulty: 'C', target: 5, unit: 'KM', mode: 'COUNTER', isMandatory: true },
+          { title: 'Hydration (8 Glasses)', category: 'HABIT', difficulty: 'E', target: 8, unit: 'REPS', mode: 'COUNTER', isMandatory: false }
+        ],
+        SAT: [
+          { title: 'Burpees Conditioning', category: 'CALISTHENICS', difficulty: 'C', target: 50, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
+          { title: 'Squats', category: 'CALISTHENICS', difficulty: 'D', target: 80, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
+          { title: 'Focus Gate Raid', category: 'FOCUS', difficulty: 'C', target: 30, unit: 'MINS', mode: 'DURATION', isMandatory: true }
+        ],
+        SUN: [
+          { title: 'Full Body Mobility & Stretch', category: 'HABIT', difficulty: 'E', target: 1, unit: 'CHECK', mode: 'CHECK', isMandatory: true },
+          { title: 'Mindfulness Meditation', category: 'FOCUS', difficulty: 'D', target: 20, unit: 'MINS', mode: 'DURATION', isMandatory: true },
+          { title: 'Weekly Review & Journal', category: 'FOCUS', difficulty: 'E', target: 1, unit: 'CHECK', mode: 'CHECK', isMandatory: false }
+        ]
+      }
+    },
+    {
+      id: 'scholar_athlete',
+      name: 'Shadow Scholar // Mind & Body',
+      badge: 'STUDY + AGILITY',
+      desc: 'Balanced alternating schedule of deep cognitive focus gates, reading, calisthenics, and cardio across the week.',
+      icon: 'tome',
+      dayTags: {
+        MON: 'DEEP WORK & CORE',
+        TUE: 'CARDIO & READING',
+        WED: 'DEEP WORK & UPPER',
+        THU: 'CARDIO & FOCUS',
+        FRI: 'SPRINT & SYNTHESIS',
+        SAT: 'ENDURANCE & REVIEW',
+        SUN: 'REST & CLARITY'
+      },
+      days: {
+        MON: [
+          { title: 'Deep Study Gate', category: 'STUDY', difficulty: 'B', target: 60, unit: 'MINS', mode: 'DURATION', isMandatory: true },
+          { title: 'Push-ups', category: 'CALISTHENICS', difficulty: 'D', target: 50, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
+          { title: 'Sit-ups / Core', category: 'CALISTHENICS', difficulty: 'D', target: 50, unit: 'REPS', mode: 'COUNTER', isMandatory: true }
+        ],
+        TUE: [
+          { title: '3 km Morning Run', category: 'RUNNING', difficulty: 'C', target: 3, unit: 'KM', mode: 'COUNTER', isMandatory: true },
+          { title: 'Read 30 Pages', category: 'STUDY', difficulty: 'D', target: 30, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
+          { title: 'Meditation', category: 'FOCUS', difficulty: 'D', target: 15, unit: 'MINS', mode: 'DURATION', isMandatory: false }
+        ],
+        WED: [
+          { title: 'Deep Study Gate', category: 'STUDY', difficulty: 'B', target: 60, unit: 'MINS', mode: 'DURATION', isMandatory: true },
+          { title: 'Pull-ups', category: 'CALISTHENICS', difficulty: 'D', target: 30, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
+          { title: 'Squats', category: 'CALISTHENICS', difficulty: 'D', target: 60, unit: 'REPS', mode: 'COUNTER', isMandatory: true }
+        ],
+        THU: [
+          { title: '4 km Run', category: 'RUNNING', difficulty: 'C', target: 4, unit: 'KM', mode: 'COUNTER', isMandatory: true },
+          { title: 'Read 30 Pages', category: 'STUDY', difficulty: 'D', target: 30, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
+          { title: 'Journal Entry', category: 'FOCUS', difficulty: 'E', target: 1, unit: 'CHECK', mode: 'CHECK', isMandatory: false }
+        ],
+        FRI: [
+          { title: 'Deep Study Gate', category: 'STUDY', difficulty: 'B', target: 60, unit: 'MINS', mode: 'DURATION', isMandatory: true },
+          { title: 'Burpees', category: 'CALISTHENICS', difficulty: 'C', target: 50, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
+          { title: 'Sleep Before 23:00', category: 'HABIT', difficulty: 'D', target: 1, unit: 'CHECK', mode: 'CHECK', isMandatory: true }
+        ],
+        SAT: [
+          { title: '5 km Weekend Run', category: 'RUNNING', difficulty: 'C', target: 5, unit: 'KM', mode: 'COUNTER', isMandatory: true },
+          { title: 'Skill Practice / Coding', category: 'STUDY', difficulty: 'C', target: 45, unit: 'MINS', mode: 'DURATION', isMandatory: true }
+        ],
+        SUN: [
+          { title: 'Stretching Routine', category: 'HABIT', difficulty: 'E', target: 1, unit: 'CHECK', mode: 'CHECK', isMandatory: true },
+          { title: 'Plan Next Week', category: 'FOCUS', difficulty: 'E', target: 1, unit: 'CHECK', mode: 'CHECK', isMandatory: true }
+        ]
+      }
+    },
+    {
+      id: 'blank',
+      name: 'Blank Slate // Full Custom Setup',
+      badge: 'CUSTOM',
+      desc: 'Clear all preset quests across the week and design your own custom Monday–Sunday daily quest schedule from scratch.',
+      icon: 'forge'
+    }
   ];
 
   S.BONUS_POOL = [

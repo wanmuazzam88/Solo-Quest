@@ -10,6 +10,8 @@ window.SYS = window.SYS || {};
   var currentView = 'quests';
   var activeVaultTab = 'RELIC';
   var activeRankTab = 'VANGUARD';
+  var selectedPlanDay = null;
+  var lastKnownToday = null;
 
   var U = S.util;
   var I = S.icon;
@@ -358,36 +360,115 @@ window.SYS = window.SYS || {};
       });
     },
 
-    /* --- Column 2: Active Quests & Focus Gate --- */
+    /* --- Column 2: Active Quests & Weekly Quest Plan --- */
     renderQuestsColumn: function (col) {
+      S.ensureWeeklyPlan();
+      var todayCode = S.dayCode(S.state.currentDate);
+      if (lastKnownToday !== todayCode) {
+        lastKnownToday = todayCode;
+        selectedPlanDay = todayCode;
+      }
+      var activeDay = selectedPlanDay || todayCode;
+      var isViewingToday = (activeDay === todayCode);
+      var daysList = S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+      var dayTag = S.getDayTag(activeDay);
+
       var quests = S.state.quests;
       var mandDone = S.allMandatoryDone();
       var remainingMs = S.msToMidnight();
 
-      var questsHtml = '';
-      if (!quests.length) {
-        questsHtml = '<div style="padding:32px; text-align:center; color:var(--text-muted);">' +
-          I('quests', 32) +
-          '<p style="margin-top:8px;">No active quests found. Install the canonical preset or forge your own below.</p>' +
+      // 7-Day Tactical Selector Strip
+      var dayStripHtml = '<div class="day-plan-strip" role="tablist" aria-label="Weekly Quest Plan">' +
+        daysList.map(function (d) {
+          var isToday = (d === todayCode);
+          var isActive = (d === activeDay);
+          var planItems = S.getDayPlan(d);
+          var qCount = planItems.length;
+          var cls = 'day-pill-btn' + (isActive ? ' active' : '') + (isToday ? ' is-today' : '');
+          return '<button type="button" class="' + cls + '" data-day="' + d + '" role="tab" aria-selected="' + isActive + '">' +
+            '<span class="day-pill-top">' + (isToday ? '<span class="today-dot"></span>TODAY' : '<span class="day-bar-line"></span>') + '</span>' +
+            '<span class="day-pill-code">' + d + '</span>' +
+            '<span class="day-pill-meta">' + (qCount > 0 ? qCount + 'Q' : 'REST') + '</span>' +
+          '</button>';
+        }).join('') +
+      '</div>';
+
+      // Day Directive Sub-Header Bar
+      var mandQuests = S.mandatoryQuests();
+      var mandCompletedCount = mandQuests.filter(function (q) { return q.isCompleted; }).length;
+      var directiveRightHtml = '';
+      if (isViewingToday) {
+        directiveRightHtml = '<div class="directive-actions">' +
+          '<span class="directive-counter font-mono">' + mandCompletedCount + '/' + mandQuests.length + ' MANDATORY</span>' +
+          '<button type="button" class="sys-btn sm" id="btn-copy-day" title="Copy ' + S.DAY_NAMES[activeDay] + ' plan to other days">' + I('copy', 12) + ' COPY</button>' +
         '</div>';
       } else {
-        questsHtml = '<div class="quest-list">' +
-          quests.map(function (q) { return UI.renderQuestCard(q); }).join('') +
+        directiveRightHtml = '<div class="directive-actions">' +
+          '<button type="button" class="sys-btn sm primary" id="btn-jump-today">' + I('crosshair', 12) + ' TODAY (' + todayCode + ')</button>' +
+          '<button type="button" class="sys-btn sm" id="btn-copy-day" title="Copy ' + S.DAY_NAMES[activeDay] + ' plan to other days">' + I('copy', 12) + ' COPY</button>' +
+          (S.getDayPlan(activeDay).length > 0 ? '<button type="button" class="sys-btn sm danger" id="btn-clear-day" title="Set ' + S.DAY_NAMES[activeDay] + ' as Rest Day">' + I('trash', 12) + '</button>' : '') +
         '</div>';
       }
 
+      var directiveBarHtml = '<div class="day-directive-bar ' + (isViewingToday ? 'live-day' : 'planned-day') + '">' +
+        '<div class="directive-left">' +
+          '<span class="directive-status-dot ' + (isViewingToday ? 'live' : 'planned') + '"></span>' +
+          '<span class="directive-day-name">' + (S.DAY_NAMES[activeDay] || activeDay).toUpperCase() + '</span>' +
+          '<button type="button" class="day-tag-pill" id="btn-edit-day-tag" title="Click to rename ' + (S.DAY_NAMES[activeDay] || activeDay) + ' focus label">' +
+            '<span>' + U.esc(dayTag) + '</span>' +
+            I('edit', 11) +
+          '</button>' +
+        '</div>' +
+        directiveRightHtml +
+      '</div>';
+
+      var questsHtml = '';
+      if (isViewingToday) {
+        if (!quests.length) {
+          questsHtml = '<div class="empty-plan-card">' +
+            I('quests', 28, 'text-accent') +
+            '<div class="empty-plan-title">[REST &amp; RECOVERY // NO ACTIVE QUESTS FOR ' + (S.DAY_NAMES[activeDay] || activeDay).toUpperCase() + ']</div>' +
+            '<p class="empty-plan-sub">No quests are scheduled for today. Forge a custom quest below or open the Weekly Planner to configure your Monday–Sunday routine.</p>' +
+          '</div>';
+        } else {
+          questsHtml = '<div class="quest-list">' +
+            quests.map(function (q) { return UI.renderQuestCard(q); }).join('') +
+          '</div>';
+        }
+      } else {
+        var plannedList = S.getDayPlan(activeDay);
+        if (!plannedList.length) {
+          questsHtml = '<div class="empty-plan-card">' +
+            I('calendar', 28, 'text-accent') +
+            '<div class="empty-plan-title">[RECOVERY DIRECTIVE // ' + (S.DAY_NAMES[activeDay] || activeDay).toUpperCase() + ' REST DAY]</div>' +
+            '<p class="empty-plan-sub">No mandatory quests scheduled for ' + (S.DAY_NAMES[activeDay] || activeDay) + '. Your daily streak is automatically preserved on rest days, or add quests below to build ' + (S.DAY_NAMES[activeDay] || activeDay) + '\'s plan.</p>' +
+          '</div>';
+        } else {
+          questsHtml = '<div class="quest-list">' +
+            plannedList.map(function (item) { return UI.renderPlannedQuestCard(item, activeDay); }).join('') +
+          '</div>';
+        }
+      }
+
       col.innerHTML = '<div class="system-panel">' +
-        '<div class="panel-header">' +
-          '<div class="panel-title">' + I('quests', 18) + ' [DAILY QUESTS: PREPARATION TO BECOME STRONG]</div>' +
-          '<button class="sys-btn sm" id="btn-reroll-bonus">' + I('reroll', 14) + ' BONUS QUEST</button>' +
+        '<div class="panel-header" style="flex-wrap:wrap; gap:8px;">' +
+          '<div class="panel-title">' + I('quests', 18) + ' [DAILY QUESTS // TACTICAL PLANNER]</div>' +
+          '<div style="display:flex; align-items:center; gap:6px;">' +
+            '<button class="sys-btn sm primary" id="btn-open-weekly-plan" title="Open 7-Day Routine Matrix & Presets">' + I('calendar', 14) + ' WEEKLY PLAN</button>' +
+            '<button class="sys-btn sm" id="btn-reroll-bonus">' + I('reroll', 14) + ' BONUS</button>' +
+          '</div>' +
         '</div>' +
 
+        dayStripHtml +
+        directiveBarHtml +
         questsHtml +
 
-        // Forge Custom Quest + Presets Buttons
+        // Forge Custom Quest + Weekly Planner Buttons
         '<div style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">' +
-          '<button class="sys-btn primary flex-1" id="btn-forge-quest" style="flex:1;">' + I('forge', 16) + ' FORGE CUSTOM QUEST</button>' +
-          '<button class="sys-btn" id="btn-install-preset">' + I('check', 14) + ' RESET CANONICAL PRESET</button>' +
+          '<button class="sys-btn primary flex-1" id="btn-forge-quest" style="flex:1;">' +
+            I('plus', 15) + ' ' + (isViewingToday ? 'ADD / SETUP DAILY QUEST' : 'ADD QUEST TO ' + (S.DAY_NAMES[activeDay] || activeDay).toUpperCase()) +
+          '</button>' +
+          '<button class="sys-btn" id="btn-routine-presets">' + I('layers', 14) + ' ROUTINE BLUEPRINTS</button>' +
         '</div>' +
 
         // Midnight Penalty Warning Banner
@@ -402,23 +483,121 @@ window.SYS = window.SYS || {};
         '</div>' +
       '</div>';
 
-      UI.bindQuestCardEvents(col);
+      UI.bindQuestCardEvents(col, activeDay);
+
+      // Day Strip switching
+      col.querySelectorAll('.day-pill-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var d = btn.getAttribute('data-day');
+          if (d) {
+            if (S.audio) S.audio.tap();
+            selectedPlanDay = d;
+            UI.render();
+          }
+        });
+      });
+
+      var btnJumpToday = col.querySelector('#btn-jump-today');
+      if (btnJumpToday) {
+        btnJumpToday.addEventListener('click', function () {
+          if (S.audio) S.audio.tap();
+          selectedPlanDay = todayCode;
+          UI.render();
+        });
+      }
+
+      var btnEditTag = col.querySelector('#btn-edit-day-tag');
+      if (btnEditTag) {
+        btnEditTag.addEventListener('click', function () {
+          UI.openDayTagModal(activeDay);
+        });
+      }
+
+      var btnCopyDay = col.querySelector('#btn-copy-day');
+      if (btnCopyDay) {
+        btnCopyDay.addEventListener('click', function () {
+          UI.openCopyDayModal(activeDay);
+        });
+      }
+
+      var btnClearDay = col.querySelector('#btn-clear-day');
+      if (btnClearDay) {
+        btnClearDay.addEventListener('click', function () {
+          if (S.audio) S.audio.tap();
+          S.clearDayPlan(activeDay);
+          UI.showToast('[' + S.DAY_NAMES[activeDay].toUpperCase() + ' CLEARED]', 'Set to Rest & Recovery directive.', 'info');
+        });
+      }
 
       var btnForge = col.querySelector('#btn-forge-quest');
-      if (btnForge) btnForge.addEventListener('click', UI.openForgeModal);
+      if (btnForge) {
+        btnForge.addEventListener('click', function () {
+          UI.openForgeModal({ defaultDay: activeDay });
+        });
+      }
 
-      var btnPreset = col.querySelector('#btn-install-preset');
-      if (btnPreset) btnPreset.addEventListener('click', function () {
-        if (S.audio) S.audio.windowOpen();
-        S.installPreset();
-        S.commit();
-      });
+      var btnWeekly = col.querySelector('#btn-open-weekly-plan');
+      if (btnWeekly) {
+        btnWeekly.addEventListener('click', function () {
+          if (S.audio) S.audio.windowOpen();
+          UI.openWeeklyPlanModal(activeDay);
+        });
+      }
+
+      var btnPresets = col.querySelector('#btn-routine-presets');
+      if (btnPresets) {
+        btnPresets.addEventListener('click', function () {
+          if (S.audio) S.audio.windowOpen();
+          UI.openWeeklyPlanModal(activeDay);
+        });
+      }
 
       var btnReroll = col.querySelector('#btn-reroll-bonus');
       if (btnReroll) btnReroll.addEventListener('click', function () {
         if (S.audio) S.audio.tap();
         S.reroll();
       });
+    },
+
+    /* --- Planned Quest Card Renderer (For Mon-Sun Schedule Preview/Edit) --- */
+    renderPlannedQuestCard: function (item, dayCode) {
+      var cat = S.CATS[item.category] || S.CATS.HABIT;
+      var dummyQ = {
+        category: item.category || 'HABIT',
+        difficulty: item.difficulty || 'E',
+        primaryStat: item.primaryStat || cat.stat,
+        targetProgress: item.target || 1,
+        unit: item.unit || 'REPS',
+        mode: item.mode || 'COUNTER'
+      };
+      var xpPay = S.payout(dummyQ);
+      var goldPay = S.goldPayout(dummyQ);
+      var schedDays = S.getQuestScheduledDays(item);
+      var schedLabel = schedDays.length === 7 ? 'EVERY DAY' : schedDays.join(' · ');
+      var targetText = item.unit === 'CHECK' ? 'SINGLE CHECK' : (item.target + ' ' + (S.UNITS[item.unit] || item.unit).toUpperCase());
+
+      return '<div class="quest-card planned-quest-card" data-plan-id="' + item.planId + '">' +
+        '<div class="quest-header-row">' +
+          '<div class="quest-title-wrap">' +
+            I(cat.icon, 18, 'text-accent') +
+            '<span class="quest-title">' + U.esc(item.title) + '</span>' +
+          '</div>' +
+          '<div style="display:flex; align-items:center; gap:5px; flex-shrink:0;">' +
+            '<span class="quest-badge ' + (item.isMandatory !== false ? 'mand-badge' : 'opt-badge') + '">' + (item.isMandatory !== false ? 'MANDATORY' : 'OPTIONAL') + '</span>' +
+            '<span class="quest-badge">' + item.difficulty + '-RANK</span>' +
+            '<button type="button" class="sys-btn sm btn-edit-planned" data-plan-id="' + item.planId + '" data-day="' + dayCode + '" title="Edit quest">' + I('edit', 12) + '</button>' +
+            '<button type="button" class="sys-btn sm danger btn-delete-planned" data-plan-id="' + item.planId + '" data-day="' + dayCode + '" title="Remove from ' + S.DAY_NAMES[dayCode] + '">' + I('trash', 12) + '</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="quest-meta-row" style="margin-bottom:4px;">' +
+          '<span class="text-accent font-bold">TARGET: ' + targetText + '</span>' +
+          '<span>+' + xpPay + ' XP // +' + goldPay + ' G // [' + dummyQ.primaryStat + ' +' + S.DIFF[dummyQ.difficulty].stat + ']</span>' +
+        '</div>' +
+        '<div class="planned-schedule-row font-mono">' +
+          '<span>' + I('calendar', 11) + ' SCHEDULE: ' + schedLabel + '</span>' +
+          '<span style="color:var(--text-muted);">' + cat.label.toUpperCase() + '</span>' +
+        '</div>' +
+      '</div>';
     },
 
     /* --- Single Quest Card Renderer --- */
@@ -466,15 +645,22 @@ window.SYS = window.SYS || {};
         progressControls = '<div class="sys-badge font-mono" style="color:#39FF88;">' + I('check', 14) + ' COMPLETED</div>';
       }
 
+      var canManage = !q.isPenaltyQuest && !q.isExam;
+      var schedDays = (!q.isPenaltyQuest && !q.isExam && !q.isBonus && !q.isRedemption && !q.dungeon && !q.oneOff) ? S.getQuestScheduledDays(q) : null;
+      var schedBadge = schedDays ? (schedDays.length === 7 ? 'DAILY' : schedDays.join('·')) : (q.isBonus ? 'BONUS' : q.oneOff ? 'TODAY' : '');
+
       return '<div class="' + cardCls + '" id="quest-' + q.id + '">' +
         '<div class="quest-header-row">' +
           '<div class="quest-title-wrap">' +
             I(cat.icon, 18, 'text-accent') +
             '<span class="quest-title">' + U.esc(q.title) + '</span>' +
           '</div>' +
-          '<div style="display:flex; align-items:center; gap:6px;">' +
+          '<div style="display:flex; align-items:center; gap:5px; flex-shrink:0;">' +
+            (schedBadge ? '<span class="quest-sched-pill">' + schedBadge + '</span>' : '') +
+            (q.isMandatory ? '<span class="quest-badge mand-badge">MANDATORY</span>' : '') +
             '<span class="quest-badge">' + q.difficulty + '-RANK</span>' +
-            (!q.isMandatory && !q.isPenaltyQuest && !q.isExam ? '<button class="sys-btn sm danger btn-delete-quest" data-quest-id="' + q.id + '" title="Delete quest">' + I('trash', 12) + '</button>' : '') +
+            (canManage && !q.isBonus && !q.isRedemption && !q.dungeon ? '<button type="button" class="sys-btn sm btn-edit-quest" data-quest-id="' + q.id + '" title="Edit quest & schedule">' + I('edit', 12) + '</button>' : '') +
+            (canManage ? '<button type="button" class="sys-btn sm danger btn-delete-quest" data-quest-id="' + q.id + '" title="Delete quest">' + I('trash', 12) + '</button>' : '') +
           '</div>' +
         '</div>' +
 
@@ -493,7 +679,7 @@ window.SYS = window.SYS || {};
     },
 
     /* --- Bind Card Fast Logging & Hold-to-Seal --- */
-    bindQuestCardEvents: function (col) {
+    bindQuestCardEvents: function (col, activeDay) {
       // Increments
       col.querySelectorAll('.log-inc-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -530,11 +716,52 @@ window.SYS = window.SYS || {};
         });
       });
 
-      // Delete quest
+      // Edit active quest
+      col.querySelectorAll('.btn-edit-quest').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.getAttribute('data-quest-id');
+          var q = S.getQuest(id);
+          if (q) {
+            if (S.audio) S.audio.tap();
+            UI.openForgeModal({ editQuest: q, defaultDay: S.dayCode() });
+          }
+        });
+      });
+
+      // Delete active quest
       col.querySelectorAll('.btn-delete-quest').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var id = btn.getAttribute('data-quest-id');
-          if (id) S.deleteQuest(id);
+          if (id) {
+            if (S.audio) S.audio.tap();
+            S.deleteQuest(id);
+          }
+        });
+      });
+
+      // Edit planned quest (on Mon-Sun view)
+      col.querySelectorAll('.btn-edit-planned').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var planId = btn.getAttribute('data-plan-id');
+          var dayCode = btn.getAttribute('data-day') || activeDay;
+          var list = S.getDayPlan(dayCode);
+          var item = list.find(function (x) { return x.planId === planId; });
+          if (item) {
+            if (S.audio) S.audio.tap();
+            UI.openForgeModal({ editPlanItem: item, defaultDay: dayCode });
+          }
+        });
+      });
+
+      // Delete planned quest (from specific day)
+      col.querySelectorAll('.btn-delete-planned').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var planId = btn.getAttribute('data-plan-id');
+          var dayCode = btn.getAttribute('data-day') || activeDay;
+          if (planId && dayCode) {
+            if (S.audio) S.audio.tap();
+            S.removePlannedQuest(dayCode, planId, false);
+          }
         });
       });
 
@@ -1818,91 +2045,476 @@ window.SYS = window.SYS || {};
       }
     },
 
-    openForgeModal: function () {
+    openForgeModal: function (opts) {
+      opts = opts || {};
+      var todayCode = S.dayCode();
+      var defaultDay = opts.defaultDay || selectedPlanDay || todayCode;
+      var editItem = opts.editPlanItem || opts.editQuest || null;
+      var isEditing = !!editItem;
+
+      var initTitle = editItem ? editItem.title : '';
+      var initCat = editItem ? editItem.category : 'CALISTHENICS';
+      var initDiff = editItem ? editItem.difficulty : 'C';
+      var initTarget = editItem ? (editItem.target != null ? editItem.target : editItem.targetProgress) : 50;
+      var initUnit = editItem ? editItem.unit : 'REPS';
+      var initMand = editItem ? (editItem.isMandatory !== false) : true;
+
+      var allDays = S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+      var selectedDays = [];
+      var isTodayOnly = false;
+
+      if (isEditing) {
+        if (editItem.oneOff) {
+          isTodayOnly = true;
+          selectedDays = [todayCode];
+        } else {
+          selectedDays = S.getQuestScheduledDays(editItem).slice();
+        }
+      } else {
+        // If opened while viewing a specific non-today day, pre-select that day; if on today, pre-select today (with 1-click ALL DAYS button)
+        selectedDays = [defaultDay];
+      }
+
+      var templates = S.TEMPLATES || [];
+      var tplChipsHtml = '<div class="forge-tpl-wrap">' +
+        '<div class="font-mono" style="font-size:10px; color:var(--text-muted); margin-bottom:5px; letter-spacing:0.06em;">QUICK-LOAD TACTICAL TEMPLATES</div>' +
+        '<div class="forge-tpl-scroll">' +
+          templates.map(function (t, idx) {
+            return '<button type="button" class="forge-tpl-chip" data-tpl-idx="' + idx + '">' +
+              '+ ' + U.esc(t.title) +
+            '</button>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+
       UI.openModal(
         '<div>' +
           '<div class="panel-header">' +
-            '<div class="panel-title">' + I('forge', 18) + ' [FORGE CUSTOM DAILY QUEST]</div>' +
+            '<div class="panel-title">' + I('forge', 18) + ' [' + (isEditing ? 'CONFIGURE DAILY QUEST' : 'SETUP DAILY QUEST // PLANNER') + ']</div>' +
+            '<button type="button" class="sys-btn sm btn-close-modal">' + I('close', 12) + '</button>' +
           '</div>' +
+
+          (!isEditing ? tplChipsHtml : '') +
+
           '<form id="form-forge" style="display:flex; flex-direction:column; gap:12px;">' +
             '<div>' +
-              '<label class="font-mono" style="font-size:11px; color:var(--text-muted);">QUEST TITLE</label>' +
-              '<input type="text" class="sys-input" id="forge-title" required placeholder="e.g., Incline Dumbbell Press">' +
+              '<label class="font-mono" style="font-size:10.5px; color:var(--text-muted); letter-spacing:0.05em;">QUEST DIRECTIVE TITLE</label>' +
+              '<input type="text" class="sys-input" id="forge-title" required maxlength="60" value="' + U.esc(initTitle) + '" placeholder="e.g., Incline Dumbbell Press, 5km Run, Deep Study">' +
             '</div>' +
+
             '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">' +
               '<div>' +
-                '<label class="font-mono" style="font-size:11px; color:var(--text-muted);">CATEGORY</label>' +
+                '<label class="font-mono" style="font-size:10.5px; color:var(--text-muted); letter-spacing:0.05em;">CATEGORY &amp; STAT</label>' +
                 '<select class="sys-select" id="forge-cat">' +
                   Object.keys(S.CATS).filter(function (k) { return k !== 'PENALTY'; }).map(function (k) {
-                    return '<option value="' + k + '">' + S.CATS[k].label + '</option>';
+                    return '<option value="' + k + '" ' + (k === initCat ? 'selected' : '') + '>' + S.CATS[k].label + ' (+' + S.CATS[k].stat + ')</option>';
                   }).join('') +
                 '</select>' +
               '</div>' +
               '<div>' +
-                '<label class="font-mono" style="font-size:11px; color:var(--text-muted);">DIFFICULTY</label>' +
+                '<label class="font-mono" style="font-size:10.5px; color:var(--text-muted); letter-spacing:0.05em;">DIFFICULTY TIER</label>' +
                 '<select class="sys-select" id="forge-diff">' +
                   ['E', 'D', 'C', 'B', 'A', 'S'].map(function (d) {
-                    return '<option value="' + d + '" ' + (d === 'C' ? 'selected' : '') + '>' + d + '-Rank (' + S.DIFF[d].base + ' XP)</option>';
+                    return '<option value="' + d + '" ' + (d === initDiff ? 'selected' : '') + '>' + d + '-Rank (' + S.DIFF[d].base + ' XP / ' + S.DIFF[d].gold + ' G)</option>';
                   }).join('') +
                 '</select>' +
               '</div>' +
             '</div>' +
+
             '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">' +
-              '<div>' +
-                '<label class="font-mono" style="font-size:11px; color:var(--text-muted);">TARGET VOLUME</label>' +
-                '<input type="number" class="sys-input" id="forge-target" min="1" value="50">' +
+              '<div id="forge-target-wrap" style="' + (initUnit === 'CHECK' ? 'opacity:0.45;' : '') + '">' +
+                '<label class="font-mono" style="font-size:10.5px; color:var(--text-muted); letter-spacing:0.05em;">TARGET VOLUME</label>' +
+                '<input type="number" class="sys-input" id="forge-target" min="0.5" step="any" value="' + (initUnit === 'CHECK' ? 1 : initTarget) + '" ' + (initUnit === 'CHECK' ? 'disabled' : '') + '>' +
               '</div>' +
               '<div>' +
-                '<label class="font-mono" style="font-size:11px; color:var(--text-muted);">UNIT / MODE</label>' +
+                '<label class="font-mono" style="font-size:10.5px; color:var(--text-muted); letter-spacing:0.05em;">TRACKING UNIT / MODE</label>' +
                 '<select class="sys-select" id="forge-unit">' +
-                  '<option value="REPS">Reps (Counter)</option>' +
-                  '<option value="KM">Kilometers (Distance)</option>' +
-                  '<option value="MINS">Minutes (Focus Gate)</option>' +
-                  '<option value="SETS">Sets</option>' +
-                  '<option value="CHECK">Single Check (Binary)</option>' +
+                  '<option value="REPS" ' + (initUnit === 'REPS' ? 'selected' : '') + '>Reps (Counter)</option>' +
+                  '<option value="SETS" ' + (initUnit === 'SETS' ? 'selected' : '') + '>Sets (Counter)</option>' +
+                  '<option value="KM" ' + (initUnit === 'KM' ? 'selected' : '') + '>Kilometers (GPS / Run)</option>' +
+                  '<option value="MINS" ' + (initUnit === 'MINS' ? 'selected' : '') + '>Minutes (Focus Gate)</option>' +
+                  '<option value="CHECK" ' + (initUnit === 'CHECK' ? 'selected' : '') + '>Single Check (Hold to Seal)</option>' +
                 '</select>' +
               '</div>' +
             '</div>' +
-            '<div style="display:flex; gap:12px; margin-top:8px;">' +
-              '<label class="font-mono" style="font-size:12px; display:flex; align-items:center; gap:6px;">' +
-                '<input type="checkbox" id="forge-mand" checked style="accent-color:var(--accent-core);">' +
-                'MANDATORY FOR STREAK' +
-              '</label>' +
+
+            // Day-of-Week Schedule Selector
+            '<div class="forge-schedule-box">' +
+              '<div class="flex-between" style="margin-bottom:8px; flex-wrap:wrap; gap:6px;">' +
+                '<span class="font-mono" style="font-size:10.5px; color:var(--accent-core); font-weight:700; letter-spacing:0.06em;">' + I('calendar', 13) + ' SCHEDULE PLAN (SELECT DAYS)</span>' +
+                '<div class="forge-quick-days">' +
+                  '<button type="button" class="quick-day-btn" data-qday="ALL">EVERY DAY</button>' +
+                  '<button type="button" class="quick-day-btn" data-qday="WEEKDAYS">MON–FRI</button>' +
+                  '<button type="button" class="quick-day-btn" data-qday="MWF">M·W·F</button>' +
+                  '<button type="button" class="quick-day-btn" data-qday="TTH">TUE·THU</button>' +
+                  '<button type="button" class="quick-day-btn" data-qday="SINGLE">' + defaultDay + ' ONLY</button>' +
+                '</div>' +
+              '</div>' +
+              '<div class="forge-day-grid" id="forge-day-grid">' +
+                allDays.map(function (d) {
+                  var active = !isTodayOnly && selectedDays.indexOf(d) >= 0;
+                  return '<button type="button" class="forge-day-btn' + (active ? ' active' : '') + '" data-day="' + d + '">' +
+                    '<span>' + d + '</span>' +
+                    (d === todayCode ? '<i class="forge-today-pip"></i>' : '') +
+                  '</button>';
+                }).join('') +
+              '</div>' +
+              '<div class="font-mono" id="forge-sched-summary" style="font-size:10px; color:var(--text-muted); margin-top:6px;"></div>' +
             '</div>' +
-            '<div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">' +
-              '<button type="button" class="sys-btn btn-close-modal">CANCEL</button>' +
-              '<button type="submit" class="sys-btn primary">REGISTER QUEST</button>' +
+
+            '<div class="flex-between" style="padding:8px 10px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.08); clip-path:var(--clip-chamfer-sm);">' +
+              '<label class="font-mono" style="font-size:11px; display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text-primary);">' +
+                '<input type="checkbox" id="forge-mand" ' + (initMand ? 'checked' : '') + ' style="accent-color:var(--accent-core); width:15px; height:15px;">' +
+                '<span>MANDATORY FOR DAILY STREAK</span>' +
+              '</label>' +
+              '<span class="font-mono" style="font-size:10px; color:var(--text-muted);">00:00 EVALUATION</span>' +
+            '</div>' +
+
+            '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap;">' +
+              (isEditing && !editItem.oneOff ? '<button type="button" class="sys-btn sm danger" id="btn-forge-delete-all">' + I('trash', 12) + ' REMOVE FROM ALL DAYS</button>' : '<div></div>') +
+              '<div style="display:flex; gap:8px; margin-left:auto;">' +
+                '<button type="button" class="sys-btn btn-close-modal">CANCEL</button>' +
+                '<button type="submit" class="sys-btn primary">' + I('check', 14) + ' ' + (isEditing ? 'SAVE CHANGES' : 'SAVE TO PLAN') + '</button>' +
+              '</div>' +
             '</div>' +
           '</form>' +
         '</div>'
       );
 
+      var unitSelect = document.getElementById('forge-unit');
+      var targetInput = document.getElementById('forge-target');
+      var targetWrap = document.getElementById('forge-target-wrap');
+      if (unitSelect && targetInput) {
+        unitSelect.addEventListener('change', function () {
+          var isCheck = unitSelect.value === 'CHECK';
+          targetInput.disabled = isCheck;
+          if (isCheck) targetInput.value = 1;
+          if (targetWrap) targetWrap.style.opacity = isCheck ? '0.45' : '1';
+        });
+      }
+
+      // Template chip clicks
+      document.querySelectorAll('.forge-tpl-chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+          var idx = Number(chip.getAttribute('data-tpl-idx'));
+          var tpl = templates[idx];
+          if (!tpl) return;
+          if (S.audio) S.audio.tap();
+          document.getElementById('forge-title').value = tpl.title;
+          document.getElementById('forge-cat').value = tpl.category;
+          document.getElementById('forge-diff').value = tpl.difficulty;
+          document.getElementById('forge-unit').value = tpl.unit;
+          var isCheck = tpl.unit === 'CHECK';
+          targetInput.disabled = isCheck;
+          targetInput.value = isCheck ? 1 : tpl.target;
+          if (targetWrap) targetWrap.style.opacity = isCheck ? '0.45' : '1';
+          document.querySelectorAll('.forge-tpl-chip').forEach(function (c) { c.classList.remove('active'); });
+          chip.classList.add('active');
+        });
+      });
+
+      function updateDayUI() {
+        document.querySelectorAll('.forge-day-btn').forEach(function (b) {
+          var d = b.getAttribute('data-day');
+          b.classList.toggle('active', selectedDays.indexOf(d) >= 0);
+        });
+        var sumEl = document.getElementById('forge-sched-summary');
+        if (sumEl) {
+          if (selectedDays.length === 7) {
+            sumEl.textContent = 'REPEATS: EVERY DAY (MONDAY – SUNDAY)';
+          } else if (selectedDays.length === 0) {
+            sumEl.textContent = 'SELECT AT LEAST 1 DAY FOR THIS QUEST';
+          } else {
+            sumEl.textContent = 'ACTIVE ON: ' + selectedDays.map(function (d) { return S.DAY_NAMES[d]; }).join(', ').toUpperCase();
+          }
+        }
+      }
+      updateDayUI();
+
+      document.querySelectorAll('.forge-day-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var d = btn.getAttribute('data-day');
+          if (S.audio) S.audio.tap();
+          var i = selectedDays.indexOf(d);
+          if (i >= 0) {
+            if (selectedDays.length > 1) selectedDays.splice(i, 1);
+          } else {
+            selectedDays.push(d);
+            selectedDays.sort(function (a, b) { return allDays.indexOf(a) - allDays.indexOf(b); });
+          }
+          updateDayUI();
+        });
+      });
+
+      document.querySelectorAll('.quick-day-btn').forEach(function (qbtn) {
+        qbtn.addEventListener('click', function () {
+          var mode = qbtn.getAttribute('data-qday');
+          if (S.audio) S.audio.tap();
+          if (mode === 'ALL') selectedDays = allDays.slice();
+          else if (mode === 'WEEKDAYS') selectedDays = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
+          else if (mode === 'MWF') selectedDays = ['MON', 'WED', 'FRI'];
+          else if (mode === 'TTH') selectedDays = ['TUE', 'THU'];
+          else if (mode === 'SINGLE') selectedDays = [defaultDay];
+          updateDayUI();
+        });
+      });
+
+      var btnDelAll = document.getElementById('btn-forge-delete-all');
+      if (btnDelAll && editItem) {
+        btnDelAll.addEventListener('click', function () {
+          if (S.audio) S.audio.tap();
+          S.removePlannedQuest(defaultDay, editItem.planId, true);
+          UI.closeModal();
+          UI.showToast('[QUEST REMOVED]', 'Removed "' + editItem.title + '" from your weekly plan.', 'info');
+        });
+      }
+
       var form = document.getElementById('form-forge');
       if (form) {
         form.addEventListener('submit', function (e) {
           e.preventDefault();
-          var title = document.getElementById('forge-title').value;
+          var title = document.getElementById('forge-title').value.trim();
+          if (!title) return;
           var cat = document.getElementById('forge-cat').value;
           var diff = document.getElementById('forge-diff').value;
-          var target = Number(document.getElementById('forge-target').value) || 1;
           var unit = document.getElementById('forge-unit').value;
+          var target = unit === 'CHECK' ? 1 : (Number(document.getElementById('forge-target').value) || 1);
           var mand = document.getElementById('forge-mand').checked;
           var mode = unit === 'CHECK' ? 'CHECK' : unit === 'MINS' ? 'DURATION' : 'COUNTER';
 
-          S.addQuest({
+          if (!selectedDays.length) selectedDays = [defaultDay];
+
+          var editCtx = isEditing ? {
+            groupId: editItem.groupId || null,
+            planId: editItem.planId || null,
+            sourceDay: defaultDay,
+            questId: editItem.id || null,
+            origTitle: editItem.title,
+            origCategory: editItem.category
+          } : null;
+
+          S.savePlannedQuest({
             title: title,
             category: cat,
             difficulty: diff,
             target: target,
             unit: unit,
             mode: mode,
-            isMandatory: mand
-          });
+            isMandatory: mand,
+            preset: editItem ? editItem.preset : null
+          }, selectedDays, editCtx);
 
           if (S.audio) S.audio.questComplete();
           UI.closeModal();
+          var daysText = selectedDays.length === 7 ? 'Every Day' : selectedDays.join(', ');
+          UI.showToast('[QUEST PLAN UPDATED]', '"' + title + '" scheduled for ' + daysText + '.', 'gold');
         });
       }
+    },
+
+    openDayTagModal: function (dayCode) {
+      var curTag = S.getDayTag(dayCode);
+      var suggestions = ['PUSH & DEEP STUDY', 'PULL & ENDURANCE', 'LEGS & CORE', 'UPPER HYPERTROPHY', 'CARDIO & FOCUS', 'FULL BODY & GATE', 'ACTIVE RECOVERY', 'DAILY MANDATE'];
+      UI.openModal(
+        '<div>' +
+          '<div class="panel-header">' +
+            '<div class="panel-title">' + I('edit', 18) + ' [' + S.DAY_NAMES[dayCode].toUpperCase() + ' // FOCUS DIRECTIVE LABEL]</div>' +
+            '<button type="button" class="sys-btn sm btn-close-modal">' + I('close', 12) + '</button>' +
+          '</div>' +
+          '<form id="form-day-tag" style="display:flex; flex-direction:column; gap:12px;">' +
+            '<div>' +
+              '<label class="font-mono" style="font-size:10.5px; color:var(--text-muted);">DAY THEME / SPLIT DESIGNATION</label>' +
+              '<input type="text" class="sys-input" id="input-day-tag" maxlength="28" value="' + U.esc(curTag) + '" placeholder="e.g., PUSH & STUDY">' +
+            '</div>' +
+            '<div class="forge-tpl-scroll">' +
+              suggestions.map(function (sg) {
+                return '<button type="button" class="forge-tpl-chip btn-tag-sug" data-tag="' + U.esc(sg) + '">' + U.esc(sg) + '</button>';
+              }).join('') +
+            '</div>' +
+            '<div style="display:flex; justify-content:flex-end; gap:8px; margin-top:6px;">' +
+              '<button type="button" class="sys-btn btn-close-modal">CANCEL</button>' +
+              '<button type="submit" class="sys-btn primary">SAVE LABEL</button>' +
+            '</div>' +
+          '</form>' +
+        '</div>'
+      );
+
+      document.querySelectorAll('.btn-tag-sug').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var inp = document.getElementById('input-day-tag');
+          if (inp) inp.value = b.getAttribute('data-tag');
+        });
+      });
+
+      var form = document.getElementById('form-day-tag');
+      if (form) {
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          var val = document.getElementById('input-day-tag').value;
+          S.setDayTag(dayCode, val);
+          if (S.audio) S.audio.tap();
+          UI.closeModal();
+        });
+      }
+    },
+
+    openCopyDayModal: function (fromDay) {
+      var allDays = (S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']).filter(function (d) { return d !== fromDay; });
+      var targets = [];
+      UI.openModal(
+        '<div>' +
+          '<div class="panel-header">' +
+            '<div class="panel-title">' + I('copy', 18) + ' [CLONE ' + S.DAY_NAMES[fromDay].toUpperCase() + ' PLAN TO OTHER DAYS]</div>' +
+            '<button type="button" class="sys-btn sm btn-close-modal">' + I('close', 12) + '</button>' +
+          '</div>' +
+          '<p style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">Select which days should receive ' + S.DAY_NAMES[fromDay] + '\'s quest lineup (' + S.getDayPlan(fromDay).length + ' quests):</p>' +
+          '<div class="forge-day-grid" style="margin-bottom:14px;">' +
+            allDays.map(function (d) {
+              return '<button type="button" class="forge-day-btn copy-target-btn" data-day="' + d + '"><span>' + d + '</span></button>';
+            }).join('') +
+          '</div>' +
+          '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">' +
+            '<button type="button" class="sys-btn sm" id="btn-copy-select-all">SELECT ALL DAYS</button>' +
+            '<div style="display:flex; gap:8px;">' +
+              '<button type="button" class="sys-btn btn-close-modal">CANCEL</button>' +
+              '<button type="button" class="sys-btn primary" id="btn-confirm-copy-day">APPLY COPY</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      );
+
+      document.querySelectorAll('.copy-target-btn').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var d = b.getAttribute('data-day');
+          if (S.audio) S.audio.tap();
+          var idx = targets.indexOf(d);
+          if (idx >= 0) targets.splice(idx, 1);
+          else targets.push(d);
+          b.classList.toggle('active', targets.indexOf(d) >= 0);
+        });
+      });
+
+      var btnAll = document.getElementById('btn-copy-select-all');
+      if (btnAll) {
+        btnAll.addEventListener('click', function () {
+          targets = allDays.slice();
+          document.querySelectorAll('.copy-target-btn').forEach(function (b) { b.classList.add('active'); });
+        });
+      }
+
+      var btnConfirm = document.getElementById('btn-confirm-copy-day');
+      if (btnConfirm) {
+        btnConfirm.addEventListener('click', function () {
+          if (!targets.length) {
+            UI.showToast('[SELECT TARGET DAYS]', 'Choose at least one day to copy into.', 'danger');
+            return;
+          }
+          S.copyDayPlan(fromDay, targets);
+          if (S.audio) S.audio.questComplete();
+          UI.closeModal();
+          UI.showToast('[PLAN COPIED]', S.DAY_NAMES[fromDay] + ' plan replicated to ' + targets.join(', ') + '.', 'gold');
+        });
+      }
+    },
+
+    openWeeklyPlanModal: function (focusDay) {
+      S.ensureWeeklyPlan();
+      var todayCode = S.dayCode();
+      var allDays = S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+      var presets = S.PLAN_PRESETS || [];
+      var activePreset = (S.state.weeklyPlan && S.state.weeklyPlan.activePreset) || 'custom';
+
+      var presetsHtml = '<div class="weekly-presets-grid">' +
+        presets.map(function (pr) {
+          var isAct = activePreset === pr.id;
+          return '<div class="plan-preset-card' + (isAct ? ' active' : '') + '" data-preset-id="' + pr.id + '">' +
+            '<div class="flex-between" style="margin-bottom:4px;">' +
+              '<span class="font-display font-bold" style="font-size:13px; color:var(--text-primary); display:flex; align-items:center; gap:6px;">' +
+                I(pr.icon || 'calendar', 15, 'text-accent') + ' ' + U.esc(pr.name) +
+              '</span>' +
+              '<span class="quest-badge">' + U.esc(pr.badge) + '</span>' +
+            '</div>' +
+            '<p style="font-size:11px; color:var(--text-muted); line-height:1.35; margin-bottom:8px;">' + U.esc(pr.desc) + '</p>' +
+            '<button type="button" class="sys-btn sm ' + (isAct ? 'primary' : '') + ' btn-apply-blueprint" data-preset-id="' + pr.id + '" style="width:100%; justify-content:center;">' +
+              (isAct ? I('check', 12) + ' ACTIVE BLUEPRINT (RE-APPLY)' : 'LOAD BLUEPRINT') +
+            '</button>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+
+      var matrixHtml = '<div class="weekly-matrix-list">' +
+        allDays.map(function (d) {
+          var isToday = (d === todayCode);
+          var list = S.getDayPlan(d);
+          var tag = S.getDayTag(d);
+          var chips = list.length ? list.map(function (q) {
+            var uLabel = q.unit === 'CHECK' ? 'Check' : (q.target + ' ' + (S.UNITS[q.unit] || q.unit));
+            return '<span class="matrix-quest-chip">' + U.esc(q.title) + ' <small>(' + uLabel + ')</small></span>';
+          }).join('') : '<span class="matrix-rest-chip">REST &amp; RECOVERY // 0 MANDATORY QUESTS</span>';
+
+          return '<div class="matrix-day-row' + (isToday ? ' is-today' : '') + '">' +
+            '<div class="matrix-day-head">' +
+              '<div style="display:flex; align-items:center; gap:8px;">' +
+                '<span class="matrix-day-code">' + d + '</span>' +
+                (isToday ? '<span class="quest-badge mand-badge">TODAY</span>' : '') +
+                '<span class="matrix-day-tag font-mono">' + U.esc(tag) + '</span>' +
+              '</div>' +
+              '<div style="display:flex; align-items:center; gap:5px;">' +
+                '<button type="button" class="sys-btn sm primary btn-matrix-add" data-day="' + d + '">' + I('plus', 11) + ' ADD</button>' +
+                '<button type="button" class="sys-btn sm btn-matrix-view" data-day="' + d + '">EDIT DAY</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="matrix-chips-wrap">' + chips + '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+
+      UI.openModal(
+        '<div class="weekly-plan-modal-wrap">' +
+          '<div class="panel-header">' +
+            '<div class="panel-title">' + I('calendar', 18) + ' [TACTICAL WEEKLY QUEST PLANNER // MON–SUN]</div>' +
+            '<button type="button" class="sys-btn sm btn-close-modal">' + I('close', 12) + '</button>' +
+          '</div>' +
+          '<div style="max-height:74vh; overflow-y:auto; padding-right:4px;">' +
+            '<div class="font-mono" style="font-size:10.5px; color:var(--accent-core); font-weight:700; letter-spacing:0.08em; margin-bottom:8px;">1. ROUTINE BLUEPRINTS (1-CLICK TEMPLATES)</div>' +
+            presetsHtml +
+            '<div class="font-mono" style="font-size:10.5px; color:var(--accent-core); font-weight:700; letter-spacing:0.08em; margin:14px 0 8px;">2. 7-DAY SCHEDULE MATRIX (MONDAY – SUNDAY)</div>' +
+            matrixHtml +
+          '</div>' +
+        '</div>'
+      );
+
+      document.querySelectorAll('.btn-apply-blueprint').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var pid = btn.getAttribute('data-preset-id');
+          if (!pid) return;
+          if (S.audio) S.audio.rankUp();
+          S.applyPlanPreset(pid);
+          UI.openWeeklyPlanModal(focusDay);
+          var pr = presets.find(function (x) { return x.id === pid; });
+          UI.showToast('[WEEKLY BLUEPRINT LOADED]', (pr ? pr.name : 'Routine') + ' applied across Monday–Sunday.', 'gold');
+        });
+      });
+
+      document.querySelectorAll('.btn-matrix-add').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var d = btn.getAttribute('data-day');
+          if (S.audio) S.audio.tap();
+          selectedPlanDay = d;
+          UI.render();
+          UI.openForgeModal({ defaultDay: d });
+        });
+      });
+
+      document.querySelectorAll('.btn-matrix-view').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var d = btn.getAttribute('data-day');
+          if (S.audio) S.audio.tap();
+          selectedPlanDay = d;
+          UI.closeModal();
+          UI.render();
+        });
+      });
     },
 
     openShopModal: function () {
