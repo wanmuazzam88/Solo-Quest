@@ -66,9 +66,11 @@ window.SYS = window.SYS || {};
 
       if (S.api.user) {
         var hName = S.api.user.hunterName;
-        if (!hName || hName.includes('@') || hName === 'PLAYER') {
+        var isGeneric = !hName || hName.includes('@') || hName.toUpperCase() === 'PLAYER' || hName.toUpperCase() === 'HUNTER' || /^HUNTER_[0-9A-F]{4,}$/i.test(hName);
+        if (isGeneric) {
           hName = (S.api.getRememberedHunterName && S.api.getRememberedHunterName(S.api.user.email)) ||
-                  (S.state && S.state.profile && S.state.profile.hunterName && !S.state.profile.hunterName.includes('@') && S.state.profile.hunterName !== 'PLAYER' ? S.state.profile.hunterName : null) ||
+                  (S.state && S.state.profile && S.state.profile.hunterName && !S.state.profile.hunterName.includes('@') && S.state.profile.hunterName.toUpperCase() !== 'PLAYER' && S.state.profile.hunterName.toUpperCase() !== 'HUNTER' ? S.state.profile.hunterName : null) ||
+                  hName ||
                   (S.api.user.email ? S.api.user.email.split('@')[0] : 'HUNTER');
           S.api.user.hunterName = hName;
         }
@@ -124,45 +126,100 @@ window.SYS = window.SYS || {};
     },
 
     handlePostLogin: async function (user) {
+      if (!user) return;
       auth.syncStatus = 'SYNCING';
       auth.updateTopbarBadge();
 
       try {
-        // Resolve clean non-email hunter name
-        var cleanName = user.hunterName;
-        if (!cleanName || cleanName.includes('@') || cleanName === 'PLAYER') {
-          cleanName = (S.api.getRememberedHunterName && S.api.getRememberedHunterName(user.email)) ||
-                      (S.state && S.state.profile && S.state.profile.hunterName && !S.state.profile.hunterName.includes('@') && S.state.profile.hunterName !== 'PLAYER' ? S.state.profile.hunterName : null) ||
-                      (user.email ? user.email.split('@')[0] : 'Hunter');
+        var isValidCustomName = function (n) {
+          if (!n || typeof n !== 'string') return false;
+          var t = n.trim();
+          if (!t || t.includes('@')) return false;
+          var u = t.toUpperCase();
+          if (u === 'PLAYER' || u === 'HUNTER' || u === 'UNKNOWN') return false;
+          if (/^HUNTER_[0-9A-F]{4,}$/i.test(t)) return false;
+          return true;
+        };
+
+        var emailPrefix = (user.email && user.email.includes('@')) ? user.email.split('@')[0].toLowerCase() : '';
+        var remembered = (S.api && S.api.getRememberedHunterName) ? S.api.getRememberedHunterName(user.email) : null;
+        var stateName = (S.state && S.state.profile && isValidCustomName(S.state.profile.hunterName)) ? S.state.profile.hunterName.trim() : null;
+
+        // Resolve clean non-email hunter name, preferring non-email-prefix names
+        var cleanName = isValidCustomName(user.hunterName) ? user.hunterName.trim() : '';
+        if (!cleanName || (emailPrefix && cleanName.toLowerCase() === emailPrefix)) {
+          if (remembered && isValidCustomName(remembered) && remembered.toLowerCase() !== emailPrefix) {
+            cleanName = remembered;
+          } else if (stateName && stateName.toLowerCase() !== emailPrefix) {
+            cleanName = stateName;
+          } else if (!cleanName) {
+            cleanName = remembered || stateName || (user.email ? user.email.split('@')[0] : 'Hunter');
+          }
         }
+
         user.hunterName = cleanName;
         if (S.api && S.api.user) S.api.user.hunterName = cleanName;
-        if (S.state && S.state.profile) S.state.profile.hunterName = cleanName;
-        if (S.api && S.api.rememberHunterName) S.api.rememberHunterName(user.email, cleanName);
+        if (S.state && S.state.profile) {
+          S.state.profile.hunterName = cleanName;
+          if (user.email) S.state.profile.email = user.email;
+        }
+        if (S.api && S.api.rememberHunterName && isValidCustomName(cleanName) && (!emailPrefix || cleanName.toLowerCase() !== emailPrefix)) {
+          S.api.rememberHunterName(user.email, cleanName);
+        }
+
+        // If this is a brand new registration, sync local state up first so default DB trigger values don't overwrite the user's chosen hunter name
+        if (user.isNewRegistration) {
+          user.isNewRegistration = false;
+          await auth.triggerSync(false);
+        }
 
         // Attempt to sync down remote saved state
         var remote = await S.api.syncDown();
         if (remote && remote.profile) {
-          // Hydrate local state from remote database
           var p = remote.profile;
-          if (p.hunter_name && !p.hunter_name.includes('@') && p.hunter_name !== 'PLAYER') {
-            S.state.profile.hunterName = p.hunter_name;
-            user.hunterName = p.hunter_name;
-            if (S.api && S.api.user) S.api.user.hunterName = p.hunter_name;
-            if (S.api && S.api.rememberHunterName) S.api.rememberHunterName(user.email, p.hunter_name);
+          var remoteName = (p.hunter_name || p.hunterName || '').trim();
+          var remoteIsCustom = isValidCustomName(remoteName) && (!emailPrefix || remoteName.toLowerCase() !== emailPrefix);
+          var localIsCustom = isValidCustomName(cleanName) && (!emailPrefix || cleanName.toLowerCase() !== emailPrefix);
+
+          if (remoteIsCustom) {
+            S.state.profile.hunterName = remoteName;
+            user.hunterName = remoteName;
+            if (S.api && S.api.user) S.api.user.hunterName = remoteName;
+            if (S.api && S.api.rememberHunterName) S.api.rememberHunterName(user.email, remoteName);
+          } else if (localIsCustom) {
+            S.state.profile.hunterName = cleanName;
+            user.hunterName = cleanName;
+            if (S.api && S.api.user) S.api.user.hunterName = cleanName;
+            if (S.api && S.api.rememberHunterName) S.api.rememberHunterName(user.email, cleanName);
+            // Remote had a generic/email-prefix name; push the real hunter name up to the database
+            auth.debouncedSync();
+          } else if (isValidCustomName(remoteName)) {
+            S.state.profile.hunterName = remoteName;
+            user.hunterName = remoteName;
+            if (S.api && S.api.user) S.api.user.hunterName = remoteName;
           } else {
             S.state.profile.hunterName = cleanName;
           }
+
           if (p.level) S.state.profile.level = p.level;
           if (p.current_xp !== undefined) S.state.profile.currentXp = p.current_xp;
-          if (p.ap !== undefined) S.state.profile.ap = p.ap;
-          if (p.str) S.state.profile.str = p.str;
-          if (p.agi) S.state.profile.agi = p.agi;
-          if (p.vit) S.state.profile.vit = p.vit;
-          if (p.int) S.state.profile.int = p.int;
-          if (p.per) S.state.profile.per = p.per;
+          if (p.ap !== undefined) {
+            S.state.profile.unallocatedAp = p.ap;
+            S.state.profile.ap = p.ap;
+          }
+          if (!S.state.profile.stats) {
+            S.state.profile.stats = { STR: 10, AGI: 10, VIT: 10, INT: 10, PER: 10 };
+          }
+          if (p.str) { S.state.profile.stats.STR = p.str; S.state.profile.str = p.str; }
+          if (p.agi) { S.state.profile.stats.AGI = p.agi; S.state.profile.agi = p.agi; }
+          if (p.vit) { S.state.profile.stats.VIT = p.vit; S.state.profile.vit = p.vit; }
+          if (p.int) { S.state.profile.stats.INT = p.int; S.state.profile.int = p.int; }
+          if (p.per) { S.state.profile.stats.PER = p.per; S.state.profile.per = p.per; }
           if (p.gold !== undefined) S.state.profile.gold = p.gold;
-          if (p.essence !== undefined) S.state.profile.essence = p.essence;
+          if (p.essence !== undefined) {
+            S.state.profile.essenceStones = p.essence;
+            S.state.profile.essence = p.essence;
+          }
           if (p.rank_tier_index !== undefined) S.state.profile.rankTierIndex = p.rank_tier_index;
           if (p.streak_days !== undefined) S.state.profile.streakDays = p.streak_days;
           if (p.max_streak !== undefined) S.state.profile.maxStreak = p.max_streak;
@@ -198,6 +255,9 @@ window.SYS = window.SYS || {};
           }
 
           S.save();
+          if (S.api && S.api.user) {
+            try { localStorage.setItem('solo_quest_auth_user_v1', JSON.stringify(S.api.user)); } catch (e) {}
+          }
           if (S.ui) S.ui.showToast('[SYSTEM HYDRATED]', 'Data retrieved from database for ' + user.hunterName + '.', 'gold');
         } else {
           // If remote is empty, sync current local state up to populate their fresh account!

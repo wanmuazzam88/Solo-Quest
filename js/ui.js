@@ -138,6 +138,13 @@ window.SYS = window.SYS || {};
       var container = document.getElementById('view-container');
       if (!container) return;
 
+      if (window.scrollX !== 0) {
+        window.scrollTo(0, window.scrollY);
+      }
+      container.scrollLeft = 0;
+      document.documentElement.scrollLeft = 0;
+      document.body.scrollLeft = 0;
+
       try {
         switch (currentView) {
           case 'quests':
@@ -464,8 +471,8 @@ window.SYS = window.SYS || {};
         questsHtml +
 
         // Forge Custom Quest + Weekly Planner Buttons
-        '<div style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">' +
-          '<button class="sys-btn primary flex-1" id="btn-forge-quest" style="flex:1;">' +
+        '<div class="quest-actions-bar">' +
+          '<button class="sys-btn primary" id="btn-forge-quest">' +
             I('plus', 15) + ' ' + (isViewingToday ? 'ADD / SETUP DAILY QUEST' : 'ADD QUEST TO ' + (S.DAY_NAMES[activeDay] || activeDay).toUpperCase()) +
           '</button>' +
           '<button class="sys-btn" id="btn-routine-presets">' + I('layers', 14) + ' ROUTINE BLUEPRINTS</button>' +
@@ -965,7 +972,7 @@ window.SYS = window.SYS || {};
         '</div>' +
 
         // 2-Column Attributes & Radar Chart
-        '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px; margin-bottom:18px;">' +
+        '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap:16px; margin-bottom:18px;">' +
           '<div>' +
             '<div class="panel-header" style="margin-bottom:8px;">' +
               '<div class="panel-title" style="font-size:13px;">' + I('bolt', 16) + ' ATTRIBUTES ALLOCATION</div>' +
@@ -1134,7 +1141,7 @@ window.SYS = window.SYS || {};
           '</div>' : ''
         ) +
 
-        '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px; margin-top:14px;">' +
+        '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap:14px; margin-top:14px;">' +
           S.GATES.map(function (gate) {
             return '<div class="vault-card" style="border-color:' + gate.color + ';">' +
               '<div class="flex-between">' +
@@ -2745,7 +2752,7 @@ window.SYS = window.SYS || {};
               console.error('[AWAKEN ERROR]', awakenErr);
             }
             if (S.api && S.api.rememberHunterName && name !== 'PLAYER') {
-              S.api.rememberHunterName(email, name);
+              S.api.rememberHunterName(email, name, true);
             }
 
             if (S.audio) {
@@ -2766,7 +2773,25 @@ window.SYS = window.SYS || {};
                   console.warn('[REGISTRATION NOTICE]', regErr);
                   var errMsg = (regErr && regErr.message) || '';
                   if (errMsg.toLowerCase().includes('already registered') || errMsg.toLowerCase().includes('already exists') || errMsg.toLowerCase().includes('user_already_exists')) {
-                    UI.showToast('[ACCOUNT NOTICE]', 'Email already registered. You can link your passcode anytime in Settings.', 'gold');
+                    if (S.api && S.api.login) {
+                      S.api.login(email, pass)
+                        .then(function (loginRes) {
+                          if (name && name !== 'PLAYER') {
+                            S.state.profile.hunterName = name;
+                            if (S.api.user) S.api.user.hunterName = name;
+                            if (loginRes && loginRes.user) loginRes.user.hunterName = name;
+                            if (S.api.rememberHunterName) S.api.rememberHunterName(email, name, true);
+                            S.save();
+                            if (S.auth && S.auth.triggerSync) S.auth.triggerSync(false);
+                            if (S.auth && S.auth.updateTopbarBadge) S.auth.updateTopbarBadge();
+                          }
+                          UI.showToast('[SYSTEM LINK ESTABLISHED]', 'Welcome back, Hunter ' + name + '. Account linked.', 'cyan');
+                          UI.render();
+                        })
+                        .catch(function () {
+                          UI.showToast('[ACCOUNT NOTICE]', 'Email already registered. Click SYSTEM LINK to log in with your passcode.', 'gold');
+                        });
+                    }
                   }
                 });
             }
@@ -2860,9 +2885,18 @@ window.SYS = window.SYS || {};
 
             try {
               var result = await S.api.login(identifier, pass);
-              var resolvedName = (result && result.user && result.user.hunterName) || (S.api && S.api.getRememberedHunterName && S.api.getRememberedHunterName(result && result.user ? result.user.email : identifier)) || 'Hunter';
+              if (S.auth && S.auth.handlePostLogin && result && result.user) {
+                try { await S.auth.handlePostLogin(result.user); } catch (e) {}
+              }
+              var resolvedName = (S.state && S.state.profile && S.state.profile.hunterName && S.state.profile.hunterName !== 'PLAYER' && !S.state.profile.hunterName.includes('@') ? S.state.profile.hunterName : '') ||
+                                 (result && result.user && result.user.hunterName) ||
+                                 (S.api && S.api.getRememberedHunterName && S.api.getRememberedHunterName(result && result.user ? result.user.email : identifier)) ||
+                                 'Hunter';
               if (result && result.user) {
                 result.user.hunterName = resolvedName;
+              }
+              if (S.api && S.api.user) {
+                S.api.user.hunterName = resolvedName;
               }
               if (S.state) {
                 S.state.initialized = true;
@@ -2871,9 +2905,6 @@ window.SYS = window.SYS || {};
                   S.state.profile.email = result.user.email;
                 }
                 S.commit();
-              }
-              if (S.auth && S.auth.handlePostLogin && result && result.user) {
-                try { await S.auth.handlePostLogin(result.user); } catch (e) {}
               }
               if (S.auth && S.auth.updateTopbarBadge) {
                 S.auth.updateTopbarBadge();
@@ -3033,12 +3064,13 @@ window.SYS = window.SYS || {};
             '</div>' +
           '</form>';
         } else if (activeTab === 'REGISTER') {
+          var prefillRegName = (S.state && S.state.profile && S.state.profile.hunterName && S.state.profile.hunterName !== 'PLAYER' && !S.state.profile.hunterName.includes('@')) ? S.state.profile.hunterName : ((S.api && S.api.getRememberedHunterName && S.api.getRememberedHunterName()) || '');
           bodyHtml = '<form id="form-auth-register">' +
             networkStatusHtml +
             '<div id="auth-reg-error" style="display:none; color:var(--penalty-crimson); font-size:12px; margin-bottom:12px; padding:8px; background:rgba(255,0,60,0.1); border:1px solid rgba(255,0,60,0.3); clip-path:var(--clip-chamfer-sm);"></div>' +
             '<div class="auth-form-group">' +
               '<label class="auth-form-label">HUNTER AWAKENING NAME</label>' +
-              '<input type="text" class="sys-input" id="reg-name" required value="' + U.esc(S.state.profile.hunterName || 'Sung Jin-Woo') + '" placeholder="e.g., Sung Jin-Woo">' +
+              '<input type="text" class="sys-input" id="reg-name" required value="' + U.esc(prefillRegName) + '" placeholder="e.g., Sung Jin-Woo">' +
             '</div>' +
             '<div class="auth-form-group">' +
               '<label class="auth-form-label">ASSOCIATION EMAIL</label>' +
@@ -3130,17 +3162,23 @@ window.SYS = window.SYS || {};
 
             try {
               var result = await S.api.login(id, pass);
-              var resolvedName = (result && result.user && result.user.hunterName) || (S.api && S.api.getRememberedHunterName && S.api.getRememberedHunterName(result && result.user ? result.user.email : id)) || 'Hunter';
+              if (S.auth && S.auth.handlePostLogin && result && result.user) {
+                try { await S.auth.handlePostLogin(result.user); } catch (e) {}
+              }
+              var resolvedName = (S.state && S.state.profile && S.state.profile.hunterName && S.state.profile.hunterName !== 'PLAYER' && !S.state.profile.hunterName.includes('@') ? S.state.profile.hunterName : '') ||
+                                 (result && result.user && result.user.hunterName) ||
+                                 (S.api && S.api.getRememberedHunterName && S.api.getRememberedHunterName(result && result.user ? result.user.email : id)) ||
+                                 'Hunter';
               if (result && result.user) {
                 result.user.hunterName = resolvedName;
+              }
+              if (S.api && S.api.user) {
+                S.api.user.hunterName = resolvedName;
               }
               if (S.state && S.state.profile) {
                 S.state.profile.hunterName = resolvedName;
                 if (result && result.user && result.user.email) S.state.profile.email = result.user.email;
                 S.commit();
-              }
-              if (S.auth && S.auth.handlePostLogin && result && result.user) {
-                try { await S.auth.handlePostLogin(result.user); } catch (e) {}
               }
               if (S.auth && S.auth.updateTopbarBadge) {
                 S.auth.updateTopbarBadge();
@@ -3187,9 +3225,8 @@ window.SYS = window.SYS || {};
             btnSub.textContent = 'AWAKENING...';
 
             try {
-              var regRes = await S.api.register({ email: email, password: pass, hunterName: name, mode: mode });
               if (S.api && S.api.rememberHunterName && name) {
-                S.api.rememberHunterName(email, name);
+                S.api.rememberHunterName(email, name, true);
               }
               S.state.profile.hunterName = name;
               S.state.profile.email = email;
@@ -3197,6 +3234,11 @@ window.SYS = window.SYS || {};
               if (preset && (!S.state.quests || !S.state.quests.length)) {
                 S.installPreset();
               }
+              S.save();
+
+              var regRes = await S.api.register({ email: email, password: pass, hunterName: name, mode: mode });
+              S.state.profile.hunterName = name;
+              if (S.api && S.api.user) S.api.user.hunterName = name;
               S.save();
               if (S.auth && S.auth.updateTopbarBadge) {
                 S.auth.updateTopbarBadge();
@@ -3278,6 +3320,9 @@ window.SYS = window.SYS || {};
     closeModal: function () {
       var modal = document.getElementById('system-modal');
       if (modal) modal.classList.remove('open');
+      if (window.scrollX !== 0) window.scrollTo(0, window.scrollY);
+      document.documentElement.scrollLeft = 0;
+      document.body.scrollLeft = 0;
     },
 
     /* --- Toast Notification System --- */
@@ -3296,7 +3341,7 @@ window.SYS = window.SYS || {};
       container.appendChild(toast);
       setTimeout(function () {
         toast.style.opacity = '0';
-        toast.style.transform = 'translateX(100%)';
+        toast.style.transform = 'translateY(-10px)';
         toast.style.transition = 'all 0.25s ease';
         setTimeout(function () {
           if (toast.parentNode) toast.parentNode.removeChild(toast);

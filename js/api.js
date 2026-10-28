@@ -13,11 +13,20 @@ window.SYS = window.SYS || {};
   var REGISTRY_KEY = 'solo_quest_hunter_registry_v1';
   var LAST_NAME_KEY = 'solo_quest_last_signup_name';
 
-  function sanitizeHunterName(name) {
+  function sanitizeHunterName(name, emailToExclude) {
     if (!name || typeof name !== 'string') return '';
     var trimmed = name.trim();
+    if (!trimmed) return '';
     if (trimmed.includes('@')) return '';
-    if (trimmed.toUpperCase() === 'PLAYER') return '';
+    var up = trimmed.toUpperCase();
+    if (up === 'PLAYER' || up === 'HUNTER' || up === 'UNKNOWN') return '';
+    if (/^HUNTER_[0-9A-F]{4,}$/i.test(trimmed)) return '';
+    if (emailToExclude && typeof emailToExclude === 'string') {
+      var prefix = emailToExclude.trim().split('@')[0];
+      if (prefix && trimmed.toLowerCase() === prefix.toLowerCase()) {
+        // Only treat as email prefix if we aren't explicitly registering
+      }
+    }
     return trimmed.slice(0, 24);
   }
 
@@ -72,14 +81,11 @@ window.SYS = window.SYS || {};
     isManagedCloud: false,
     managedPlatform: null,
 
-    rememberHunterName: function (email, name) {
+    rememberHunterName: function (email, name, isExplicit) {
       var clean = sanitizeHunterName(name);
       if (!clean) return;
 
       try {
-        localStorage.setItem(LAST_NAME_KEY, clean);
-        localStorage.setItem('solo_quest_remembered_name', clean);
-
         var map = {};
         try {
           var raw = localStorage.getItem(REGISTRY_KEY);
@@ -91,12 +97,22 @@ window.SYS = window.SYS || {};
         if (email && typeof email === 'string') {
           var em = email.trim().toLowerCase();
           if (em) {
-            map[em] = clean;
-            localStorage.setItem('solo_quest_name_' + em, clean);
             var userPart = em.split('@')[0];
+            var existing = localStorage.getItem('solo_quest_name_' + em) || map['exact:' + em] || map[em];
+            // Never overwrite a real custom hunter name with a generic email-prefix fallback
+            if (!isExplicit && existing && sanitizeHunterName(existing) && userPart && clean.toLowerCase() === userPart.toLowerCase() && existing.toLowerCase() !== userPart.toLowerCase()) {
+              return;
+            }
+            map[em] = clean;
+            map['exact:' + em] = clean;
+            map['name:' + clean.toLowerCase()] = em;
+            localStorage.setItem('solo_quest_name_' + em, clean);
             if (userPart) map[userPart] = clean;
           }
         }
+
+        localStorage.setItem(LAST_NAME_KEY, clean);
+        localStorage.setItem('solo_quest_remembered_name', clean);
         localStorage.setItem(REGISTRY_KEY, JSON.stringify(map));
       } catch (e) {
         console.warn('[REGISTRY NOTICE]', e);
@@ -105,22 +121,36 @@ window.SYS = window.SYS || {};
 
     getRememberedHunterName: function (identifier) {
       try {
+        var raw = localStorage.getItem(REGISTRY_KEY);
+        var map = raw ? JSON.parse(raw) : {};
+
         if (identifier && typeof identifier === 'string') {
           var key = identifier.trim().toLowerCase();
-          var raw = localStorage.getItem(REGISTRY_KEY);
-          if (raw) {
-            var map = JSON.parse(raw);
-            if (map[key] && sanitizeHunterName(map[key])) return map[key];
-            var userPart = key.split('@')[0];
-            if (map[userPart] && sanitizeHunterName(map[userPart])) return map[userPart];
-          }
+          var userPart = key.split('@')[0];
 
           var indiv = localStorage.getItem('solo_quest_name_' + key);
-          if (indiv && sanitizeHunterName(indiv)) return indiv;
+          if (indiv && sanitizeHunterName(indiv)) {
+            if (!key.includes('@') || indiv.toLowerCase() !== userPart.toLowerCase()) {
+              return sanitizeHunterName(indiv);
+            }
+          }
+
+          if (map['exact:' + key] && sanitizeHunterName(map['exact:' + key])) {
+            return sanitizeHunterName(map['exact:' + key]);
+          }
+          if (map[key] && sanitizeHunterName(map[key])) {
+            return sanitizeHunterName(map[key]);
+          }
+          if (userPart && map[userPart] && sanitizeHunterName(map[userPart])) {
+            return sanitizeHunterName(map[userPart]);
+          }
+          if (indiv && sanitizeHunterName(indiv)) {
+            return sanitizeHunterName(indiv);
+          }
         }
 
         var last = localStorage.getItem(LAST_NAME_KEY) || localStorage.getItem('solo_quest_remembered_name');
-        if (last && sanitizeHunterName(last)) return last;
+        if (last && sanitizeHunterName(last)) return sanitizeHunterName(last);
 
         if (S.state && S.state.profile && S.state.profile.hunterName) {
           var fromState = sanitizeHunterName(S.state.profile.hunterName);
@@ -128,6 +158,23 @@ window.SYS = window.SYS || {};
         }
       } catch (e) {}
 
+      return null;
+    },
+
+    getRememberedEmailByHunterName: function (hunterName) {
+      try {
+        if (!hunterName || typeof hunterName !== 'string') return null;
+        var clean = hunterName.trim().toLowerCase();
+        var raw = localStorage.getItem(REGISTRY_KEY);
+        if (!raw) return null;
+        var map = JSON.parse(raw);
+        if (map['name:' + clean]) return map['name:' + clean];
+        for (var k in map) {
+          if (Object.prototype.hasOwnProperty.call(map, k) && k.includes('@') && !k.startsWith('exact:') && !k.startsWith('name:')) {
+            if (String(map[k]).toLowerCase() === clean) return k;
+          }
+        }
+      } catch (e) {}
       return null;
     },
 
@@ -387,6 +434,15 @@ window.SYS = window.SYS || {};
         throw new Error('Passcode must be at least 6 characters.');
       }
 
+      var cleanSignupName = sanitizeHunterName(hunterName) || hunterName;
+      if (cleanSignupName && sanitizeHunterName(cleanSignupName)) {
+        api.rememberHunterName(email, cleanSignupName, true);
+      }
+      if (S.state && S.state.profile) {
+        S.state.profile.hunterName = cleanSignupName;
+        if (email) S.state.profile.email = email;
+      }
+
       if (api.provider === 'supabase') {
         if (!api.supabaseUrl || !api.supabaseAnonKey) {
           throw new Error('Supabase database configuration missing. Please enter Project URL and Anon Key in Database Setup.');
@@ -405,7 +461,10 @@ window.SYS = window.SYS || {};
             email: email,
             password: password,
             data: {
-              hunter_name: hunterName,
+              hunter_name: cleanSignupName,
+              display_name: cleanSignupName,
+              full_name: cleanSignupName,
+              name: cleanSignupName,
               penalty_mode: mode
             }
           })
@@ -424,14 +483,31 @@ window.SYS = window.SYS || {};
         var user = {
           id: json.user ? json.user.id : json.id,
           email: email,
-          hunterName: hunterName
+          hunterName: cleanSignupName,
+          isNewRegistration: true
         };
 
-        if (hunterName && sanitizeHunterName(hunterName)) {
-          api.rememberHunterName(email, hunterName);
-        }
-
         if (token) {
+          // Immediately ensure hunter_profiles row has the user's chosen hunter_name
+          try {
+            await fetch(url + '/rest/v1/hunter_profiles', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': key,
+                'Authorization': 'Bearer ' + token,
+                'Prefer': 'resolution=merge-duplicates'
+              },
+              body: JSON.stringify({
+                id: user.id,
+                hunter_name: cleanSignupName,
+                email: email,
+                penalty_mode: mode,
+                updated_at: new Date().toISOString()
+              })
+            });
+          } catch (e) {}
+
           api.setSession(token, user);
         } else {
           // Email confirmation is required by Supabase project settings
@@ -450,13 +526,14 @@ window.SYS = window.SYS || {};
         var res2 = await fetch(host + '/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email, hunterName: hunterName, password: password, mode: mode })
+          body: JSON.stringify({ email: email, hunterName: cleanSignupName, password: password, mode: mode })
         });
         var json2 = await res2.json();
         if (!res2.ok) throw new Error(json2.error || 'Server registration failed');
 
-        if (hunterName && sanitizeHunterName(hunterName)) {
-          api.rememberHunterName(email, hunterName);
+        if (json2.user) {
+          json2.user.hunterName = cleanSignupName;
+          json2.user.isNewRegistration = true;
         }
 
         api.setSession(json2.token, json2.user);
@@ -465,10 +542,7 @@ window.SYS = window.SYS || {};
       } else {
         // Local Account Simulation
         var localId = 'local_' + Date.now();
-        var localUser = { id: localId, email: email, hunterName: hunterName };
-        if (hunterName && sanitizeHunterName(hunterName)) {
-          api.rememberHunterName(email, hunterName);
-        }
+        var localUser = { id: localId, email: email, hunterName: cleanSignupName, isNewRegistration: true };
         api.setSession('local_token_' + Date.now(), localUser);
         return { user: localUser, token: 'local_token' };
       }
@@ -485,21 +559,30 @@ window.SYS = window.SYS || {};
 
         var url = cleanUrl(api.supabaseUrl);
         var key = cleanKey(api.supabaseAnonKey);
-        var email = String(emailOrName || '').trim().toLowerCase();
+        var rawInput = String(emailOrName || '').trim();
+        var email = rawInput.toLowerCase();
+        var typedHunterName = !rawInput.includes('@') ? sanitizeHunterName(rawInput) : '';
+        var lookedUpProfileName = '';
 
         // If user typed hunter name instead of email:
         if (!email.includes('@')) {
           try {
-            var lookupRes = await fetch(url + '/rest/v1/hunter_profiles?hunter_name=ilike.' + encodeURIComponent(emailOrName.trim()) + '&select=email&limit=1', {
+            var lookupRes = await fetch(url + '/rest/v1/hunter_profiles?hunter_name=ilike.' + encodeURIComponent(rawInput) + '&select=email,hunter_name&limit=1', {
               headers: { 'apikey': key }
             });
             if (lookupRes.ok) {
               var rows = await lookupRes.json();
-              if (rows && rows.length && rows[0].email) {
-                email = rows[0].email;
+              if (rows && rows.length) {
+                if (rows[0].email) email = rows[0].email.trim().toLowerCase();
+                if (rows[0].hunter_name) lookedUpProfileName = sanitizeHunterName(rows[0].hunter_name);
               }
             }
           } catch (e) {}
+
+          if (!email.includes('@')) {
+            var remEmail = api.getRememberedEmailByHunterName(rawInput);
+            if (remEmail) email = remEmail;
+          }
         }
 
         var res = await fetch(url + '/auth/v1/token?grant_type=password', {
@@ -527,11 +610,15 @@ window.SYS = window.SYS || {};
         }
 
         var token = json.access_token;
-        var meta = json.user.user_metadata || json.user.raw_user_meta_data || {};
-        var hunterName = sanitizeHunterName(meta.hunter_name);
+        var userEmail = (json.user && json.user.email) ? json.user.email.trim().toLowerCase() : email;
+        var emailPrefix = userEmail.includes('@') ? userEmail.split('@')[0].toLowerCase() : '';
+        var meta = (json.user && (json.user.user_metadata || json.user.raw_user_meta_data)) || {};
 
-        // If not in token metadata, query hunter_profiles table directly
-        if (!hunterName) {
+        var metaName = sanitizeHunterName(meta.hunter_name || meta.display_name || meta.full_name || meta.name);
+        var dbName = lookedUpProfileName;
+
+        // Query hunter_profiles table directly for hunter_name
+        if (!dbName && json.user && json.user.id) {
           try {
             var profileRes = await fetch(url + '/rest/v1/hunter_profiles?id=eq.' + json.user.id + '&select=hunter_name&limit=1', {
               headers: {
@@ -542,29 +629,56 @@ window.SYS = window.SYS || {};
             if (profileRes.ok) {
               var pRows = await profileRes.json();
               if (pRows && pRows.length && pRows[0].hunter_name) {
-                var cleanDbName = sanitizeHunterName(pRows[0].hunter_name);
-                if (cleanDbName) hunterName = cleanDbName;
+                dbName = sanitizeHunterName(pRows[0].hunter_name);
               }
             }
           } catch (e) {}
         }
 
-        // If still not found, check remembered signup names
+        var rememberedName = api.getRememberedHunterName(userEmail) || (typedHunterName ? api.getRememberedHunterName(typedHunterName) : null);
+
+        // Priority resolution: prefer non-email-prefix custom hunter names
+        var candidates = [metaName, dbName, rememberedName, typedHunterName];
+        var hunterName = '';
+        for (var cIdx = 0; cIdx < candidates.length; cIdx++) {
+          var cand = candidates[cIdx];
+          if (cand && cand.toLowerCase() !== emailPrefix) {
+            hunterName = cand;
+            break;
+          }
+        }
         if (!hunterName) {
-          hunterName = api.getRememberedHunterName(json.user.email || emailOrName);
+          hunterName = metaName || dbName || rememberedName || typedHunterName;
         }
 
-        // Clean fallback: never display raw email
-        if (!hunterName) {
-          var cleanPart = (json.user.email ? json.user.email.split('@')[0] : 'Hunter');
+        if (hunterName) {
+          api.rememberHunterName(userEmail, hunterName);
+          // Ensure Supabase Auth user_metadata also holds this hunter_name for future logins on any device
+          if (meta.hunter_name !== hunterName) {
+            fetch(url + '/auth/v1/user', {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': key,
+                'Authorization': 'Bearer ' + token
+              },
+              body: JSON.stringify({
+                data: {
+                  hunter_name: hunterName,
+                  display_name: hunterName
+                }
+              })
+            }).catch(function () {});
+          }
+        } else {
+          // Display fallback only — do NOT call rememberHunterName so we never overwrite a real name with email prefix
+          var cleanPart = (userEmail ? userEmail.split('@')[0] : 'Hunter');
           hunterName = cleanPart.charAt(0).toUpperCase() + cleanPart.slice(1);
         }
 
-        api.rememberHunterName(json.user.email, hunterName);
-
         var user = {
           id: json.user.id,
-          email: json.user.email,
+          email: userEmail,
           hunterName: hunterName
         };
 
@@ -581,12 +695,13 @@ window.SYS = window.SYS || {};
         var json2 = await res2.json();
         if (!res2.ok) throw new Error(json2.error || 'Server login failed.');
 
-        var customName = sanitizeHunterName(json2.user.hunterName);
-        if (!customName) {
-          customName = api.getRememberedHunterName(json2.user.email || emailOrName) || (json2.user.email ? json2.user.email.split('@')[0] : 'Hunter');
+        var customName = sanitizeHunterName(json2.user.hunterName) || api.getRememberedHunterName(json2.user.email || emailOrName);
+        if (customName) {
+          api.rememberHunterName(json2.user.email, customName);
+        } else {
+          customName = json2.user.email ? json2.user.email.split('@')[0] : 'Hunter';
         }
         json2.user.hunterName = customName;
-        api.rememberHunterName(json2.user.email, customName);
 
         api.setSession(json2.token, json2.user);
         return json2;
@@ -595,16 +710,23 @@ window.SYS = window.SYS || {};
         // Local mode fallback
         var localResolved = api.getRememberedHunterName(emailOrName);
         if (!localResolved) {
-          if (S.state && S.state.profile && S.state.profile.hunterName && S.state.profile.hunterName !== 'PLAYER' && !S.state.profile.hunterName.includes('@')) {
-            localResolved = S.state.profile.hunterName;
-          } else {
-            var localPart = emailOrName.includes('@') ? emailOrName.split('@')[0] : emailOrName;
-            localResolved = localPart ? (localPart.charAt(0).toUpperCase() + localPart.slice(1)) : 'Hunter';
+          if (S.state && S.state.profile && S.state.profile.hunterName && sanitizeHunterName(S.state.profile.hunterName)) {
+            localResolved = sanitizeHunterName(S.state.profile.hunterName);
+          } else if (!emailOrName.includes('@') && sanitizeHunterName(emailOrName)) {
+            localResolved = sanitizeHunterName(emailOrName);
           }
         }
-        var cleanLocalEmail = emailOrName.includes('@') ? emailOrName : (S.state && S.state.profile && S.state.profile.email ? S.state.profile.email : emailOrName + '@solo.quest');
+        var cleanLocalEmail = emailOrName.includes('@') ? emailOrName.trim().toLowerCase() : (api.getRememberedEmailByHunterName(emailOrName) || (S.state && S.state.profile && S.state.profile.email ? S.state.profile.email : emailOrName + '@solo.quest'));
+        if (!localResolved) {
+          localResolved = api.getRememberedHunterName(cleanLocalEmail);
+        }
+        if (localResolved) {
+          api.rememberHunterName(cleanLocalEmail, localResolved);
+        } else {
+          var localPart = cleanLocalEmail.includes('@') ? cleanLocalEmail.split('@')[0] : emailOrName;
+          localResolved = localPart ? (localPart.charAt(0).toUpperCase() + localPart.slice(1)) : 'Hunter';
+        }
         var storedUser = { id: 'local_user', email: cleanLocalEmail, hunterName: localResolved };
-        api.rememberHunterName(cleanLocalEmail, localResolved);
         api.setSession('local_token', storedUser);
         return { user: storedUser, token: 'local_token' };
       }
@@ -711,18 +833,39 @@ window.SYS = window.SYS || {};
       if (!api.user || !api.token) return { success: false, reason: 'unauthenticated' };
 
       var p = state.profile;
+      var stats = p.stats || {};
+      var resolvedHunterName = sanitizeHunterName(p.hunterName) ||
+        (api.user && sanitizeHunterName(api.user.hunterName)) ||
+        api.getRememberedHunterName(api.user && api.user.email) ||
+        p.hunterName ||
+        (api.user && api.user.hunterName) ||
+        'Hunter';
+
+      if (sanitizeHunterName(resolvedHunterName)) {
+        p.hunterName = resolvedHunterName;
+        if (api.user) api.user.hunterName = resolvedHunterName;
+      }
+
+      var apVal = p.unallocatedAp !== undefined ? p.unallocatedAp : (p.ap || 0);
+      var strVal = stats.STR !== undefined ? stats.STR : (p.str || 10);
+      var agiVal = stats.AGI !== undefined ? stats.AGI : (p.agi || 10);
+      var vitVal = stats.VIT !== undefined ? stats.VIT : (p.vit || 10);
+      var intVal = stats.INT !== undefined ? stats.INT : (p.int || 10);
+      var perVal = stats.PER !== undefined ? stats.PER : (p.per || 10);
+      var essenceVal = p.essenceStones !== undefined ? p.essenceStones : (p.essence || 0);
+
       var profilePayload = {
-        hunterName: p.hunterName,
+        hunterName: resolvedHunterName,
         level: p.level,
         currentXp: p.currentXp,
-        ap: p.ap,
-        str: p.str,
-        agi: p.agi,
-        vit: p.vit,
-        int: p.int,
-        per: p.per,
-        gold: p.gold,
-        essence: p.essence,
+        ap: apVal,
+        str: strVal,
+        agi: agiVal,
+        vit: vitVal,
+        int: intVal,
+        per: perVal,
+        gold: p.gold || 0,
+        essence: essenceVal,
         rankTierIndex: p.rankTierIndex,
         rankCode: S.rank().code,
         streakDays: p.streakDays,
@@ -754,18 +897,18 @@ window.SYS = window.SYS || {};
         // 1. Upsert Profile
         var dbProfile = {
           id: api.user.id,
-          hunter_name: p.hunterName,
+          hunter_name: resolvedHunterName,
           email: api.user.email,
           level: p.level,
           current_xp: p.currentXp,
-          ap: p.ap,
-          str: p.str,
-          agi: p.agi,
-          vit: p.vit,
-          int: p.int,
-          per: p.per,
-          gold: p.gold,
-          essence: p.essence,
+          ap: apVal,
+          str: strVal,
+          agi: agiVal,
+          vit: vitVal,
+          int: intVal,
+          per: perVal,
+          gold: p.gold || 0,
+          essence: essenceVal,
           rank_tier_index: p.rankTierIndex,
           rank_code: S.rank().code,
           streak_days: p.streakDays,

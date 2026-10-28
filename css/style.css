@@ -85,6 +85,7 @@ body.in-penalty-zone,
 
 html, body {
   width: 100%;
+  max-width: 100%;
   height: 100%;
   background-color: var(--bg-abyss-void);
   color: var(--text-primary);
@@ -92,6 +93,8 @@ html, body {
   font-size: 14px;
   line-height: 1.5;
   overflow-x: hidden;
+  overscroll-behavior-x: none;
+  position: relative;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -132,8 +135,13 @@ html, body {
   position: relative;
   z-index: 1;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 /* --- Tactical Topbar --- */
@@ -342,25 +350,45 @@ html, body {
   max-width: 1680px;
   width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 /* Responsive 3-Column Command Center (Desktop) */
 .command-center-layout {
   display: grid;
-  grid-template-columns: 360px 1fr 380px;
+  grid-template-columns: 360px minmax(0, 1fr) 380px;
   gap: 16px;
   align-items: start;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.col-status,
+.col-quests,
+.col-vault {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 @media (max-width: 1200px) {
   .command-center-layout {
-    grid-template-columns: 320px 1fr 340px;
+    grid-template-columns: 320px minmax(0, 1fr) 340px;
     gap: 14px;
   }
 }
 @media (max-width: 980px) {
   .command-center-layout {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
   }
   .desktop-nav {
     display: none;
@@ -369,7 +397,13 @@ html, body {
     display: flex;
   }
   .main-viewport {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding-top: 12px;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
   }
 }
 
@@ -439,6 +473,16 @@ html, body {
   padding: 16px;
   box-shadow: var(--shadow-neon);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+@media (max-width: 600px) {
+  .system-panel {
+    padding: 12px;
+  }
 }
 .system-panel::before {
   content: '';
@@ -674,10 +718,15 @@ html, body {
   justify-content: center;
   align-items: center;
   padding: 8px 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 .radar-chart-svg {
   width: 220px;
-  height: 220px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
   overflow: visible;
 }
 .radar-grid {
@@ -739,16 +788,18 @@ html, body {
 
 .quest-header-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 6px;
+  flex-wrap: wrap;
 }
 .quest-title-wrap {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex: 1 1 130px;
 }
 .quest-title {
   font-family: var(--font-display);
@@ -769,14 +820,18 @@ html, body {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--accent-core);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .quest-meta-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 6px 12px;
+  flex-wrap: wrap;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--text-muted);
   margin-bottom: 8px;
 }
@@ -1097,15 +1152,19 @@ body.grace-countdown-active .grace-warning-banner {
   position: fixed;
   top: 60px;
   right: 16px;
+  left: 16px;
   z-index: 600;
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 8px;
-  max-width: 360px;
   pointer-events: none;
+  overflow-x: hidden;
 }
 .sys-toast {
   pointer-events: auto;
+  width: auto;
+  max-width: min(360px, 100%);
   background: rgba(10, 17, 31, 0.94);
   backdrop-filter: blur(12px);
   border: 1px solid var(--accent-core);
@@ -1118,8 +1177,8 @@ body.grace-countdown-active .grace-warning-banner {
   animation: slideInToast 0.25s ease;
 }
 @keyframes slideInToast {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from { transform: translateY(-12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 .sys-toast.danger {
   border-color: var(--penalty-crimson);
@@ -1882,25 +1941,15 @@ body.grace-countdown-active .grace-warning-banner {
 a[href*="netlify.com"],
 a[href*="netlify.app"],
 iframe[src*="netlify"],
-div[data-netlify-badge-wrapper],
-div:has(> a[href*="netlify"]),
-div:has(> iframe[src*="netlify"]),
-div:has(> [class*="netlify"]),
-div:has(> [id*="netlify"]),
-body > div[style*="fixed"][style*="bottom"]:not(#toast-container):not(.mobile-dock):not(.modal-overlay) {
+div[data-netlify-badge-wrapper] {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
-  position: absolute !important;
-  left: -99999px !important;
-  bottom: -99999px !important;
   width: 0 !important;
   height: 0 !important;
   overflow: hidden !important;
-  z-index: -99999 !important;
   clip-path: inset(100%) !important;
-  transform: scale(0) !important;
 }
 
 /* Toast Safe Area Offset for Mobile Status Bars & Notches */
@@ -2267,13 +2316,16 @@ body > div[style*="fixed"][style*="bottom"]:not(#toast-container):not(.mobile-do
 /* --- 7-Day Tactical Selector Strip --- */
 .day-plan-strip {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 5px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
   margin-bottom: 10px;
   padding: 5px;
   background: rgba(6, 11, 20, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.08);
   clip-path: var(--clip-chamfer);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .day-pill-btn {
@@ -2283,7 +2335,7 @@ body > div[style*="fixed"][style*="bottom"]:not(#toast-container):not(.mobile-do
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 6px 2px 5px;
+  padding: 6px 1px 5px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.06);
   clip-path: var(--clip-chamfer-sm);
@@ -2292,6 +2344,7 @@ body > div[style*="fixed"][style*="bottom"]:not(#toast-container):not(.mobile-do
   transition: all 0.16s ease;
   user-select: none;
   min-width: 0;
+  overflow: hidden;
 }
 
 .day-pill-btn:hover {
@@ -2487,10 +2540,58 @@ body > div[style*="fixed"][style*="bottom"]:not(#toast-container):not(.mobile-do
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 4px 10px;
+  flex-wrap: wrap;
   font-size: 10px;
   color: var(--text-secondary);
   padding-top: 6px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.quest-actions-bar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 14px;
+  width: 100%;
+}
+
+@media (max-width: 520px) {
+  .quest-actions-bar {
+    grid-template-columns: 1fr;
+  }
+  .quest-actions-bar .sys-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .day-plan-strip {
+    gap: 3px;
+    padding: 4px;
+  }
+  .day-pill-code {
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+  }
+  .day-pill-top {
+    font-size: 6.5px;
+    letter-spacing: 0.02em;
+  }
+  .day-pill-meta {
+    font-size: 8.5px;
+  }
+  .quest-card {
+    padding: 10px 11px;
+  }
+  .quest-title {
+    font-size: 14px;
+  }
+  .quest-meta-row {
+    font-size: 10.5px;
+  }
+  .penalty-timer-card {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
 }
 
 .empty-plan-card {
