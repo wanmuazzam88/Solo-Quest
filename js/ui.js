@@ -364,6 +364,20 @@ window.SYS = window.SYS || {};
       var mandDone = S.allMandatoryDone();
       var remainingMs = S.msToMidnight();
 
+      var ah = S.state.appleHealth || { connected: false, todaySteps: 0 };
+      var ahSteps = ah.todaySteps || 0;
+      var ahConnected = ah.connected;
+      var ahStripHtml = '<div class="apple-health-strip" id="apple-health-strip">' +
+        '<div class="ah-strip-left">' +
+          '<div class="ah-icon-wrap ' + (ahConnected ? 'connected' : '') + '">' + I('apple', 18) + '</div>' +
+          '<div>' +
+            '<div class="ah-title font-display"><span class="ah-status-dot ' + (ahConnected ? 'pulse' : '') + '"></span> APPLE HEALTH // ' + (ahConnected ? 'HEALTHKIT LINKED' : 'STANDBY') + '</div>' +
+            '<div class="ah-sub font-mono">TODAY: <strong class="text-gold">' + U.fmt(ahSteps) + ' / 10,000 STEPS</strong>' + (ah.lastSync ? (' · ' + U.hms(S.now() - ah.lastSync) + ' AGO') : '') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<button class="sys-btn sm primary" id="btn-strip-sync-ah">' + I('apple', 14) + ' ' + (ahConnected ? 'SYNC' : 'CONNECT') + '</button>' +
+      '</div>';
+
       var questsHtml = '';
       if (!quests.length) {
         questsHtml = '<div style="padding:32px; text-align:center; color:var(--text-muted);">' +
@@ -377,11 +391,15 @@ window.SYS = window.SYS || {};
       }
 
       col.innerHTML = '<div class="system-panel">' +
-        '<div class="panel-header">' +
+        '<div class="panel-header" style="flex-wrap:wrap; gap:8px;">' +
           '<div class="panel-title">' + I('quests', 18) + ' [DAILY QUESTS: PREPARATION TO BECOME STRONG]</div>' +
-          '<button class="sys-btn sm" id="btn-reroll-bonus">' + I('reroll', 14) + ' BONUS QUEST</button>' +
+          '<div style="display:flex; gap:6px; flex-wrap:wrap;">' +
+            '<button class="sys-btn sm" id="btn-apple-health-sync" title="Connect Apple Health & Sync Daily Steps">' + I('apple', 14) + ' APPLE HEALTH</button>' +
+            '<button class="sys-btn sm" id="btn-reroll-bonus">' + I('reroll', 14) + ' BONUS QUEST</button>' +
+          '</div>' +
         '</div>' +
 
+        ahStripHtml +
         questsHtml +
 
         // Forge Custom Quest + Presets Buttons
@@ -419,6 +437,12 @@ window.SYS = window.SYS || {};
         if (S.audio) S.audio.tap();
         S.reroll();
       });
+
+      var btnAhSync = col.querySelector('#btn-apple-health-sync');
+      if (btnAhSync) btnAhSync.addEventListener('click', UI.openAppleHealthModal);
+
+      var btnStripAh = col.querySelector('#btn-strip-sync-ah');
+      if (btnStripAh) btnStripAh.addEventListener('click', UI.openAppleHealthModal);
     },
 
     /* --- Single Quest Card Renderer --- */
@@ -427,11 +451,13 @@ window.SYS = window.SYS || {};
       var cat = S.CATS[q.category] || S.CATS.HABIT;
       var xpPay = S.payout(q);
       var goldPay = S.goldPayout(q);
+      var is10k = q.preset === 'steps10k' || (q.unit === 'STEPS' && q.isOptionalBonus);
 
       var cardCls = 'quest-card';
       if (q.isCompleted) cardCls += ' completed';
       if (q.isPenaltyQuest) cardCls += ' penalty-quest';
       if (q.isExam) cardCls += ' exam-quest';
+      if (is10k) cardCls += ' bonus-quest';
 
       var progressControls = '';
       if (!q.isCompleted) {
@@ -445,6 +471,21 @@ window.SYS = window.SYS || {};
             '<button class="sys-btn sm primary btn-enter-gate" data-quest-id="' + q.id + '">' + I('gate', 14) + ' ENTER GATE (' + q.targetProgress + 'M)</button>' +
             '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="10">+10M</button>' +
             '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="MAX">MAX</button>' +
+          '</div>';
+        } else if (q.unit === 'STEPS') {
+          // Steps mode fast logging buttons with Apple Health link
+          progressControls = '<div style="display:flex; flex-direction:column; width:100%; gap:6px;">' +
+            '<div style="display:flex; gap:6px; flex-wrap:wrap;">' +
+              '<button class="sys-btn sm primary btn-open-apple-health" style="flex:1;">' + I('apple', 14) + ' SYNC APPLE HEALTH</button>' +
+              '<button class="sys-btn sm btn-start-run" data-quest-id="' + q.id + '">' + I('gps', 14) + ' TRACKER</button>' +
+            '</div>' +
+            '<div class="fast-log-row">' +
+              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="500">+500</button>' +
+              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="1000">+1K</button>' +
+              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="2500">+2.5K</button>' +
+              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="5000">+5K</button>' +
+              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="MAX">MAX</button>' +
+            '</div>' +
           '</div>';
         } else {
           // Reps / KM Counter mode fast logging buttons
@@ -466,6 +507,20 @@ window.SYS = window.SYS || {};
         progressControls = '<div class="sys-badge font-mono" style="color:#39FF88;">' + I('check', 14) + ' COMPLETED</div>';
       }
 
+      var typeBadge = '';
+      if (q.isMandatory) {
+        typeBadge = '<span class="quest-badge mandatory-badge" title="Mandatory daily quest for streak">[MANDATORY]</span>';
+      } else if (is10k) {
+        typeBadge = '<span class="quest-badge bonus-badge" title="Optional: Extra bonus loot if cleared, zero penalty on miss">[OPTIONAL BONUS]</span>';
+      } else if (!q.isPenaltyQuest && !q.isExam && !q.isRedemption) {
+        typeBadge = '<span class="quest-badge optional-badge" title="Optional quest">[OPTIONAL]</span>';
+      }
+
+      var metaProgress = 'PROGRESS: ' + U.fmt(q.currentProgress) + ' / ' + U.fmt(q.targetProgress) + ' ' + (q.unit !== 'CHECK' ? S.UNITS[q.unit] || '' : '');
+      var metaRewards = is10k ?
+        '+' + (xpPay + 250) + ' XP // +' + (goldPay + 150) + ' G // [BLESSED BOX x1] // [NO PENALTY ON MISS]' :
+        '+' + xpPay + ' XP // +' + goldPay + ' G // [' + q.primaryStat + ' +' + S.DIFF[q.difficulty].stat + ']';
+
       return '<div class="' + cardCls + '" id="quest-' + q.id + '">' +
         '<div class="quest-header-row">' +
           '<div class="quest-title-wrap">' +
@@ -473,14 +528,15 @@ window.SYS = window.SYS || {};
             '<span class="quest-title">' + U.esc(q.title) + '</span>' +
           '</div>' +
           '<div style="display:flex; align-items:center; gap:6px;">' +
+            typeBadge +
             '<span class="quest-badge">' + q.difficulty + '-RANK</span>' +
             (!q.isMandatory && !q.isPenaltyQuest && !q.isExam ? '<button class="sys-btn sm danger btn-delete-quest" data-quest-id="' + q.id + '" title="Delete quest">' + I('trash', 12) + '</button>' : '') +
           '</div>' +
         '</div>' +
 
         '<div class="quest-meta-row">' +
-          '<span>PROGRESS: ' + q.currentProgress + ' / ' + q.targetProgress + ' ' + (q.unit !== 'CHECK' ? S.UNITS[q.unit] || '' : '') + '</span>' +
-          '<span>+' + xpPay + ' XP // +' + goldPay + ' G // [' + q.primaryStat + ' +' + S.DIFF[q.difficulty].stat + ']</span>' +
+          '<span>' + metaProgress + '</span>' +
+          '<span>' + metaRewards + '</span>' +
         '</div>' +
 
         '<div class="progress-bar-wrap" style="margin-bottom:8px;"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
@@ -502,6 +558,13 @@ window.SYS = window.SYS || {};
           if (S.audio) S.audio.tap();
           if (inc === 'MAX') S.maxProgress(id);
           else S.addProgress(id, Number(inc));
+        });
+      });
+
+      // Open Apple Health Modal button
+      col.querySelectorAll('.btn-open-apple-health').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          UI.openAppleHealthModal();
         });
       });
 
@@ -1608,6 +1671,23 @@ window.SYS = window.SYS || {};
           '</div>' +
         '</div>' +
 
+        // Apple Health & Wearable Cadence Card
+        '<div style="margin-bottom:18px; padding:14px; background:rgba(0,229,255,0.04); border:1px solid rgba(0,229,255,0.25); clip-path:var(--clip-chamfer-sm);">' +
+          '<div class="flex-between" style="margin-bottom:8px; flex-wrap:wrap; gap:6px;">' +
+            '<div class="font-display text-accent" style="font-size:14px; font-weight:700;">' + I('apple', 16) + ' [APPLE HEALTH // HEALTHKIT WEARABLES]</div>' +
+            '<span class="db-latency-badge ' + (S.state.appleHealth && S.state.appleHealth.connected ? 'online' : 'offline') + '">' +
+              '<span class="db-status-dot ' + (S.state.appleHealth && S.state.appleHealth.connected ? 'pulsing' : '') + '"></span>' +
+              (S.state.appleHealth && S.state.appleHealth.connected ? 'HEALTHKIT LINKED' : 'STANDBY') +
+            '</span>' +
+          '</div>' +
+          '<div style="font-size:12px; color:var(--text-secondary); margin-bottom:12px; line-height:1.5;">' +
+            'Connect Apple Health on iPhone & Apple Watch to track your daily 10,000 steps quest. 1-tap iOS Shortcuts automation, export file drop, or quick log.' +
+          '</div>' +
+          '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+            '<button class="sys-btn primary" id="btn-settings-apple-health">' + I('apple', 14) + ' CONFIGURE / SYNC APPLE HEALTH</button>' +
+          '</div>' +
+        '</div>' +
+
         // Audio & Audio Volume
         '<div style="margin-bottom:18px;">' +
           '<div class="font-display" style="font-size:14px; font-weight:700; margin-bottom:8px;">AUDIO SYNTHESIZER</div>' +
@@ -1679,6 +1759,13 @@ window.SYS = window.SYS || {};
       if (btnSettingsSync) {
         btnSettingsSync.addEventListener('click', function () {
           if (S.auth) S.auth.triggerSync(true);
+        });
+      }
+
+      var btnSettingsAh = container.querySelector('#btn-settings-apple-health');
+      if (btnSettingsAh) {
+        btnSettingsAh.addEventListener('click', function () {
+          UI.openAppleHealthModal();
         });
       }
 
@@ -1857,6 +1944,7 @@ window.SYS = window.SYS || {};
                 '<select class="sys-select" id="forge-unit">' +
                   '<option value="REPS">Reps (Counter)</option>' +
                   '<option value="KM">Kilometers (Distance)</option>' +
+                  '<option value="STEPS">Steps (Apple Health / Pedometer)</option>' +
                   '<option value="MINS">Minutes (Focus Gate)</option>' +
                   '<option value="SETS">Sets</option>' +
                   '<option value="CHECK">Single Check (Binary)</option>' +
@@ -2644,6 +2732,315 @@ window.SYS = window.SYS || {};
             renderModal();
             UI.render();
           });
+        }
+      }
+
+      renderModal();
+    },
+
+    /* ======================================================================
+       APPLE HEALTH & WEARABLES TELEMETRY MODAL
+       ====================================================================== */
+    openAppleHealthModal: function () {
+      var activeTab = 'SHORTCUT'; // 'SHORTCUT' | 'IMPORT' | 'MANUAL'
+
+      function renderModal() {
+        var ah = S.state.appleHealth || { connected: false, todaySteps: 0, lastSync: null, syncHistory: [] };
+        var stepQuest = S.state.quests.find(function (q) { return q.preset === 'steps10k' || q.unit === 'STEPS'; });
+        var targetSteps = stepQuest ? stepQuest.targetProgress : 10000;
+        var questProgress = stepQuest ? stepQuest.currentProgress : (ah.todaySteps || 0);
+        var pct = Math.min(100, Math.floor((questProgress / targetSteps) * 100));
+
+        var origin = window.location.origin;
+        var path = window.location.pathname;
+        var baseSyncUrl = (origin && origin !== 'null' ? (origin + path) : window.location.href.split('?')[0]);
+        var shortcutSyncUrl = baseSyncUrl + (baseSyncUrl.indexOf('?') === -1 ? '?' : '&') + 'apple_health_steps=';
+
+        var lastSyncText = 'NONE RECORDED TODAY';
+        if (ah.lastSync) {
+          var syncDate = new Date(ah.lastSync);
+          lastSyncText = syncDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' (' + U.hms(S.now() - ah.lastSync) + ' AGO)';
+        }
+
+        var html = '<div class="apple-health-modal" style="max-width:600px; margin:0 auto;">' +
+          '<div class="panel-header" style="margin-bottom:12px;">' +
+            '<div class="panel-title text-accent">' + I('apple', 18) + ' [APPLE HEALTH // HEALTHKIT GATEWAY]</div>' +
+            '<button class="modal-close btn-close-modal">' + I('close', 16) + '</button>' +
+          '</div>' +
+
+          // Live Telemetry Banner
+          '<div class="ah-telemetry-card" style="padding:14px; background:rgba(0,229,255,0.05); border:1px solid rgba(0,229,255,0.3); clip-path:var(--clip-chamfer); margin-bottom:12px;">' +
+            '<div class="flex-between" style="margin-bottom:8px;">' +
+              '<div style="display:flex; align-items:center; gap:8px;">' +
+                I('heartPulse', 20, 'text-accent') +
+                '<span class="font-display font-bold" style="font-size:15px; letter-spacing:0.04em;">HEALTHKIT DAILY CADENCE</span>' +
+              '</div>' +
+              '<span class="sys-badge font-mono ' + (ah.connected ? 'text-accent' : '') + '">' +
+                (ah.connected ? '● LINKED // ACTIVE' : '○ STANDBY // READY') +
+              '</span>' +
+            '</div>' +
+            '<div class="flex-between" style="align-items:baseline; margin-bottom:6px;">' +
+              '<span class="font-mono text-gold" style="font-size:30px; font-weight:800;">' + U.fmt(questProgress) + ' <span style="font-size:13px; color:var(--text-muted); font-weight:400;">/ ' + U.fmt(targetSteps) + ' STEPS</span></span>' +
+              '<span class="font-mono text-accent" style="font-size:16px; font-weight:700;">' + pct + '%</span>' +
+            '</div>' +
+            '<div class="progress-bar-wrap" style="height:8px; margin-bottom:8px;"><div class="progress-bar-fill" style="width:' + pct + '%;"></div></div>' +
+            '<div class="flex-between font-mono" style="font-size:11px; color:var(--text-muted); flex-wrap:wrap; gap:4px;">' +
+              '<span>LAST SYNC: ' + lastSyncText + '</span>' +
+              '<span class="text-gold">OPTIONAL BONUS: BLESSED BOX x1 + 250 XP</span>' +
+            '</div>' +
+          '</div>' +
+
+          // Directive Notice: Optional Quest clarification
+          '<div style="padding:10px 12px; background:rgba(255,183,3,0.06); border:1px solid rgba(255,183,3,0.3); clip-path:var(--clip-chamfer-sm); font-size:12px; color:var(--text-secondary); margin-bottom:14px; line-height:1.45;">' +
+            '<strong class="text-gold">[DIRECTIVE // OPTIONAL CHALLENGE]:</strong> The 10,000 steps daily quest is <strong>optional</strong>. Reaching 10,000 steps awards an instant <em>Blessed Random Box x1</em>, <em>+250 Bonus XP</em>, <em>+150 Gold</em>, and <em>-20 Fatigue</em>. If not completed, <strong>zero penalty</strong> occurs at midnight.' +
+          '</div>' +
+
+          // Navigation Tabs for Sync Methods
+          '<div class="ah-modal-tabs" style="display:flex; gap:6px; margin-bottom:14px;">' +
+            '<button class="sys-btn sm tab-ah-btn ' + (activeTab === 'SHORTCUT' ? 'primary' : '') + '" data-tab="SHORTCUT" style="flex:1;">' + I('bolt', 14) + ' 1-TAP SHORTCUT</button>' +
+            '<button class="sys-btn sm tab-ah-btn ' + (activeTab === 'IMPORT' ? 'primary' : '') + '" data-tab="IMPORT" style="flex:1;">' + I('upload', 14) + ' EXPORT FILE</button>' +
+            '<button class="sys-btn sm tab-ah-btn ' + (activeTab === 'MANUAL' ? 'primary' : '') + '" data-tab="MANUAL" style="flex:1;">' + I('check', 14) + ' QUICK LOG</button>' +
+          '</div>';
+
+        // Tab 1: iOS Shortcut Setup
+        if (activeTab === 'SHORTCUT') {
+          html += '<div class="ah-tab-content">' +
+            '<div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px; line-height:1.5;">' +
+              'Apple Health data is strictly sandboxed by iOS. An <strong>Apple Shortcut</strong> bridges your iPhone & Apple Watch steps to Solo Quest in under 1 second without storing health data on external servers.' +
+            '</div>' +
+            '<div style="background:rgba(0,0,0,0.5); border:1px solid var(--sys-border); clip-path:var(--clip-chamfer-sm); padding:10px 12px; margin-bottom:12px;">' +
+              '<div class="font-mono text-accent" style="font-size:11px; margin-bottom:6px; font-weight:700;">YOUR SOLO QUEST AUTOMATION URL:</div>' +
+              '<div style="display:flex; gap:6px;">' +
+                '<input type="text" class="sys-input font-mono" id="ah-sync-url" value="' + shortcutSyncUrl + '[STEPS]" readonly style="font-size:11px; background:rgba(0,0,0,0.4); flex:1;">' +
+                '<button class="sys-btn sm primary" id="btn-copy-ah-url">' + I('check', 12) + ' COPY URL</button>' +
+              '</div>' +
+            '</div>' +
+            '<div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); padding:12px; clip-path:var(--clip-chamfer-sm); margin-bottom:14px;">' +
+              '<div class="text-gold font-display" style="font-weight:700; font-size:13px; margin-bottom:8px;">30-SECOND SETUP IN IPHONE SHORTCUTS APP:</div>' +
+              '<ol style="padding-left:18px; display:flex; flex-direction:column; gap:5px; color:var(--text-secondary); font-size:12px;">' +
+                '<li>Open the native <strong>Shortcuts</strong> app on your iPhone or Apple Watch.</li>' +
+                '<li>Tap <strong>+</strong> &rarr; Add action: <strong>Find Health Samples</strong> (Type: <em>Steps</em>, Start Date: <em>Today</em>).</li>' +
+                '<li>Add action: <strong>Calculate Statistics</strong> (Operation: <em>Sum</em>).</li>' +
+                '<li>Add action: <strong>Open URLs</strong> &rarr; Paste your copied URL and tap <em>[Calculation Result]</em> at the end.</li>' +
+                '<li><em>(Optional Auto-Sync)</em>: In Shortcuts &rarr; <strong>Automation</strong> tab, set it to run automatically every night or when opening Solo Quest!</li>' +
+              '</ol>' +
+            '</div>' +
+            '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+              '<button class="sys-btn gold flex-1" id="btn-test-shortcut-sync">' + I('bolt', 14) + ' TEST SYNC (+1,000 STEPS)</button>' +
+              '<button class="sys-btn flex-1" id="btn-test-shortcut-10k">' + I('check', 14) + ' SYNC 10,000 STEPS (CLAIM BONUS)</button>' +
+            '</div>' +
+          '</div>';
+        } else if (activeTab === 'IMPORT') {
+          // Tab 2: Export File Reader
+          html += '<div class="ah-tab-content">' +
+            '<div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px; line-height:1.5;">' +
+              'Export your official Health Data directly from Apple Health (iPhone &rarr; Health App &rarr; Profile icon &rarr; <em>Export All Health Data</em>). Solo Quest parses your step records 100% locally in your browser.' +
+            '</div>' +
+            '<div class="ah-drop-zone" id="ah-drop-zone" style="border:2px dashed var(--sys-border); background:rgba(0,229,255,0.03); padding:24px 16px; text-align:center; clip-path:var(--clip-chamfer); cursor:pointer; margin-bottom:12px;">' +
+              I('upload', 32, 'text-accent') +
+              '<div class="font-display font-bold" style="font-size:15px; margin-top:8px; color:var(--text-primary);">SELECT OR DROP export.xml / export.zip</div>' +
+              '<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Official Apple Health export format parsed instantly offline.</div>' +
+              '<input type="file" id="ah-file-input" accept=".xml,.zip" style="display:none;">' +
+            '</div>' +
+            '<div id="ah-parse-status" style="display:none; font-family:var(--font-mono); font-size:12px; padding:10px; clip-path:var(--clip-chamfer-sm); margin-bottom:10px;"></div>' +
+          '</div>';
+        } else if (activeTab === 'MANUAL') {
+          // Tab 3: Quick Log
+          html += '<div class="ah-tab-content">' +
+            '<div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">' +
+              'Directly mirror today\'s step count shown on your Apple Watch or iPhone Health dashboard:' +
+            '</div>' +
+            '<div style="display:flex; gap:8px; margin-bottom:12px;">' +
+              '<input type="number" class="sys-input font-mono" id="ah-manual-steps" min="0" max="100000" placeholder="e.g., 8450" value="' + (ah.todaySteps || '') + '" style="font-size:18px; font-weight:700; flex:1;">' +
+              '<button class="sys-btn primary" id="btn-manual-sync-save" style="white-space:nowrap;">' + I('check', 14) + ' SYNC TO SYSTEM</button>' +
+            '</div>' +
+            '<div class="font-mono text-muted" style="font-size:11px; margin-bottom:6px;">QUICK STEP SELECTION:</div>' +
+            '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">' +
+              '<button class="sys-btn sm btn-quick-step" data-steps="2500">+2,500</button>' +
+              '<button class="sys-btn sm btn-quick-step" data-steps="5000">+5,000</button>' +
+              '<button class="sys-btn sm btn-quick-step" data-steps="7500">+7,500</button>' +
+              '<button class="sys-btn sm gold btn-quick-step" data-steps="10000">10,000 (CLAIM BONUS)</button>' +
+              '<button class="sys-btn sm btn-quick-step" data-steps="15000">15,000</button>' +
+            '</div>' +
+          '</div>';
+        }
+
+        // Recent Sync History
+        if (ah.syncHistory && ah.syncHistory.length > 0) {
+          html += '<div style="margin-top:14px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">' +
+            '<div class="font-mono text-muted" style="font-size:11px; margin-bottom:6px;">RECENT HEALTHKIT TELEMETRY LOGS:</div>' +
+            '<div style="display:flex; flex-direction:column; gap:4px; max-height:100px; overflow-y:auto; font-family:var(--font-mono); font-size:11px;">' +
+              ah.syncHistory.slice(0, 5).map(function (item) {
+                return '<div style="display:flex; justify-content:space-between; padding:4px 8px; background:rgba(0,0,0,0.3); clip-path:var(--clip-chamfer-sm);">' +
+                  '<span>' + new Date(item.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' · ' + U.esc(item.source) + '</span>' +
+                  '<span class="text-accent font-bold">' + U.fmt(item.steps) + ' STEPS</span>' +
+                '</div>';
+              }).join('') +
+            '</div>' +
+          '</div>';
+        }
+
+        html += '<div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">' +
+          '<button class="sys-btn btn-close-modal">DISMISS</button>' +
+        '</div></div>';
+
+        UI.openModal(html);
+
+        // Bind tab switching
+        document.querySelectorAll('.tab-ah-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            activeTab = btn.getAttribute('data-tab');
+            if (S.audio) S.audio.tap();
+            renderModal();
+          });
+        });
+
+        // Copy Automation URL button
+        var btnCopy = document.getElementById('btn-copy-ah-url');
+        if (btnCopy) {
+          btnCopy.addEventListener('click', function () {
+            var input = document.getElementById('ah-sync-url');
+            if (input) {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(input.value);
+              } else {
+                input.select();
+                document.execCommand('copy');
+              }
+              btnCopy.textContent = 'COPIED!';
+              UI.showToast('[AUTOMATION URL COPIED]', 'Paste this URL into your iOS Shortcut Open URLs action.', 'cyan');
+              setTimeout(function () {
+                if (btnCopy) btnCopy.innerHTML = I('check', 12) + ' COPY URL';
+              }, 2000);
+            }
+          });
+        }
+
+        // Test Sync buttons
+        var btnTestSync = document.getElementById('btn-test-shortcut-sync');
+        if (btnTestSync) {
+          btnTestSync.addEventListener('click', function () {
+            var next = ((ah.todaySteps || 0) + 1000);
+            S.syncAppleHealth(next, 'iOS Shortcut Test');
+            renderModal();
+          });
+        }
+
+        var btnTest10k = document.getElementById('btn-test-shortcut-10k');
+        if (btnTest10k) {
+          btnTest10k.addEventListener('click', function () {
+            S.syncAppleHealth(10000, 'iOS Shortcut Auto-Sync');
+            renderModal();
+          });
+        }
+
+        // Manual sync input
+        var btnManualSave = document.getElementById('btn-manual-sync-save');
+        if (btnManualSave) {
+          btnManualSave.addEventListener('click', function () {
+            var val = Number(document.getElementById('ah-manual-steps').value) || 0;
+            S.syncAppleHealth(val, 'Apple Health Quick Log');
+            renderModal();
+          });
+        }
+
+        // Quick step chips
+        document.querySelectorAll('.btn-quick-step').forEach(function (b) {
+          b.addEventListener('click', function () {
+            var steps = Number(b.getAttribute('data-steps')) || 0;
+            if (b.getAttribute('data-steps') === '10000') {
+              S.syncAppleHealth(10000, 'Apple Health Mandate Clear');
+            } else {
+              var current = ah.todaySteps || 0;
+              S.syncAppleHealth(current + steps, 'Apple Health Increment');
+            }
+            renderModal();
+          });
+        });
+
+        // Drop zone file reader for export.xml
+        var dropZone = document.getElementById('ah-drop-zone');
+        var fileInput = document.getElementById('ah-file-input');
+        if (dropZone && fileInput) {
+          dropZone.addEventListener('click', function () { fileInput.click(); });
+          dropZone.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--accent-core)';
+            dropZone.style.background = 'rgba(0,229,255,0.08)';
+          });
+          dropZone.addEventListener('dragleave', function () {
+            dropZone.style.borderColor = 'var(--sys-border)';
+            dropZone.style.background = 'rgba(0,229,255,0.03)';
+          });
+          dropZone.addEventListener('drop', function (e) {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--sys-border)';
+            dropZone.style.background = 'rgba(0,229,255,0.03)';
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+              handleAppleHealthFile(e.dataTransfer.files[0]);
+            }
+          });
+          fileInput.addEventListener('change', function () {
+            if (fileInput.files && fileInput.files.length) {
+              handleAppleHealthFile(fileInput.files[0]);
+            }
+          });
+        }
+
+        function handleAppleHealthFile(file) {
+          var statusEl = document.getElementById('ah-parse-status');
+          if (statusEl) {
+            statusEl.style.display = 'block';
+            statusEl.style.background = 'rgba(0,229,255,0.1)';
+            statusEl.style.color = 'var(--accent-core)';
+            statusEl.textContent = 'Parsing Apple Health ' + file.name + '...';
+          }
+          var reader = new FileReader();
+          reader.onload = function (e) {
+            try {
+              var text = e.target.result;
+              var todayStr = U.dateStr(new Date());
+              var totalSteps = 0;
+              var matches = 0;
+              var regex = /<Record[^>]+type="HKQuantityTypeIdentifierStepCount"[^>]+startDate="([^"]+)"[^>]+value="([^"]+)"/g;
+              var m;
+              while ((m = regex.exec(text)) !== null) {
+                if (m[1].indexOf(todayStr) === 0) {
+                  totalSteps += parseFloat(m[2]) || 0;
+                  matches++;
+                }
+              }
+              if (matches === 0) {
+                var regexAlt = /<Record[^>]+startDate="([^"]+)"[^>]+type="HKQuantityTypeIdentifierStepCount"[^>]+value="([^"]+)"/g;
+                while ((m = regexAlt.exec(text)) !== null) {
+                  if (m[1].indexOf(todayStr) === 0) {
+                    totalSteps += parseFloat(m[2]) || 0;
+                    matches++;
+                  }
+                }
+              }
+              totalSteps = Math.round(totalSteps);
+              if (totalSteps > 0) {
+                S.syncAppleHealth(totalSteps, 'Apple Health XML Export');
+                renderModal();
+              } else {
+                if (statusEl) {
+                  statusEl.style.display = 'block';
+                  statusEl.style.background = 'rgba(255,183,3,0.15)';
+                  statusEl.style.color = '#FFB703';
+                  statusEl.textContent = 'No step records found for today (' + todayStr + ') in file.';
+                }
+              }
+            } catch (err) {
+              if (statusEl) {
+                statusEl.style.display = 'block';
+                statusEl.style.background = 'rgba(255,0,60,0.15)';
+                statusEl.style.color = 'var(--penalty-crimson)';
+                statusEl.textContent = 'Error parsing XML: ' + (err.message || 'Invalid format');
+              }
+            }
+          };
+          reader.readAsText(file);
         }
       }
 

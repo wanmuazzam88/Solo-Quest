@@ -736,6 +736,14 @@ html, body {
   border-color: var(--loot-mythic-gold);
   background: rgba(30, 24, 8, 0.7);
 }
+.quest-card.bonus-quest {
+  border-color: rgba(255, 183, 3, 0.45);
+  background: rgba(25, 20, 8, 0.55);
+}
+.quest-card.bonus-quest:hover {
+  border-color: var(--loot-mythic-gold);
+  background: rgba(35, 26, 10, 0.75);
+}
 
 .quest-header-row {
   display: flex;
@@ -769,6 +777,22 @@ html, body {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--accent-core);
+}
+.quest-badge.mandatory-badge {
+  color: #00E5FF;
+  border-color: rgba(0, 229, 255, 0.4);
+  background: rgba(0, 229, 255, 0.08);
+}
+.quest-badge.bonus-badge {
+  color: var(--loot-mythic-gold);
+  border-color: rgba(255, 183, 3, 0.45);
+  background: rgba(255, 183, 3, 0.14);
+  text-shadow: 0 0 8px rgba(255, 183, 3, 0.35);
+}
+.quest-badge.optional-badge {
+  color: #A0B2C6;
+  border-color: rgba(160, 178, 198, 0.25);
+  background: rgba(160, 178, 198, 0.06);
 }
 
 .quest-meta-row {
@@ -2259,5 +2283,92 @@ body > div[style*="fixed"][style*="bottom"]:not(#toast-container):not(.mobile-do
     font-size: 9.5px;
   }
 }
+
+/* ==========================================================================
+   APPLE HEALTH & WEARABLES TELEMETRY STYLES
+   ========================================================================== */
+.apple-health-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(0, 229, 255, 0.04);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  clip-path: var(--clip-chamfer);
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+}
+.apple-health-strip:hover {
+  background: rgba(0, 229, 255, 0.07);
+  border-color: rgba(0, 229, 255, 0.45);
+}
+.ah-strip-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.ah-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  color: var(--accent-core);
+  flex-shrink: 0;
+}
+.ah-icon-wrap.connected {
+  color: #39FF88;
+  border-color: rgba(57, 255, 136, 0.4);
+  background: rgba(57, 255, 136, 0.08);
+  box-shadow: 0 0 10px rgba(57, 255, 136, 0.25);
+}
+.ah-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ah-status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.ah-status-dot.pulse {
+  background: #39FF88;
+  box-shadow: 0 0 8px #39FF88;
+  animation: pulse-dot 1.5s infinite;
+}
+@keyframes pulse-dot {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.7; }
+}
+.ah-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.ah-drop-zone {
+  transition: all 0.2s ease;
+}
+.ah-drop-zone:hover {
+  border-color: var(--accent-core) !important;
+  background: rgba(0, 229, 255, 0.08) !important;
+}
+.btn-quick-step {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 10px;
+}
+
 
 

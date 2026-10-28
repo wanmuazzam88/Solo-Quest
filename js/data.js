@@ -74,7 +74,7 @@ window.SYS = window.SYS || {};
     PENALTY: { stat: 'VIT', icon: 'skull', physical: true, label: 'Penalty' }
   };
 
-  S.UNITS = { REPS: 'reps', KM: 'km', MINS: 'min', SETS: 'sets', CHECK: '' };
+  S.UNITS = { REPS: 'reps', KM: 'km', MINS: 'min', SETS: 'sets', STEPS: 'steps', CHECK: '' };
 
   /* ---------- Dungeon Gates (plan 5.1) ---------- */
   S.GATES = [
