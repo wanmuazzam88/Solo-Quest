@@ -63,11 +63,10 @@ window.SYS = window.SYS || {};
       quests: [],
       currentDate: today,
       dailyBonusClaimed: false,
-      appleHealth: { connected: false, lastSync: null, todaySteps: 0, syncHistory: [] },
       inventory: { owned: {}, seen: {}, shadows: {}, boxes: { BLESSED: 1, CURSED: 0 } },
       unlockedTitles: ['t_weakest'], unlockedSkins: ['skin_classic'], unlockedBorders: ['br_e'],
       buffs: [],
-      records: { questsCompleted: 0, totalXp: 0, goldEarned: 0, focusMins: 0, verifiedMins: 0, gatesCleared: 0, redGates: 0, cleanDarkLocks: 0, penaltiesSurvived: 0, dawnClears: 0, midnightClears: 0, boxesOpened: 0, repsLogged: 0, kmLogged: 0, stepsLogged: 0, examsPassed: 0, highRankQuests: 0, dungeonsCleared: 0, perfectDays: 0, shadowsExtracted: 0, breaches: 0 },
+      records: { questsCompleted: 0, totalXp: 0, goldEarned: 0, focusMins: 0, verifiedMins: 0, gatesCleared: 0, redGates: 0, cleanDarkLocks: 0, penaltiesSurvived: 0, dawnClears: 0, midnightClears: 0, boxesOpened: 0, repsLogged: 0, kmLogged: 0, examsPassed: 0, highRankQuests: 0, dungeonsCleared: 0, perfectDays: 0, shadowsExtracted: 0, breaches: 0 },
       log: {},
       lootHistory: [],
       penalty: null,
@@ -277,19 +276,17 @@ window.SYS = window.SYS || {};
     var reps = tier > 19 ? 100 + (tier - 19) * 25 : Math.round((25 + 75 * f) / 5) * 5;
     var km = tier > 19 ? 10 + (tier - 19) : Math.round((2 + 8 * f) * 2) / 2;
     return [
-      { preset: 'pushups', title: 'Push-ups', category: 'CALISTHENICS', primaryStat: 'STR', target: reps, unit: 'REPS', isMandatory: true, difficulty: 'D' },
-      { preset: 'situps', title: 'Sit-ups / Core', category: 'CALISTHENICS', primaryStat: 'STR', target: reps, unit: 'REPS', isMandatory: true, difficulty: 'D' },
-      { preset: 'squats', title: 'Squats', category: 'CALISTHENICS', primaryStat: 'VIT', target: reps, unit: 'REPS', isMandatory: true, difficulty: 'D' },
-      { preset: 'running', title: 'Running', category: 'RUNNING', primaryStat: 'AGI', target: km, unit: 'KM', isMandatory: true, difficulty: 'D' },
-      { preset: 'steps10k', title: 'Daily Steps: 10,000 Steps', category: 'RUNNING', primaryStat: 'AGI', target: 10000, unit: 'STEPS', isMandatory: false, isOptionalBonus: true, difficulty: 'C' }
+      { preset: 'pushups', title: 'Push-ups', category: 'CALISTHENICS', primaryStat: 'STR', target: reps, unit: 'REPS' },
+      { preset: 'situps', title: 'Sit-ups / Core', category: 'CALISTHENICS', primaryStat: 'STR', target: reps, unit: 'REPS' },
+      { preset: 'squats', title: 'Squats', category: 'CALISTHENICS', primaryStat: 'VIT', target: reps, unit: 'REPS' },
+      { preset: 'running', title: 'Running', category: 'RUNNING', primaryStat: 'AGI', target: km, unit: 'KM' }
     ];
   };
   S.installPreset = function () {
     var s = S.state;
     S.presetSpecs(s.profile.rankTierIndex).forEach(function (sp) {
       if (s.quests.some(function (q) { return q.preset === sp.preset; })) return;
-      var isMand = sp.isMandatory !== undefined ? sp.isMandatory : true;
-      S.addQuest(Object.assign({ difficulty: sp.difficulty || 'D', mode: 'COUNTER', isMandatory: isMand, recurring: true, isOptionalBonus: !!sp.isOptionalBonus }, sp), true);
+      S.addQuest(Object.assign({ difficulty: 'D', mode: 'COUNTER', isMandatory: true, recurring: true }, sp), true);
     });
   };
   S.removePreset = function () { S.state.quests = S.state.quests.filter(function (q) { return !q.preset; }); S.commit(); };
@@ -306,8 +303,7 @@ window.SYS = window.SYS || {};
     var cat = S.CATS[o.category] || S.CATS.HABIT;
     var unit = o.unit || 'REPS';
     var mode = o.mode || (unit === 'CHECK' ? 'CHECK' : 'COUNTER');
-    var minTarget = unit === 'KM' ? 0.5 : (unit === 'STEPS' ? 100 : 1);
-    var target = mode === 'CHECK' ? 1 : Math.max(minTarget, Number(o.target) || 1);
+    var target = mode === 'CHECK' ? 1 : Math.max(unit === 'KM' ? 0.5 : 1, Number(o.target) || 1);
     var q = {
       id: U.uid(), title: String(o.title || 'Untitled Quest').slice(0, 60), category: o.category || 'HABIT',
       difficulty: o.difficulty || 'E', primaryStat: o.primaryStat || cat.stat,
@@ -315,7 +311,6 @@ window.SYS = window.SYS || {};
       xpReward: 0, goldReward: 0, isCompleted: false, isMandatory: !!o.isMandatory,
       recurring: o.recurring !== false && !o.isExam && !o.isPenaltyQuest && !o.isBonus && !o.dungeon && !o.isRedemption,
       isPenaltyQuest: !!o.isPenaltyQuest, isExam: !!o.isExam, isBonus: !!o.isBonus, isRedemption: !!o.isRedemption,
-      isOptionalBonus: !!o.isOptionalBonus,
       dungeon: o.dungeon || null, preset: o.preset || null, dScalar: o.dScalar || null,
       expiresAt: o.expiresAt || null, createdAt: Date.now(), completedAt: null
     };
@@ -329,29 +324,29 @@ window.SYS = window.SYS || {};
     S.installPreset();
   }
 
-  // Auto-migration: ensure existing players have the optional 10,000 steps quest
-  (function ensureStepsQuest() {
+  // Cleanup any lingering Apple Health and steps counter artifacts from previous migration
+  (function cleanupStepsAndAppleHealth() {
     var s = S.state;
-    if (s && s.quests && s.quests.length > 0 && !s.quests.some(function (q) { return q.preset === 'steps10k'; })) {
-      S.addQuest({
-        preset: 'steps10k',
-        title: 'Daily Steps: 10,000 Steps',
-        category: 'RUNNING',
-        primaryStat: 'AGI',
-        target: 10000,
-        unit: 'STEPS',
-        difficulty: 'C',
-        mode: 'COUNTER',
-        isMandatory: false,
-        recurring: true,
-        isOptionalBonus: true
-      }, true);
-    }
-    if (s && !s.appleHealth) {
-      s.appleHealth = { connected: false, lastSync: null, todaySteps: 0, syncHistory: [] };
+    if (s) {
+      var changed = false;
+      if (s.quests && s.quests.length > 0) {
+        var beforeLen = s.quests.length;
+        s.quests = s.quests.filter(function (q) {
+          return q.preset !== 'steps10k' && q.unit !== 'STEPS';
+        });
+        if (s.quests.length !== beforeLen) changed = true;
+      }
+      if (s.appleHealth) {
+        delete s.appleHealth;
+        changed = true;
+      }
+      if (s.records && 'stepsLogged' in s.records) {
+        delete s.records.stepsLogged;
+        changed = true;
+      }
+      if (changed) S.save();
     }
   })();
-
   S.deleteQuest = function (id) { S.state.quests = S.state.quests.filter(function (q) { return q.id !== id || q.isPenaltyQuest || q.isExam; }); S.commit(); };
   S.getQuest = function (id) { return S.state.quests.find(function (q) { return q.id === id; }); };
 
@@ -364,7 +359,6 @@ window.SYS = window.SYS || {};
     if (diff > 0) {
       if (q.unit === 'REPS') S.state.records.repsLogged += diff;
       if (q.unit === 'KM') S.state.records.kmLogged += diff;
-      if (q.unit === 'STEPS') S.state.records.stepsLogged = (S.state.records.stepsLogged || 0) + diff;
     }
     if (q.currentProgress >= q.targetProgress) completeQuest(q);
     S.commit();
@@ -376,7 +370,7 @@ window.SYS = window.SYS || {};
     var s = S.state, p = s.profile, rec = s.records, log = S.dayLog();
     q.isCompleted = true;
     q.completedAt = S.now();
-    var result = { q: q, xp: 0, gold: 0, stat: 0, frozen: false, isBonusQuest: false };
+    var result = { q: q, xp: 0, gold: 0, stat: 0, frozen: false };
 
     if (q.isPenaltyQuest) {
       clearPenalty('SURVIVED');
@@ -387,23 +381,6 @@ window.SYS = window.SYS || {};
       result.frozen = true;
     } else {
       var xp = S.payout(q), gold = S.goldPayout(q), stat = S.DIFF[q.difficulty].stat;
-
-      // Optional Daily 10,000 Steps Bonus Reward
-      if (q.preset === 'steps10k' || q.isOptionalBonus) {
-        var bonusXp = 250;
-        var bonusGold = 150;
-        xp += bonusXp;
-        gold += bonusGold;
-        s.inventory.boxes.BLESSED = (s.inventory.boxes.BLESSED || 0) + 1;
-        p.fatigue = Math.max(0, p.fatigue - 20);
-        result.isBonusQuest = true;
-        result.bonusXp = bonusXp;
-        result.bonusGold = bonusGold;
-        result.bonusBox = 1;
-        S.notify('[OPTIONAL QUEST COMPLETE: BONUS CLAIMED]', '10,000 Daily Steps Cleared! Awarded Blessed Box x1, +' + bonusXp + ' Bonus XP, +' + bonusGold + ' Gold, and -20 Fatigue.', 'gold');
-        if (S.audio) S.audio.dungeonClear();
-      }
-
       q.xpReward = xp; q.goldReward = gold;
       p.gold += gold; rec.goldEarned += gold;
       p.stats[q.primaryStat] += stat;
@@ -583,62 +560,6 @@ window.SYS = window.SYS || {};
     S.checkUnlocks();
     S.commit();
     return true;
-  };
-
-  /* ======================= Apple Health & Wearable Telemetry ======================= */
-  S.syncAppleHealth = function (stepsCount, source) {
-    var s = S.state;
-    var steps = Math.max(0, Math.round(Number(stepsCount) || 0));
-    var src = source || 'HealthKit';
-
-    s.appleHealth = s.appleHealth || { connected: false, lastSync: null, todaySteps: 0, syncHistory: [] };
-    s.appleHealth.connected = true;
-    s.appleHealth.lastSync = S.now();
-    s.appleHealth.todaySteps = steps;
-    s.appleHealth.syncHistory = s.appleHealth.syncHistory || [];
-    s.appleHealth.syncHistory.unshift({
-      at: S.now(),
-      steps: steps,
-      source: src
-    });
-    if (s.appleHealth.syncHistory.length > 25) {
-      s.appleHealth.syncHistory.length = 25;
-    }
-
-    // Apply to any step quests (including the optional 10,000 steps quest)
-    var stepQuests = s.quests.filter(function (q) {
-      return q.unit === 'STEPS' || q.preset === 'steps10k';
-    });
-
-    var questsCompletedCount = 0;
-    stepQuests.forEach(function (q) {
-      if (q.isCompleted) return;
-      var prev = q.currentProgress;
-      if (steps > prev) {
-        var diff = Math.min(steps, q.targetProgress) - prev;
-        if (diff > 0) {
-          S.addProgress(q.id, diff);
-        }
-        if (steps >= q.targetProgress && !q.isCompleted) {
-          questsCompletedCount++;
-        }
-      }
-    });
-
-    s.records.stepsLogged = Math.max(s.records.stepsLogged || 0, steps);
-    S.commit();
-
-    if (questsCompletedCount === 0) {
-      if (S.audio) S.audio.windowOpen();
-      S.notify(
-        '[APPLE HEALTH SYNCED]',
-        U.fmt(steps) + ' steps synchronized from Apple Health (' + src + ').',
-        'cyan'
-      );
-    }
-
-    S.emit('appleHealthSynced', { steps: steps, source: src, questsCount: stepQuests.length });
-    return { steps: steps, questsCount: stepQuests.length };
   };
 
   /* ======================= Dungeon Gates (Focus) ======================= */

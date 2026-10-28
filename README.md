@@ -16,13 +16,11 @@ A dark-futuristic, tactical manhwa-styled web application modeled directly after
    - Dynamic 5-axis SVG Radar Chart tracking `STR`, `AGI`, `VIT`, `INT`, and `PER`.
    - `+5 AP` awarded per level up for custom attribute allocation.
 
-2. **Daily Quests, Apple Health Integration & Fast 1-Tap Logging:**
-   - Canonical System Preset: Push-ups, Sit-ups, Squats, 10 km Run, and **Optional Daily 10,000 Steps Quest**.
-   - **Apple Health (HealthKit) Integration:** Direct connection via 1-tap iOS Shortcuts automation (`?apple_health_steps=X`), client-side `export.xml` parser, and quick step synchronizer.
-   - **Optional 10,000 Steps Bonus:** An optional daily quest — clearing 10,000 steps grants an instant **Blessed Random Box x1**, **+250 Bonus XP**, **+150 Gold**, and **-20 Fatigue recovery**. Missing this quest triggers **zero penalty** at midnight, leaving your streak completely intact.
-   - Fast step & rep log buttons (`+500`, `+1,000`, `+2,500`, `+5,000`, `MAX`) designed for mid-day logging.
+2. **Daily Quests & Fast 1-Tap Logging:**
+   - Canonical System Preset: Push-ups, Sit-ups, Squats, and 10 km Run.
+   - Fast rep log buttons (`+1`, `+5`, `+10`, `+25`, `MAX`) designed for mid-workout logging in under 1.5 seconds.
    - Hold-to-confirm holographic seal interaction for binary habit checks.
-   - Modular Custom Quest Forge (Calisthenics, Gym, Running, Steps, Study, Focus, Habit).
+   - Modular Custom Quest Forge (Calisthenics, Gym, Running, Study, Focus, Habit).
    - Bonus Quest re-roll system (cooldown reduced by your `AGI` stat).
 
 3. **Tactical GPS & Step Run Tracker (OpenStreetMap):**

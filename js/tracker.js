@@ -885,7 +885,7 @@ window.SYS = window.SYS || {};
       if (tracker.linkedQuestId) {
         var quest = S.state.quests.find(function (q) { return q.id === tracker.linkedQuestId; });
         if (quest && !quest.isCompleted) {
-          var added = quest.unit === 'STEPS' ? tracker.totalSteps : Math.round(distanceKm * 100) / 100;
+          var added = Math.round(distanceKm * 100) / 100;
           if (added > 0) {
             if (typeof S.addProgress === 'function') {
               S.addProgress(quest.id, added);
@@ -895,18 +895,6 @@ window.SYS = window.SYS || {};
             }
           }
         }
-      }
-
-      // Also credit steps to any active STEPS quests (e.g. Daily 10,000 steps)
-      if (tracker.totalSteps > 0) {
-        var stepQuests = S.state.quests.filter(function (q) {
-          return (q.unit === 'STEPS' || q.preset === 'steps10k') && !q.isCompleted && q.id !== tracker.linkedQuestId;
-        });
-        stepQuests.forEach(function (sq) {
-          if (typeof S.addProgress === 'function') {
-            S.addProgress(sq.id, tracker.totalSteps);
-          }
-        });
       }
 
       // Fanfare audio

@@ -212,28 +212,6 @@ window.SYS = window.SYS || {};
   // Run watermark suppressor immediately
   initWatermarkSuppressor();
 
-  function checkUrlHealthSync() {
-    try {
-      if (typeof window === 'undefined' || !window.location) return;
-      var params = new URLSearchParams(window.location.search);
-      var raw = params.get('apple_health_steps') || params.get('health_steps') || params.get('steps');
-      if (raw) {
-        var count = parseInt(raw, 10);
-        if (!isNaN(count) && count > 0 && typeof S.syncAppleHealth === 'function') {
-          setTimeout(function () {
-            S.syncAppleHealth(count, 'iOS Shortcut');
-            if (window.history && window.history.replaceState) {
-              var clean = window.location.pathname + window.location.hash;
-              window.history.replaceState({}, document.title, clean);
-            }
-          }, 400);
-        }
-      }
-    } catch (e) {
-      console.warn('[Apple Health] URL sync check error:', e);
-    }
-  }
-
   // Boot on DOM ready
   document.addEventListener('DOMContentLoaded', function () {
     if (S.audio) S.audio.init();
@@ -246,7 +224,6 @@ window.SYS = window.SYS || {};
     setupModalBackdrop();
     initPWA();
     suppressWatermarks();
-    checkUrlHealthSync();
 
     // Solo Leveling Opening Intro Animation
     if (S.intro && typeof S.intro.play === 'function') {
