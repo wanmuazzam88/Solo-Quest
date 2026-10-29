@@ -3062,10 +3062,25 @@ window.SYS = window.SYS || {};
                   '<span class="db-latency-badge testing" style="font-size:10px;">LOCAL ONLY</span>' +
                 '</div>' +
                 '<div style="color:var(--text-secondary); font-size:11px; line-height:1.45; margin-bottom:10px;">' +
-                  'Your hunter progression is saved on this phone. Link a free Supabase cloud database to go online, enable multi-device sync, and compete on the global leaderboard.' +
+                  'Your hunter progression is saved on this phone. Link a free Supabase cloud database via Cloudflare Pages or in Database Setup to go online and compete on the global leaderboard.' +
                 '</div>' +
                 '<button type="button" class="sys-btn primary sm" id="btn-modal-go-online" style="width:100%;">' +
                   I('settings', 14) + ' CONNECT SUPABASE CLOUD (GO ONLINE)' +
+                '</button>' +
+              '</div>') : '') +
+            (S.api && S.api.provider === 'supabase' && S.api.user && String(S.api.user.id).startsWith('local_') ?
+              ('<div style="background:rgba(0,229,255,0.06); border:1px solid rgba(0,229,255,0.35); padding:12px; margin-bottom:14px; clip-path:var(--clip-chamfer-sm);">' +
+                '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">' +
+                  '<div style="color:var(--sys-cyan); font-weight:700; font-size:12px; display:flex; align-items:center; gap:6px;">' +
+                    I('shield', 14) + ' CLOUDFLARE ⚡ SUPABASE LINK ACTIVE' +
+                  '</div>' +
+                  '<span class="db-latency-badge online" style="font-size:10px;">EDGE ONLINE</span>' +
+                '</div>' +
+                '<div style="color:var(--text-secondary); font-size:11px; line-height:1.45; margin-bottom:10px;">' +
+                  'Cloudflare is connected to Supabase! Awaken your hunter account to sync your current progress (' + U.esc(hName) + ', ' + U.fmt(S.combatPower()) + ' CP) directly to PostgreSQL.' +
+                '</div>' +
+                '<button type="button" class="sys-btn primary sm" id="btn-modal-awaken-cloud" style="width:100%;">' +
+                  I('gate', 14) + ' AWAKEN & SYNC TO SUPABASE' +
                 '</button>' +
               '</div>') : '') +
             '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
@@ -3092,6 +3107,7 @@ window.SYS = window.SYS || {};
           '</form>';
         } else if (activeTab === 'REGISTER') {
           var prefillRegName = (S.state && S.state.profile && S.state.profile.hunterName && S.state.profile.hunterName !== 'PLAYER' && !S.state.profile.hunterName.includes('@')) ? S.state.profile.hunterName : ((S.api && S.api.getRememberedHunterName && S.api.getRememberedHunterName()) || '');
+          var prefillRegEmail = (S.api && S.api.user && S.api.user.email) || (S.state && S.state.profile && S.state.profile.email) || '';
           bodyHtml = '<form id="form-auth-register">' +
             networkStatusHtml +
             '<div id="auth-reg-error" style="display:none; color:var(--penalty-crimson); font-size:12px; margin-bottom:12px; padding:8px; background:rgba(255,0,60,0.1); border:1px solid rgba(255,0,60,0.3); clip-path:var(--clip-chamfer-sm);"></div>' +
@@ -3101,7 +3117,7 @@ window.SYS = window.SYS || {};
             '</div>' +
             '<div class="auth-form-group">' +
               '<label class="auth-form-label">ASSOCIATION EMAIL</label>' +
-              '<input type="email" class="sys-input" id="reg-email" required placeholder="e.g., hunter@association.org">' +
+              '<input type="email" class="sys-input" id="reg-email" required value="' + U.esc(prefillRegEmail) + '" placeholder="e.g., hunter@association.org">' +
             '</div>' +
             '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">' +
               '<div class="auth-form-group">' +
@@ -3392,6 +3408,16 @@ window.SYS = window.SYS || {};
         if (btnGoOnline) {
           btnGoOnline.addEventListener('click', function () {
             activeTab = 'DBCONFIG';
+            if (S.audio) S.audio.tap();
+            renderModal();
+          });
+        }
+
+        // Profile tab: Cloudflare Awaken action button
+        var btnAwakenCloud = document.getElementById('btn-modal-awaken-cloud');
+        if (btnAwakenCloud) {
+          btnAwakenCloud.addEventListener('click', function () {
+            activeTab = 'REGISTER';
             if (S.audio) S.audio.tap();
             renderModal();
           });
