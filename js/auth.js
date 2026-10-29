@@ -229,18 +229,31 @@ window.SYS = window.SYS || {};
           // Quests
           if (Array.isArray(remote.quests) && remote.quests.length) {
             S.state.quests = remote.quests.map(function (rq) {
+              var cat = rq.category || 'HABIT';
+              var presetDef = (rq.preset && S.PRESETS && S.PRESETS[rq.preset]) ? S.PRESETS[rq.preset] : null;
+              var diff = rq.difficulty || (presetDef ? presetDef.difficulty : 'E');
+              if (!S.DIFF || !S.DIFF[diff]) diff = 'E';
+              var primStat = rq.primaryStat || rq.primary_stat || (presetDef ? presetDef.primaryStat : (S.CATS && S.CATS[cat] ? S.CATS[cat].stat : 'STR'));
+              var unit = rq.unit || (presetDef ? presetDef.unit : 'REPS');
+              var mode = rq.mode || (presetDef ? presetDef.mode : (unit === 'CHECK' ? 'CHECK' : (unit === 'MINS' ? 'DURATION' : 'COUNTER')));
               return {
                 id: rq.id,
                 title: rq.title,
-                category: rq.category,
-                unit: rq.unit,
-                targetProgress: parseFloat(rq.target_progress || rq.targetProgress || 1),
+                category: cat,
+                difficulty: diff,
+                primaryStat: primStat,
+                unit: unit,
+                mode: mode,
+                targetProgress: parseFloat(rq.target_progress || rq.targetProgress || (presetDef ? presetDef.target : 1)),
                 currentProgress: parseFloat(rq.current_progress || rq.currentProgress || 0),
                 isCompleted: !!(rq.is_completed || rq.isCompleted),
                 preset: rq.preset || null,
                 isPenaltyQuest: !!(rq.is_penalty_quest || rq.isPenaltyQuest),
                 isExam: !!(rq.is_exam || rq.isExam),
                 isBonus: !!(rq.is_bonus || rq.isBonus),
+                isRedemption: !!(rq.is_redemption || rq.isRedemption),
+                isMandatory: rq.is_mandatory !== undefined ? !!rq.is_mandatory : (presetDef && presetDef.isMandatory !== undefined ? !!presetDef.isMandatory : true),
+                recurring: rq.recurring !== false && !rq.is_penalty_quest && !rq.isPenaltyQuest && !rq.is_exam && !rq.isExam && !rq.is_bonus && !rq.isBonus && !rq.is_redemption && !rq.isRedemption,
                 createdDate: rq.created_date || rq.createdDate || S.today()
               };
             });

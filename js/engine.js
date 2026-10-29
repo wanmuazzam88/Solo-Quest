@@ -90,11 +90,28 @@ window.SYS = window.SYS || {};
     return base;
   }
   function load() {
+    var s;
     try {
       var raw = localStorage.getItem(KEY);
-      if (raw) return merge(defaultState(), JSON.parse(raw));
+      if (raw) s = merge(defaultState(), JSON.parse(raw));
     } catch (e) { console.warn('[SYSTEM] Corrupted save, starting fresh.', e); }
-    return defaultState();
+    if (!s) s = defaultState();
+    if (s && Array.isArray(s.quests)) {
+      s.quests.forEach(function (q) {
+        if (!q.difficulty || !S.DIFF || !S.DIFF[q.difficulty]) {
+          q.difficulty = (q.preset && S.PRESETS && S.PRESETS[q.preset] ? S.PRESETS[q.preset].difficulty : 'E');
+          if (!S.DIFF || !S.DIFF[q.difficulty]) q.difficulty = 'E';
+        }
+        if (!q.primaryStat) {
+          var cat = (S.CATS && S.CATS[q.category]) || (S.CATS && S.CATS.HABIT) || {};
+          q.primaryStat = (q.preset && S.PRESETS && S.PRESETS[q.preset] ? S.PRESETS[q.preset].primaryStat : cat.stat || 'STR');
+        }
+        if (!q.mode) {
+          q.mode = q.unit === 'CHECK' ? 'CHECK' : (q.unit === 'MINS' ? 'DURATION' : 'COUNTER');
+        }
+      });
+    }
+    return s;
   }
   S.state = load();
   S.save = function () { try { localStorage.setItem(KEY, JSON.stringify(S.state)); } catch (e) { /* storage full */ } };
@@ -171,18 +188,31 @@ window.SYS = window.SYS || {};
     if (q.unit === 'MINS' && q.mode === 'DURATION') return U.clamp(q.targetProgress / 30, 0.5, 2.5);
     return 1;
   }
+  function getDiff(q) {
+    var d = q && q.difficulty;
+    if (d && S.DIFF[d]) return S.DIFF[d];
+    return S.DIFF['E'] || { base: 20, gold: 10, stat: 1, fatigue: 15 };
+  }
+
   /** XP_earned = floor((B*D) * (1 + min(.5, .02*S)) * (1 + sum R) * statMult * fatigue) */
   S.payout = function (q) {
-    if (q.isPenaltyQuest || q.isRedemption) return 0;
-    var B = S.DIFF[q.difficulty].base, D = questScalar(q);
+    if (!q || q.isPenaltyQuest || q.isRedemption) return 0;
+    var dObj = getDiff(q);
+    var B = dObj.base, D = questScalar(q);
     return Math.floor(B * D * S.streakMult() * (1 + S.xpBonus(q.category, q.primaryStat)) * S.statMult(q.category) * S.fatigueMult());
   };
-  S.goldPayout = function (q) { return Math.floor(S.DIFF[q.difficulty].gold * (1 + S.buffSum('gold'))); };
+  S.goldPayout = function (q) {
+    if (!q) return 0;
+    var dObj = getDiff(q);
+    return Math.floor(dObj.gold * (1 + S.buffSum('gold')));
+  };
   S.gatePayout = function (def, cat, breached) {
-    if (!def.scalar) return 0;
+    if (!def || !def.scalar) return 0;
     cat = cat || 'FOCUS';
     var stat = S.CATS[cat] ? S.CATS[cat].stat : 'PER';
-    var B = S.DIFF[def.diff].base;
+    var diff = (def.diff && S.DIFF[def.diff]) ? def.diff : 'E';
+    var diffObj = S.DIFF[diff] || S.DIFF['E'] || { base: 20, gold: 10, stat: 1, fatigue: 15 };
+    var B = diffObj.base;
     var xp = B * def.scalar * S.streakMult() * (1 + S.xpBonus('FOCUS', stat) + (cat !== 'FOCUS' ? Math.max(0, S.xpBonus(cat, stat) - S.xpBonus('FOCUS', stat)) : 0)) * S.statMult('FOCUS') * S.fatigueMult();
     xp = Math.min(xp, B * def.scalar * S.streakMult() * 1.25 * S.statMult('FOCUS'));
     if (breached) xp *= 0.5;
@@ -751,12 +781,14 @@ window.SYS = window.SYS || {};
     } else if (S.isFrozen()) {
       result.frozen = true;
     } else {
-      var xp = S.payout(q), gold = S.goldPayout(q), stat = S.DIFF[q.difficulty].stat;
+      var dObj = getDiff(q);
+      var xp = S.payout(q), gold = S.goldPayout(q), stat = dObj.stat || 1;
       q.xpReward = xp; q.goldReward = gold;
       p.gold += gold; rec.goldEarned += gold;
-      p.stats[q.primaryStat] += stat;
+      var pStat = q.primaryStat || 'STR';
+      p.stats[pStat] = (p.stats[pStat] || 10) + stat;
       if (S.CATS[q.category] && S.CATS[q.category].physical) {
-        var fat = S.DIFF[q.difficulty].fatigue * (1 - Math.min(0.5, p.stats.VIT * 0.004)) * Math.max(0, 1 - S.buffSum('fatigue'));
+        var fat = (dObj.fatigue || 15) * (1 - Math.min(0.5, p.stats.VIT * 0.004)) * Math.max(0, 1 - S.buffSum('fatigue'));
         p.fatigue = U.clamp(p.fatigue + fat, 0, 100);
       }
       if (log.capQuests < 6) { log.hrsXp += xp; log.capQuests++; }

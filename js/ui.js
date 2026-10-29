@@ -175,7 +175,17 @@ window.SYS = window.SYS || {};
         console.error('[VIEW RENDER ERROR]', err);
         container.innerHTML = '<div class="system-panel text-center" style="max-width:540px; margin:20px auto;"><div class="text-danger font-bold" style="font-size:14px; margin-bottom:8px;">[SYSTEM TELEMETRY RECOVERY]</div><p style="color:var(--text-secondary); font-size:12px; margin-bottom:12px;">' + U.esc(err.message) + '</p><button class="sys-btn primary" id="btn-err-recover">RECOVER COMMAND CENTER</button></div>';
         var btnRec = container.querySelector('#btn-err-recover');
-        if (btnRec) btnRec.addEventListener('click', function () { UI.setView('quests'); });
+        if (btnRec) btnRec.addEventListener('click', function () {
+          if (window.SYS && S && S.state && Array.isArray(S.state.quests)) {
+            S.state.quests.forEach(function (q) {
+              if (!q.difficulty || !S.DIFF[q.difficulty]) q.difficulty = 'E';
+              if (!q.primaryStat) q.primaryStat = 'STR';
+              if (!q.mode) q.mode = q.unit === 'CHECK' ? 'CHECK' : (q.unit === 'MINS' ? 'DURATION' : 'COUNTER');
+            });
+            S.save();
+          }
+          UI.setView('quests');
+        });
       }
     },
 
@@ -598,7 +608,7 @@ window.SYS = window.SYS || {};
         '</div>' +
         '<div class="quest-meta-row" style="margin-bottom:4px;">' +
           '<span class="text-accent font-bold">TARGET: ' + targetText + '</span>' +
-          '<span>+' + xpPay + ' XP // +' + goldPay + ' G // [' + dummyQ.primaryStat + ' +' + S.DIFF[dummyQ.difficulty].stat + ']</span>' +
+          '<span>+' + xpPay + ' XP // +' + goldPay + ' G // [' + (dummyQ.primaryStat || 'STR') + ' +' + (S.DIFF[dummyQ.difficulty] ? S.DIFF[dummyQ.difficulty].stat : 1) + ']</span>' +
         '</div>' +
         '<div class="planned-schedule-row font-mono">' +
           '<span>' + I('calendar', 11) + ' SCHEDULE: ' + schedLabel + '</span>' +
@@ -665,7 +675,7 @@ window.SYS = window.SYS || {};
           '<div style="display:flex; align-items:center; gap:5px; flex-shrink:0;">' +
             (schedBadge ? '<span class="quest-sched-pill">' + schedBadge + '</span>' : '') +
             (q.isMandatory ? '<span class="quest-badge mand-badge">MANDATORY</span>' : '') +
-            '<span class="quest-badge">' + q.difficulty + '-RANK</span>' +
+            '<span class="quest-badge">' + (q.difficulty || 'E') + '-RANK</span>' +
             (canManage && !q.isBonus && !q.isRedemption && !q.dungeon ? '<button type="button" class="sys-btn sm btn-edit-quest" data-quest-id="' + q.id + '" title="Edit quest & schedule">' + I('edit', 12) + '</button>' : '') +
             (canManage ? '<button type="button" class="sys-btn sm danger btn-delete-quest" data-quest-id="' + q.id + '" title="Delete quest">' + I('trash', 12) + '</button>' : '') +
           '</div>' +
@@ -673,7 +683,7 @@ window.SYS = window.SYS || {};
 
         '<div class="quest-meta-row">' +
           '<span>PROGRESS: ' + q.currentProgress + ' / ' + q.targetProgress + ' ' + (q.unit !== 'CHECK' ? S.UNITS[q.unit] || '' : '') + '</span>' +
-          '<span>+' + xpPay + ' XP // +' + goldPay + ' G // [' + q.primaryStat + ' +' + S.DIFF[q.difficulty].stat + ']</span>' +
+          '<span>+' + xpPay + ' XP // +' + goldPay + ' G // [' + (q.primaryStat || 'STR') + ' +' + (S.DIFF[q.difficulty] ? S.DIFF[q.difficulty].stat : 1) + ']</span>' +
         '</div>' +
 
         '<div class="progress-bar-wrap" style="margin-bottom:8px;"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
