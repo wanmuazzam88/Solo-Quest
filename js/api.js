@@ -1294,6 +1294,134 @@ window.SYS = window.SYS || {};
       }
 
       return null;
+    },
+
+    // ==========================================================================
+    // System Memory Purge: Reset Remote Cloud Database to Baseline
+    // ==========================================================================
+    purgeRemoteData: async function (freshState) {
+      if (!api.user || !api.token) return;
+
+      if (api.provider === 'supabase') {
+        var url = cleanUrl(api.supabaseUrl);
+        var key = cleanKey(api.supabaseAnonKey);
+        var headers = {
+          'apikey': key,
+          'Authorization': 'Bearer ' + api.token
+        };
+
+        try {
+          // 1. Delete all quests from remote database
+          await fetch(url + '/rest/v1/hunter_quests?user_id=eq.' + api.user.id, {
+            method: 'DELETE',
+            headers: headers
+          });
+
+          // 2. Delete all running logs
+          await fetch(url + '/rest/v1/hunter_runs?user_id=eq.' + api.user.id, {
+            method: 'DELETE',
+            headers: headers
+          });
+
+          // 3. Delete all daily verification logs
+          await fetch(url + '/rest/v1/hunter_logs?user_id=eq.' + api.user.id, {
+            method: 'DELETE',
+            headers: headers
+          });
+
+          // 4. Overwrite profile with baseline Level 1 stats
+          var baselineProfile = {
+            id: api.user.id,
+            hunter_name: (freshState.profile && freshState.profile.hunterName) || api.user.hunterName || 'Hunter',
+            email: api.user.email,
+            level: 1,
+            current_xp: 0,
+            ap: 0,
+            str: 10,
+            agi: 10,
+            vit: 10,
+            int: 10,
+            per: 10,
+            gold: 100,
+            essence: 0,
+            rank_tier_index: 0,
+            rank_code: 'E-IV',
+            streak_days: 0,
+            max_streak: 0,
+            hrs_score: 0,
+            combat_power: 120,
+            total_focus_minutes: 0,
+            total_km_run: 0.00,
+            penalty_mode: 'OPTIONAL',
+            in_penalty_zone: false,
+            active_title: 't_weakest',
+            active_skin_id: 'skin_classic',
+            active_border_id: 'br_e',
+            active_shadow_id: '',
+            equipped_relic_ids: [null, null],
+            updated_at: new Date().toISOString()
+          };
+
+          headers['Prefer'] = 'resolution=merge-duplicates';
+          headers['Content-Type'] = 'application/json';
+          await fetch(url + '/rest/v1/hunter_profiles?on_conflict=id', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(baselineProfile)
+          });
+
+          // 5. Overwrite inventory with baseline empty vault
+          var baselineInv = {
+            user_id: api.user.id,
+            owned_items: (freshState.inventory && freshState.inventory.owned) || {},
+            boxes: (freshState.inventory && freshState.inventory.boxes) || { BLESSED: 1, CURSED: 0 },
+            unlocked_skins: freshState.unlockedSkins || ['skin_classic'],
+            unlocked_titles: freshState.unlockedTitles || ['t_weakest'],
+            unlocked_borders: freshState.unlockedBorders || ['br_e'],
+            shadows: (freshState.inventory && freshState.inventory.shadows) || {},
+            updated_at: new Date().toISOString()
+          };
+
+          await fetch(url + '/rest/v1/hunter_inventory?on_conflict=user_id', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(baselineInv)
+          });
+
+          // 6. Push fresh canonical quests into remote database
+          var dbQuests = (freshState.quests || []).map(function (q) {
+            return {
+              id: q.id,
+              user_id: api.user.id,
+              title: q.title,
+              category: q.category,
+              unit: q.unit,
+              target_progress: q.targetProgress,
+              current_progress: 0,
+              is_completed: false,
+              preset: q.preset || null,
+              is_penalty_quest: false,
+              is_exam: false,
+              is_bonus: false,
+              created_date: q.createdDate || S.today(),
+              updated_at: new Date().toISOString()
+            };
+          });
+
+          if (dbQuests.length) {
+            await fetch(url + '/rest/v1/hunter_quests?on_conflict=user_id,id', {
+              method: 'POST',
+              headers: headers,
+              body: JSON.stringify(dbQuests)
+            });
+          }
+
+          api.notifyLiveChange();
+          console.log('[SYSTEM PURGE] Remote cloud database reset to Level 1.');
+        } catch (e) {
+          console.warn('[SYSTEM PURGE ERROR]', e);
+        }
+      }
     }
   };
 

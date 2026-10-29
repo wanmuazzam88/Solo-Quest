@@ -171,7 +171,10 @@ window.SYS = window.SYS || {};
       return auth.syncWithCloud(showToast);
     },
 
+    isPurging: false,
+
     syncWithCloud: async function (showToast) {
+      if (auth.isPurging) return;
       if (!S.api || !S.api.user || !S.api.token) return;
       if (S.api.provider === 'local') return;
 

@@ -1970,9 +1970,18 @@ window.SYS = window.SYS || {};
       });
 
       var btnReset = container.querySelector('#btn-reset-data');
-      if (btnReset) btnReset.addEventListener('click', function () {
+      if (btnReset) btnReset.addEventListener('click', async function () {
         if (confirm('[SYSTEM PURGE WARNING] Erase all Hunter progress, records, and Vault items?')) {
-          S.resetAll();
+          btnReset.disabled = true;
+          var origHtml = btnReset.innerHTML;
+          btnReset.innerHTML = '<span class="loading-spinner"></span> PURGING SYSTEM...';
+          try {
+            await S.resetAll();
+          } catch (err) {
+            console.error('[PURGE ERROR]', err);
+            btnReset.disabled = false;
+            btnReset.innerHTML = origHtml;
+          }
         }
       });
 

@@ -117,7 +117,7 @@ window.SYS = window.SYS || {};
   S.state = load();
   S.save = function () { try { localStorage.setItem(KEY, JSON.stringify(S.state)); } catch (e) { /* storage full */ } };
   S.commit = function () { S.save(); S.emit('change'); };
-  S.resetAll = function () { localStorage.removeItem(KEY); S.state = defaultState(); S.commit(); };
+  // S.resetAll defined after S.awaken
   S.exportData = function () { return JSON.stringify(S.state, null, 2); };
   S.importData = function (json) { var o = JSON.parse(json); if (!o || !o.profile) throw new Error('Invalid save file'); S.state = merge(defaultState(), o); S.commit(); };
 
@@ -1372,5 +1372,67 @@ window.SYS = window.SYS || {};
       S.checkUnlocks();
     } catch (e) {}
     S.commit();
+  };
+
+  /* ======================= System Purge ======================= */
+  S.resetAll = async function () {
+    var pName = (S.state && S.state.profile && S.state.profile.hunterName) || 'Hunter';
+    var pEmail = (S.state && S.state.profile && S.state.profile.email) || (S.api && S.api.user && S.api.user.email) || '';
+    var pMode = (S.state && S.state.profile && S.state.profile.penaltyMode) || 'OPTIONAL';
+
+    // 1. Temporarily pause background syncing so it will not pull stale remote data over local reset
+    if (S.auth) {
+      S.auth.isPurging = true;
+    }
+
+    // 2. Wipe tracker run history
+    try {
+      localStorage.removeItem('solo_quest_runs_v1');
+      if (S.tracker) {
+        S.tracker.history = [];
+        S.tracker.activeRun = null;
+      }
+    } catch (e) {}
+
+    // 3. Clear local storage save & re-instantiate clean default state
+    try {
+      localStorage.removeItem(KEY);
+    } catch (e) {}
+    S.state = defaultState();
+
+    // 4. Awaken baseline profile with canonical daily quests & starter vault items
+    S.awaken(pName, pMode, true, pEmail);
+
+    // 5. Purge remote cloud database (deletes remote quests/runs/logs and resets remote profile/inventory)
+    if (S.api && typeof S.api.purgeRemoteData === 'function') {
+      try {
+        await S.api.purgeRemoteData(S.state);
+      } catch (err) {
+        console.warn('[RESET ALL] Remote purge failed:', err);
+      }
+    }
+
+    // 6. Resume auth sync
+    if (S.auth) {
+      S.auth.isPurging = false;
+      if (typeof S.auth.startLiveSync === 'function') {
+        S.auth.startLiveSync();
+      }
+    }
+
+    S.commit();
+
+    // 7. Re-render UI and toast
+    if (S.ui) {
+      if (typeof S.ui.setView === 'function') {
+        S.ui.setView('quests');
+      }
+      if (typeof S.ui.showToast === 'function') {
+        S.ui.showToast('[SYSTEM MEMORY PURGED]', 'All progress and Vault items reset to Level 1.', 'gold');
+      }
+      if (typeof S.ui.render === 'function') {
+        S.ui.render();
+      }
+    }
   };
 })(window.SYS);
