@@ -24,12 +24,21 @@ window.SYS = window.SYS || {};
       // 1. Initial status
       auth.updateStatus();
 
-      // 2. Auto-sync on any state mutation
+      // 2. Auto-sync on any state mutation (snappy 350ms debounce)
       S.on('change', function () {
         auth.debouncedSync();
       });
 
-      // 3. Auto-sync on run completion
+      // 3. Instant auto-sync on critical progression events (zero delay)
+      S.on('questComplete', function () {
+        auth.syncWithCloud(false);
+      });
+      S.on('dailyComplete', function () {
+        auth.syncWithCloud(false);
+      });
+      S.on('levelUp', function () {
+        auth.syncWithCloud(false);
+      });
       S.on('trackerFinished', function () {
         auth.syncWithCloud(true);
       });
@@ -40,8 +49,14 @@ window.SYS = window.SYS || {};
         if (e && e.user) {
           // Immediately sync down and sync up with smart merge
           auth.handlePostLogin(e.user);
+          if (S.api && S.api.initRealtime) {
+            S.api.initRealtime(e.user.id, function () {
+              auth.syncWithCloud(false);
+            });
+          }
         } else {
           auth.syncStatus = S.api.provider === 'local' ? 'OFFLINE' : 'UNAUTHENTICATED';
+          if (S.api && S.api.stopRealtime) S.api.stopRealtime();
           if (S.ui) S.ui.render();
         }
       });
@@ -49,12 +64,18 @@ window.SYS = window.SYS || {};
       // 5. Initial leaderboard fetch from database
       auth.refreshLeaderboards();
 
-      // 6. Multi-device cloud sync on startup and window/tab focus
+      // 6. Connect live realtime telemetry and poller
       if (S.api && S.api.user && S.api.token) {
         setTimeout(function () {
           auth.syncWithCloud(false);
+          if (S.api.initRealtime) {
+            S.api.initRealtime(S.api.user.id, function () {
+              auth.syncWithCloud(false);
+            });
+          }
         }, 350);
       }
+      auth.startLiveSync();
 
       if (typeof document !== 'undefined') {
         document.addEventListener('visibilitychange', function () {
@@ -67,6 +88,11 @@ window.SYS = window.SYS || {};
         window.addEventListener('focus', function () {
           if (S.api && S.api.user && S.api.token) {
             auth.syncWithCloud(false);
+          }
+        });
+        window.addEventListener('pagehide', function () {
+          if (S.api && S.api.user && S.api.token) {
+            auth.triggerSync(false);
           }
         });
       }
@@ -125,7 +151,20 @@ window.SYS = window.SYS || {};
       clearTimeout(syncTimeout);
       syncTimeout = setTimeout(function () {
         auth.triggerSync(false);
-      }, 1800);
+      }, 350);
+    },
+
+    livePollTimer: null,
+    startLiveSync: function () {
+      if (auth.livePollTimer) clearInterval(auth.livePollTimer);
+      auth.livePollTimer = setInterval(function () {
+        if (!S.api || !S.api.user || !S.api.token || S.api.provider === 'local') return;
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          if (auth.syncStatus !== 'SYNCING') {
+            auth.syncWithCloud(false);
+          }
+        }
+      }, 3000);
     },
 
     triggerSync: async function (showToast) {
@@ -268,17 +307,39 @@ window.SYS = window.SYS || {};
               }
             });
 
-            // Update existing local quests from remote
+            // Update existing local quests from remote with multi-device resolution
             localQuests.forEach(function (lq) {
-              var rq = remoteById[lq.id] ||
-                       (lq.preset ? remoteByPreset[lq.preset] : null) ||
-                       remoteByTitle[(lq.title || '').trim().toLowerCase()];
+              var candByPreset = lq.preset ? remoteByPreset[lq.preset] : null;
+              var candByTitle = lq.title ? remoteByTitle[lq.title.trim().toLowerCase()] : null;
+              var candById = remoteById[lq.id];
+
+              var candidates = [candByPreset, candByTitle, candById].filter(Boolean);
+              var rq = null;
+              if (candidates.length) {
+                rq = candidates[0];
+                for (var ci = 1; ci < candidates.length; ci++) {
+                  var c = candidates[ci];
+                  var cComp = !!(c.is_completed === true || c.is_completed === 1 || c.is_completed === 'true' || c.isCompleted || (c.target_progress > 0 && c.current_progress >= c.target_progress));
+                  var rqComp = !!(rq.is_completed === true || rq.is_completed === 1 || rq.is_completed === 'true' || rq.isCompleted || (rq.target_progress > 0 && rq.current_progress >= rq.target_progress));
+                  if (cComp && !rqComp) {
+                    rq = c;
+                  } else if (!rqComp && (parseFloat(c.current_progress || 0) > parseFloat(rq.current_progress || 0))) {
+                    rq = c;
+                  }
+                }
+              }
 
               if (rq) {
                 var rComp = !!(rq.is_completed === true || rq.is_completed === 1 || rq.is_completed === 'true' || rq.isCompleted === true || rq.isCompleted === 1);
                 var rProg = parseFloat(rq.current_progress != null ? rq.current_progress : (rq.currentProgress != null ? rq.currentProgress : 0));
                 var rTarget = parseFloat(rq.target_progress != null ? rq.target_progress : (rq.targetProgress != null ? rq.targetProgress : lq.targetProgress));
                 if (rTarget > 0 && rProg >= rTarget) rComp = true;
+
+                // Unify quest IDs so both devices operate on the identical database record
+                if (rq.id && lq.id !== rq.id) {
+                  lq.id = rq.id;
+                  needsSave = true;
+                }
 
                 if (rComp) {
                   if (!lq.isCompleted || lq.currentProgress < lq.targetProgress) {
@@ -437,6 +498,12 @@ window.SYS = window.SYS || {};
 
         // Perform smart bidirectional synchronization
         await auth.syncWithCloud(true);
+
+        if (S.api && S.api.initRealtime && user && user.id) {
+          S.api.initRealtime(user.id, function () {
+            auth.syncWithCloud(false);
+          });
+        }
 
         if (S.api && S.api.user) {
           try { localStorage.setItem('solo_quest_auth_user_v1', JSON.stringify(S.api.user)); } catch (e) {}

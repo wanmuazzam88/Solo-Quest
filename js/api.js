@@ -357,7 +357,123 @@ window.SYS = window.SYS || {};
     },
 
     clearSession: function () {
+      api.stopRealtime();
       api.setSession(null, null);
+    },
+
+    // ==========================================================================
+    // Realtime Live Telemetry & Device Sync Pipe (WebSocket / Broadcast)
+    // ==========================================================================
+    ws: null,
+    wsHeartbeat: null,
+    onRealtimeChange: null,
+
+    initRealtime: function (userId, onRemoteUpdate) {
+      if (api.provider !== 'supabase' || !userId || !api.supabaseUrl || !api.supabaseAnonKey) return;
+      if (typeof WebSocket === 'undefined') return;
+
+      api.stopRealtime();
+      if (typeof onRemoteUpdate === 'function') {
+        api.onRealtimeChange = onRemoteUpdate;
+      }
+
+      var wsUrl = cleanUrl(api.supabaseUrl).replace(/^http/i, 'ws') + '/realtime/v1/websocket?apikey=' + encodeURIComponent(cleanKey(api.supabaseAnonKey)) + '&vsn=1.0.0';
+
+      try {
+        var ws = new WebSocket(wsUrl);
+        api.ws = ws;
+
+        ws.onopen = function () {
+          console.log('[SYSTEM REALTIME] Connected to Supabase live telemetry pipeline.');
+          var userTopic = 'realtime:hunter:' + userId;
+
+          // 1. Join user-specific broadcast channel for instant device-to-device alerts
+          ws.send(JSON.stringify({
+            topic: userTopic,
+            event: 'phx_join',
+            payload: { config: { broadcast: { self: false } } },
+            ref: 'join_user'
+          }));
+
+          // 2. Join Postgres changes channel for hunter_quests
+          ws.send(JSON.stringify({
+            topic: 'realtime:public:hunter_quests',
+            event: 'phx_join',
+            payload: {
+              config: {
+                postgres_changes: [
+                  { event: '*', schema: 'public', table: 'hunter_quests', filter: 'user_id=eq.' + userId }
+                ]
+              }
+            },
+            ref: 'join_quests'
+          }));
+
+          // 3. Heartbeat every 25 seconds
+          if (api.wsHeartbeat) clearInterval(api.wsHeartbeat);
+          api.wsHeartbeat = setInterval(function () {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: 'hb' }));
+            }
+          }, 25000);
+        };
+
+        ws.onmessage = function (event) {
+          try {
+            var msg = JSON.parse(event.data);
+            if (!msg) return;
+
+            // Handle incoming live changes
+            if (msg.event === 'postgres_changes' || msg.event === 'SYNC_NOW' || (msg.payload && (msg.payload.event === 'SYNC_NOW' || msg.payload.data))) {
+              console.log('[SYSTEM REALTIME] Live change detected from remote device:', msg.event);
+              if (typeof api.onRealtimeChange === 'function') {
+                api.onRealtimeChange();
+              }
+            }
+          } catch (err) {}
+        };
+
+        ws.onerror = function (e) {
+          console.warn('[SYSTEM REALTIME] WebSocket notice:', e);
+        };
+
+        ws.onclose = function () {
+          if (api.wsHeartbeat) clearInterval(api.wsHeartbeat);
+          api.wsHeartbeat = null;
+          api.ws = null;
+          // Reconnect after 4s if still authenticated
+          if (api.user && api.token) {
+            setTimeout(function () {
+              if (api.user && !api.ws) api.initRealtime(api.user.id, api.onRealtimeChange);
+            }, 4000);
+          }
+        };
+      } catch (e) {
+        console.warn('[SYSTEM REALTIME INIT FAILED]', e);
+      }
+    },
+
+    stopRealtime: function () {
+      if (api.wsHeartbeat) {
+        clearInterval(api.wsHeartbeat);
+        api.wsHeartbeat = null;
+      }
+      if (api.ws) {
+        try { api.ws.close(); } catch (e) {}
+        api.ws = null;
+      }
+    },
+
+    notifyLiveChange: function () {
+      if (api.ws && api.ws.readyState === WebSocket.OPEN && api.user) {
+        var userTopic = 'realtime:hunter:' + api.user.id;
+        api.ws.send(JSON.stringify({
+          topic: userTopic,
+          event: 'broadcast',
+          payload: { type: 'broadcast', event: 'SYNC_NOW', timestamp: Date.now() },
+          ref: 'bcast_' + Date.now()
+        }));
+      }
     },
 
     // ==========================================================================
@@ -1070,6 +1186,7 @@ window.SYS = window.SYS || {};
             res.text().then(function (t) { console.warn('[SYNC UP API REJECTED]', res.status, t); });
           }
         });
+        api.notifyLiveChange();
         return { success: true, timestamp: new Date().toISOString() };
 
       } else if (api.provider === 'custom') {
