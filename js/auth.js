@@ -31,14 +31,14 @@ window.SYS = window.SYS || {};
 
       // 3. Auto-sync on run completion
       S.on('trackerFinished', function () {
-        auth.triggerSync(true);
+        auth.syncWithCloud(true);
       });
 
       // 4. Listen to auth changes
       S.on('authChange', function (e) {
         auth.updateStatus();
         if (e && e.user) {
-          // Immediately sync down and sync up
+          // Immediately sync down and sync up with smart merge
           auth.handlePostLogin(e.user);
         } else {
           auth.syncStatus = S.api.provider === 'local' ? 'OFFLINE' : 'UNAUTHENTICATED';
@@ -48,6 +48,28 @@ window.SYS = window.SYS || {};
 
       // 5. Initial leaderboard fetch from database
       auth.refreshLeaderboards();
+
+      // 6. Multi-device cloud sync on startup and window/tab focus
+      if (S.api && S.api.user && S.api.token) {
+        setTimeout(function () {
+          auth.syncWithCloud(false);
+        }, 350);
+      }
+
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible' && S.api && S.api.user && S.api.token) {
+            auth.syncWithCloud(false);
+          }
+        });
+      }
+      if (typeof window !== 'undefined') {
+        window.addEventListener('focus', function () {
+          if (S.api && S.api.user && S.api.token) {
+            auth.syncWithCloud(false);
+          }
+        });
+      }
     },
 
     updateStatus: function () {
@@ -97,32 +119,235 @@ window.SYS = window.SYS || {};
     },
 
     triggerSync: async function (showToast) {
-      if (!S.api.user || !S.api.token) return;
+      return auth.syncWithCloud(showToast);
+    },
+
+    syncWithCloud: async function (showToast) {
+      if (!S.api || !S.api.user || !S.api.token) return;
+      if (S.api.provider === 'local') return;
 
       auth.syncStatus = 'SYNCING';
       auth.updateTopbarBadge();
 
       try {
-        var runs = S.tracker ? S.tracker.history : [];
-        var res = await S.api.syncUp(S.state, runs);
+        var remote = await S.api.syncDown();
+        var lp = S.state.profile;
+        var needsPush = false;
+        var needsSave = false;
+
+        if (remote && remote.profile) {
+          var rp = remote.profile;
+
+          // 1. Level & XP (Non-destructive: highest progress always wins)
+          var rLvl = Number(rp.level) || 1;
+          var lLvl = Number(lp.level) || 1;
+          var rXp = Number(rp.current_xp != null ? rp.current_xp : 0);
+          var lXp = Number(lp.currentXp != null ? lp.currentXp : 0);
+
+          if (rLvl > lLvl) {
+            lp.level = rLvl;
+            lp.currentXp = rXp;
+            needsSave = true;
+          } else if (lLvl > rLvl) {
+            needsPush = true; // Local device reached higher level, push to cloud!
+          } else {
+            if (rXp > lXp) {
+              lp.currentXp = rXp;
+              needsSave = true;
+            } else if (lXp > rXp) {
+              needsPush = true;
+            }
+          }
+
+          // 2. Unallocated AP
+          var rAp = Number(rp.ap != null ? rp.ap : 0);
+          var lAp = Number(lp.unallocatedAp != null ? lp.unallocatedAp : (lp.ap || 0));
+          if (rLvl > lLvl) {
+            lp.unallocatedAp = rAp;
+            lp.ap = rAp;
+            needsSave = true;
+          } else if (lLvl > rLvl) {
+            needsPush = true;
+          } else if (rAp !== lAp) {
+            lp.unallocatedAp = Math.max(lAp, rAp);
+            lp.ap = lp.unallocatedAp;
+            needsSave = true;
+          }
+
+          // 3. Stats (STR, AGI, VIT, INT, PER)
+          if (!lp.stats) lp.stats = { STR: 10, AGI: 10, VIT: 10, INT: 10, PER: 10 };
+          ['STR', 'AGI', 'VIT', 'INT', 'PER'].forEach(function (stat) {
+            var rVal = Number(rp[stat.toLowerCase()] || 10);
+            var lVal = Number(lp.stats[stat] || 10);
+            if (rVal > lVal) {
+              lp.stats[stat] = rVal;
+              needsSave = true;
+            } else if (lVal > rVal) {
+              needsPush = true;
+            }
+          });
+
+          // 4. Gold & Essence
+          var rGold = Number(rp.gold || 0);
+          var lGold = Number(lp.gold || 0);
+          if (rGold > lGold) { lp.gold = rGold; needsSave = true; }
+          else if (lGold > rGold) { needsPush = true; }
+
+          var rEssence = Number(rp.essence || 0);
+          var lEssence = Number(lp.essenceStones || 0);
+          if (rEssence > lEssence) {
+            lp.essenceStones = rEssence;
+            lp.essence = rEssence;
+            needsSave = true;
+          } else if (lEssence > rEssence) {
+            needsPush = true;
+          }
+
+          // 5. Streaks
+          var rStreak = Number(rp.streak_days || 0);
+          var lStreak = Number(lp.streakDays || 0);
+          if (rStreak > lStreak) { lp.streakDays = rStreak; needsSave = true; }
+          else if (lStreak > rStreak) { needsPush = true; }
+
+          var rMaxStreak = Number(rp.max_streak || 0);
+          var lMaxStreak = Number(lp.maxStreak || 0);
+          if (rMaxStreak > lMaxStreak) { lp.maxStreak = rMaxStreak; needsSave = true; }
+          else if (lMaxStreak > rMaxStreak) { needsPush = true; }
+
+          if (rp.rank_tier_index !== undefined && rp.rank_tier_index > (lp.rankTierIndex || 0)) {
+            lp.rankTierIndex = rp.rank_tier_index;
+            needsSave = true;
+          }
+
+          // 6. Quests Smart Merge (Completed status and highest progress are preserved)
+          if (Array.isArray(remote.quests) && remote.quests.length) {
+            var localQuests = S.state.quests || [];
+            var remoteById = {};
+            var remoteByPreset = {};
+            var remoteByTitle = {};
+
+            remote.quests.forEach(function (rq) {
+              if (rq.id) remoteById[rq.id] = rq;
+              if (rq.preset) remoteByPreset[rq.preset] = rq;
+              if (rq.title) remoteByTitle[rq.title.trim().toLowerCase()] = rq;
+            });
+
+            // Update existing local quests from remote
+            localQuests.forEach(function (lq) {
+              var rq = remoteById[lq.id] ||
+                       (lq.preset ? remoteByPreset[lq.preset] : null) ||
+                       remoteByTitle[(lq.title || '').trim().toLowerCase()];
+
+              if (rq) {
+                var rComp = !!(rq.is_completed || rq.isCompleted);
+                var rProg = parseFloat(rq.current_progress || rq.currentProgress || 0);
+
+                if (rComp && !lq.isCompleted) {
+                  lq.isCompleted = true;
+                  lq.currentProgress = lq.targetProgress;
+                  needsSave = true;
+                } else if (lq.isCompleted && !rComp) {
+                  needsPush = true; // Completed locally on this device, push to cloud!
+                } else if (rProg > lq.currentProgress) {
+                  lq.currentProgress = rProg;
+                  needsSave = true;
+                } else if (lq.currentProgress > rProg) {
+                  needsPush = true;
+                }
+              } else {
+                needsPush = true;
+              }
+            });
+
+            // If remote has quests not yet in local state, add them safely
+            remote.quests.forEach(function (rq) {
+              var existsLocally = localQuests.some(function (lq) {
+                return lq.id === rq.id ||
+                       (rq.preset && lq.preset === rq.preset) ||
+                       (rq.title && lq.title && lq.title.trim().toLowerCase() === rq.title.trim().toLowerCase());
+              });
+
+              if (!existsLocally) {
+                var cat = rq.category || 'HABIT';
+                var presetDef = (rq.preset && S.PRESETS && S.PRESETS[rq.preset]) ? S.PRESETS[rq.preset] : null;
+                var diff = rq.difficulty || (presetDef ? presetDef.difficulty : 'E');
+                if (!S.DIFF || !S.DIFF[diff]) diff = 'E';
+                var primStat = rq.primaryStat || rq.primary_stat || (presetDef ? presetDef.primaryStat : (S.CATS && S.CATS[cat] ? S.CATS[cat].stat : 'STR'));
+                var unit = rq.unit || (presetDef ? presetDef.unit : 'REPS');
+                var mode = rq.mode || (presetDef ? presetDef.mode : (unit === 'CHECK' ? 'CHECK' : (unit === 'MINS' ? 'DURATION' : 'COUNTER')));
+
+                localQuests.push({
+                  id: rq.id,
+                  title: rq.title,
+                  category: cat,
+                  difficulty: diff,
+                  primaryStat: primStat,
+                  unit: unit,
+                  mode: mode,
+                  targetProgress: parseFloat(rq.target_progress || rq.targetProgress || (presetDef ? presetDef.target : 1)),
+                  currentProgress: parseFloat(rq.current_progress || rq.currentProgress || 0),
+                  isCompleted: !!(rq.is_completed || rq.isCompleted),
+                  preset: rq.preset || null,
+                  isPenaltyQuest: !!(rq.is_penalty_quest || rq.isPenaltyQuest),
+                  isExam: !!(rq.is_exam || rq.isExam),
+                  isBonus: !!(rq.is_bonus || rq.isBonus),
+                  isRedemption: !!(rq.is_redemption || rq.isRedemption),
+                  isMandatory: rq.is_mandatory !== undefined ? !!rq.is_mandatory : (presetDef && presetDef.isMandatory !== undefined ? !!presetDef.isMandatory : true),
+                  recurring: rq.recurring !== false && !rq.is_penalty_quest && !rq.isPenaltyQuest && !rq.is_exam && !rq.isExam && !rq.is_bonus && !rq.isBonus && !rq.is_redemption && !rq.isRedemption,
+                  createdDate: rq.created_date || rq.createdDate || S.today()
+                });
+                needsSave = true;
+              }
+            });
+          } else if (S.state.quests && S.state.quests.length) {
+            needsPush = true;
+          }
+
+          // 7. Inventory
+          if (remote.inventory) {
+            var rInv = remote.inventory;
+            var lInv = S.state.inventory || {};
+            if (rInv.boxes && typeof rInv.boxes === 'object') {
+              lInv.boxes = lInv.boxes || { RANDOM: 0, BLESSED: 0, CURSED: 0 };
+              ['RANDOM', 'BLESSED', 'CURSED'].forEach(function (bKey) {
+                var rb = Number(rInv.boxes[bKey] || 0);
+                var lb = Number(lInv.boxes[bKey] || 0);
+                if (rb > lb) { lInv.boxes[bKey] = rb; needsSave = true; }
+                else if (lb > rb) { needsPush = true; }
+              });
+            }
+          }
+
+        } else {
+          // Remote is empty, push local state to initialize remote account
+          needsPush = true;
+        }
+
+        if (needsSave) {
+          S.save();
+          if (S.ui) S.ui.render();
+        }
+
+        if (needsPush) {
+          var runs = S.tracker ? S.tracker.history : [];
+          await S.api.syncUp(S.state, runs);
+        }
 
         auth.syncStatus = 'SYNCED';
         auth.lastSyncTime = new Date();
         auth.updateTopbarBadge();
-
-        if (showToast && S.ui) {
-          S.ui.showToast('[DATABASE SYNC COMPLETE]', 'Points, stats, quests, and telemetry saved to cloud.', 'cyan');
-        }
-
-        // Refresh leaderboards after save
         auth.refreshLeaderboards();
 
+        if (showToast && S.ui) {
+          S.ui.showToast('[SYSTEM SYNCHRONIZED]', 'Data synchronized across devices.', 'cyan');
+        }
+
       } catch (err) {
-        console.warn('[SYNC ERROR]', err);
+        console.warn('[CLOUD SYNC ERROR]', err);
         auth.syncStatus = 'ERROR';
         auth.updateTopbarBadge();
         if (showToast && S.ui) {
-          S.ui.showToast('[DATABASE SYNC ANOMALY]', err.message, 'danger');
+          S.ui.showToast('[SYNC ANOMALY]', err.message, 'danger');
         }
       }
     },
@@ -169,122 +394,12 @@ window.SYS = window.SYS || {};
           S.api.rememberHunterName(user.email, cleanName);
         }
 
-        // If this is a brand new registration, sync local state up first so default DB trigger values don't overwrite the user's chosen hunter name
-        if (user.isNewRegistration) {
-          user.isNewRegistration = false;
-          await auth.triggerSync(false);
+        // Perform smart bidirectional synchronization
+        await auth.syncWithCloud(true);
+
+        if (S.api && S.api.user) {
+          try { localStorage.setItem('solo_quest_auth_user_v1', JSON.stringify(S.api.user)); } catch (e) {}
         }
-
-        // Attempt to sync down remote saved state
-        var remote = await S.api.syncDown();
-        if (remote && remote.profile) {
-          var p = remote.profile;
-          var remoteName = (p.hunter_name || p.hunterName || '').trim();
-          var remoteIsCustom = isValidCustomName(remoteName) && (!emailPrefix || remoteName.toLowerCase() !== emailPrefix);
-          var localIsCustom = isValidCustomName(cleanName) && (!emailPrefix || cleanName.toLowerCase() !== emailPrefix);
-
-          if (remoteIsCustom) {
-            S.state.profile.hunterName = remoteName;
-            user.hunterName = remoteName;
-            if (S.api && S.api.user) S.api.user.hunterName = remoteName;
-            if (S.api && S.api.rememberHunterName) S.api.rememberHunterName(user.email, remoteName);
-          } else if (localIsCustom) {
-            S.state.profile.hunterName = cleanName;
-            user.hunterName = cleanName;
-            if (S.api && S.api.user) S.api.user.hunterName = cleanName;
-            if (S.api && S.api.rememberHunterName) S.api.rememberHunterName(user.email, cleanName);
-            // Remote had a generic/email-prefix name; push the real hunter name up to the database
-            auth.debouncedSync();
-          } else if (isValidCustomName(remoteName)) {
-            S.state.profile.hunterName = remoteName;
-            user.hunterName = remoteName;
-            if (S.api && S.api.user) S.api.user.hunterName = remoteName;
-          } else {
-            S.state.profile.hunterName = cleanName;
-          }
-
-          if (p.level) S.state.profile.level = p.level;
-          if (p.current_xp !== undefined) S.state.profile.currentXp = p.current_xp;
-          if (p.ap !== undefined) {
-            S.state.profile.unallocatedAp = p.ap;
-            S.state.profile.ap = p.ap;
-          }
-          if (!S.state.profile.stats) {
-            S.state.profile.stats = { STR: 10, AGI: 10, VIT: 10, INT: 10, PER: 10 };
-          }
-          if (p.str) { S.state.profile.stats.STR = p.str; S.state.profile.str = p.str; }
-          if (p.agi) { S.state.profile.stats.AGI = p.agi; S.state.profile.agi = p.agi; }
-          if (p.vit) { S.state.profile.stats.VIT = p.vit; S.state.profile.vit = p.vit; }
-          if (p.int) { S.state.profile.stats.INT = p.int; S.state.profile.int = p.int; }
-          if (p.per) { S.state.profile.stats.PER = p.per; S.state.profile.per = p.per; }
-          if (p.gold !== undefined) S.state.profile.gold = p.gold;
-          if (p.essence !== undefined) {
-            S.state.profile.essenceStones = p.essence;
-            S.state.profile.essence = p.essence;
-          }
-          if (p.rank_tier_index !== undefined) S.state.profile.rankTierIndex = p.rank_tier_index;
-          if (p.streak_days !== undefined) S.state.profile.streakDays = p.streak_days;
-          if (p.max_streak !== undefined) S.state.profile.maxStreak = p.max_streak;
-
-          // Quests
-          if (Array.isArray(remote.quests) && remote.quests.length) {
-            S.state.quests = remote.quests.map(function (rq) {
-              var cat = rq.category || 'HABIT';
-              var presetDef = (rq.preset && S.PRESETS && S.PRESETS[rq.preset]) ? S.PRESETS[rq.preset] : null;
-              var diff = rq.difficulty || (presetDef ? presetDef.difficulty : 'E');
-              if (!S.DIFF || !S.DIFF[diff]) diff = 'E';
-              var primStat = rq.primaryStat || rq.primary_stat || (presetDef ? presetDef.primaryStat : (S.CATS && S.CATS[cat] ? S.CATS[cat].stat : 'STR'));
-              var unit = rq.unit || (presetDef ? presetDef.unit : 'REPS');
-              var mode = rq.mode || (presetDef ? presetDef.mode : (unit === 'CHECK' ? 'CHECK' : (unit === 'MINS' ? 'DURATION' : 'COUNTER')));
-              return {
-                id: rq.id,
-                title: rq.title,
-                category: cat,
-                difficulty: diff,
-                primaryStat: primStat,
-                unit: unit,
-                mode: mode,
-                targetProgress: parseFloat(rq.target_progress || rq.targetProgress || (presetDef ? presetDef.target : 1)),
-                currentProgress: parseFloat(rq.current_progress || rq.currentProgress || 0),
-                isCompleted: !!(rq.is_completed || rq.isCompleted),
-                preset: rq.preset || null,
-                isPenaltyQuest: !!(rq.is_penalty_quest || rq.isPenaltyQuest),
-                isExam: !!(rq.is_exam || rq.isExam),
-                isBonus: !!(rq.is_bonus || rq.isBonus),
-                isRedemption: !!(rq.is_redemption || rq.isRedemption),
-                isMandatory: rq.is_mandatory !== undefined ? !!rq.is_mandatory : (presetDef && presetDef.isMandatory !== undefined ? !!presetDef.isMandatory : true),
-                recurring: rq.recurring !== false && !rq.is_penalty_quest && !rq.isPenaltyQuest && !rq.is_exam && !rq.isExam && !rq.is_bonus && !rq.isBonus && !rq.is_redemption && !rq.isRedemption,
-                createdDate: rq.created_date || rq.createdDate || S.today()
-              };
-            });
-          }
-
-          // Inventory
-          if (remote.inventory) {
-            var inv = remote.inventory;
-            if (inv.owned_items || inv.owned) S.state.inventory.owned = inv.owned_items || inv.owned;
-            if (inv.boxes) S.state.inventory.boxes = inv.boxes;
-            if (inv.unlocked_skins || inv.unlockedSkins) S.state.unlockedSkins = inv.unlocked_skins || inv.unlockedSkins;
-            if (inv.unlocked_titles || inv.unlockedTitles) S.state.unlockedTitles = inv.unlocked_titles || inv.unlockedTitles;
-            if (inv.shadows) S.state.inventory.shadows = inv.shadows;
-          }
-
-          S.save();
-          if (S.api && S.api.user) {
-            try { localStorage.setItem('solo_quest_auth_user_v1', JSON.stringify(S.api.user)); } catch (e) {}
-          }
-          if (S.ui) S.ui.showToast('[SYSTEM HYDRATED]', 'Data retrieved from database for ' + user.hunterName + '.', 'gold');
-        } else {
-          // If remote is empty, sync current local state up to populate their fresh account!
-          await auth.triggerSync(false);
-          if (S.ui) S.ui.showToast('[SYSTEM REGISTERED]', 'Local progress synced to your new database account.', 'cyan');
-        }
-
-        auth.syncStatus = 'SYNCED';
-        auth.lastSyncTime = new Date();
-        auth.updateTopbarBadge();
-        auth.refreshLeaderboards();
-        if (S.ui) S.ui.render();
 
       } catch (err) {
         console.warn('[POST-LOGIN HYDRATION ERROR]', err);

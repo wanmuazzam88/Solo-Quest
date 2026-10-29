@@ -957,7 +957,7 @@ window.SYS = window.SYS || {};
           updated_at: new Date().toISOString()
         };
 
-        var pReq = fetch(url + '/rest/v1/hunter_profiles', {
+        var pReq = fetch(url + '/rest/v1/hunter_profiles?on_conflict=id', {
           method: 'POST',
           headers: headers,
           body: JSON.stringify(dbProfile)
@@ -975,7 +975,7 @@ window.SYS = window.SYS || {};
           updated_at: new Date().toISOString()
         };
 
-        var iReq = fetch(url + '/rest/v1/hunter_inventory', {
+        var iReq = fetch(url + '/rest/v1/hunter_inventory?on_conflict=user_id', {
           method: 'POST',
           headers: headers,
           body: JSON.stringify(dbInv)
@@ -1001,13 +1001,18 @@ window.SYS = window.SYS || {};
           };
         });
 
-        var qReq = dbQuests.length ? fetch(url + '/rest/v1/hunter_quests', {
+        var qReq = dbQuests.length ? fetch(url + '/rest/v1/hunter_quests?on_conflict=user_id,id', {
           method: 'POST',
           headers: headers,
           body: JSON.stringify(dbQuests)
-        }) : Promise.resolve();
+        }) : Promise.resolve({ ok: true });
 
-        await Promise.all([pReq, iReq, qReq]);
+        var results = await Promise.all([pReq, iReq, qReq]);
+        results.forEach(function (res) {
+          if (res && !res.ok) {
+            res.text().then(function (t) { console.warn('[SYNC UP API REJECTED]', res.status, t); });
+          }
+        });
         return { success: true, timestamp: new Date().toISOString() };
 
       } else if (api.provider === 'custom') {

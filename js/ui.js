@@ -3094,7 +3094,7 @@ window.SYS = window.SYS || {};
                 '</button>' +
               '</div>') : '') +
             '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
-              '<button class="sys-btn primary" id="btn-modal-sync-now" style="flex:1;">' + I('download', 14) + ' FORCE CLOUD SYNC</button>' +
+              '<button class="sys-btn primary" id="btn-modal-sync-now" style="flex:1;">' + I('download', 14) + ' SYNC NOW (CLOUD DATABASE)</button>' +
               '<button class="sys-btn danger" id="btn-modal-logout" style="flex:1;">' + I('close', 14) + ' DISCONNECT (LOGOUT)</button>' +
             '</div>' +
           '</div>';
