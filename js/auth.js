@@ -52,7 +52,9 @@ window.SYS = window.SYS || {};
 
     updateStatus: function () {
       if (!S.api.user) {
-        auth.syncStatus = S.api.provider === 'local' ? 'OFFLINE' : 'UNAUTHENTICATED';
+        auth.syncStatus = S.api.provider === 'local' ? 'LOCAL' : 'UNAUTHENTICATED';
+      } else if (S.api.provider === 'local') {
+        auth.syncStatus = 'LOCAL';
       } else if (auth.syncStatus !== 'SYNCING') {
         auth.syncStatus = S.api.isConnected ? 'SYNCED' : 'OFFLINE';
       }

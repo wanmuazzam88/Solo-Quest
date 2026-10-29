@@ -53,20 +53,33 @@ Supabase gives you a 100% free hosted PostgreSQL database with built-in authenti
 3. Copy the following two credentials:
    - **Project URL** (e.g., `https://abcdefghijkl.supabase.co`)
    - **Project API Keys** -> `anon` / `public` (starts with `eyJ...`)
+4. In Supabase &rarr; **Authentication** &rarr; **Providers** &rarr; **Email**, toggle **OFF** "Confirm email" for instant login without email verification links.
 
-### Step 4: Zero-Config Cloudflare Pages Integration
-Supabase is integrated directly into **Cloudflare Pages Environment Variables**:
+### Step 4: Connect to Solo Quest (Choose A or B)
+
+#### Method 1: Direct In-App Setup (Works Anywhere — Phone, PC, GitHub Pages)
+1. Open Solo Quest on your device.
+2. Tap **SYSTEM LINK** in the top navigation bar (or go to **CONFIG** &rarr; **CONFIGURE DATABASE**).
+3. Switch to the **DATABASE SETUP** tab.
+4. Select **Supabase Cloud (PostgreSQL REST API)**.
+5. Paste your **Supabase Project URL** and **Anon Public Key**.
+6. Tap **TEST PING** to verify the connection.
+7. Tap **SAVE & CONNECT**.
+8. Switch to **AWAKENING (REGISTER)** to awaken your cloud hunter account!
+
+#### Method 2: Zero-Config Cloudflare Pages / Workers Integration
+If your project is hosted on Cloudflare Pages:
 1. In Cloudflare Pages Dashboard &rarr; Your Project &rarr; **Settings** &rarr; **Environment variables**.
 2. Add:
    - `SUPABASE_URL` = Your Supabase Project URL (`https://xyz.supabase.co`)
    - `SUPABASE_ANON_KEY` = Your Supabase `anon` `public` key (`eyJ...`)
 3. Deploy or Redeploy.
-4. **Result:** When players open the app on `https://your-project.pages.dev`, Cloudflare Pages Edge Functions automatically configure Supabase. Players only click **AWAKENING** or **LOGIN** — zero manual keys required in the app!
+4. **Result:** When players open the app on `https://your-project.pages.dev`, Cloudflare Edge Functions automatically configure Supabase. Players only click **AWAKENING** or **LOGIN** — zero manual keys required in the app!
 
 ### Step 5: Awaken Your Hunter Account
-1. Open Solo Quest in your browser and click **SYSTEM LINK** in the top navigation bar.
+1. Open Solo Quest and click **SYSTEM LINK** in the top navigation bar.
 2. In the modal, click the **AWAKENING (REGISTER)** tab.
-3. Enter your **Hunter Name** (e.g. `Sung Jin-Woo`), **Email**, and **Passcode** (minimum 6 characters).
+3. Enter your **Hunter Name** (e.g. `WANMUAZZAM88`), **Email**, and **Passcode** (minimum 6 characters).
 4. Choose your Accountability Directive:
    - *Standard*: Optional penalty quest with streak recovery.
    - *Hardcore Manhwa*: Mandatory Blood Crimson penalty zone if daily quests are missed by midnight.
