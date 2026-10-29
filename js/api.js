@@ -65,7 +65,8 @@ window.SYS = window.SYS || {};
     var k = String(raw).trim();
     k = k.replace(/^['"]|['"]$/g, '');
     k = k.replace(/^Bearer\s+/i, '');
-    return k.trim();
+    k = k.replace(/\s+/g, '');
+    return k;
   }
 
   var api = S.api = {
@@ -320,6 +321,19 @@ window.SYS = window.SYS || {};
           throw new Error('Supabase Project URL and Anon API Key are required.');
         }
 
+        // Validate key format if it's a JWT
+        if (key.startsWith('eyJ')) {
+          var parts = key.split('.');
+          if (parts.length < 3) {
+            api.isConnected = false;
+            throw new Error('Anon Key is incomplete (only ' + parts.length + '/3 parts). On iPhone, tap the Copy button in Supabase rather than highlighting with your finger.');
+          }
+          if (key.length < 150) {
+            api.isConnected = false;
+            throw new Error('Anon Key is cut off (' + key.length + ' characters, should be ~200+). Please use the copy button in Supabase to copy the full key.');
+          }
+        }
+
         try {
           // Stage 1: Ping Supabase OpenAPI endpoint (/rest/v1/)
           var pingRes = await fetch(url + '/rest/v1/', {
@@ -334,7 +348,13 @@ window.SYS = window.SYS || {};
 
           if (pingRes.status === 401 || pingRes.status === 403) {
             api.isConnected = false;
-            throw new Error('Supabase Project URL reached, but Anon Key was rejected (HTTP ' + pingRes.status + '). Ensure you copied the "anon" "public" key.');
+            var errDetail = '';
+            try {
+              var errJson = await pingRes.json();
+              if (errJson && errJson.message) errDetail = ': ' + errJson.message;
+            } catch (e) {}
+            var projectRef = url.match(/https:\/\/([^.]+)\./) ? url.match(/https:\/\/([^.]+)\./)[1] : '';
+            throw new Error('Supabase Project URL reached, but Anon Key was rejected (HTTP ' + pingRes.status + errDetail + '). Ensure you copied the "anon" "public" key for project ' + projectRef + '.');
           }
 
           if (!pingRes.ok && pingRes.status !== 404) {
