@@ -1894,7 +1894,7 @@ window.SYS = window.SYS || {};
         '</div>' +
 
         // Visuals & Solo Leveling Intro Animation
-        '<div style="margin-bottom:18px;">' +
+        '<div>' +
           '<div class="font-display text-accent" style="font-size:14px; font-weight:700; margin-bottom:8px;">' + I('eye', 16) + ' [SYSTEM AWAKENING CINEMATIC]</div>' +
           '<div class="flex-between" style="padding:12px; background:rgba(0,229,255,0.03); border:1px solid rgba(0,229,255,0.2); clip-path:var(--clip-chamfer-sm); flex-wrap:wrap; gap:10px;">' +
             '<div>' +
@@ -1903,13 +1903,6 @@ window.SYS = window.SYS || {};
             '</div>' +
             '<button class="sys-btn primary" id="btn-replay-intro">' + I('play', 14) + ' REPLAY "ARISE" CINEMATIC</button>' +
           '</div>' +
-        '</div>' +
-
-        // Simulation / Midnight Testing Protocol
-        '<div>' +
-          '<div class="font-display text-gold" style="font-size:14px; font-weight:700; margin-bottom:8px;">TIME ENGINE / MIDNIGHT SIMULATOR</div>' +
-          '<p style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">Advances System time by 24 hours to test midnight evaluation, streak increments, and penalty zone triggers.</p>' +
-          '<button class="sys-btn gold" id="btn-sim-midnight">' + I('clock', 14) + ' SIMULATE 00:00:00 MIDNIGHT ROLLOVER</button>' +
         '</div>' +
       '</div>';
 
@@ -1981,11 +1974,6 @@ window.SYS = window.SYS || {};
         if (confirm('[SYSTEM PURGE WARNING] Erase all Hunter progress, records, and Vault items?')) {
           S.resetAll();
         }
-      });
-
-      var btnSim = container.querySelector('#btn-sim-midnight');
-      if (btnSim) btnSim.addEventListener('click', function () {
-        S.simulateMidnight();
       });
 
       var btnReplay = container.querySelector('#btn-replay-intro');

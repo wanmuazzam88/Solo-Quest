@@ -38,9 +38,9 @@ window.SYS = window.SYS || {};
   S.emit = function (t, p) { (listeners[t] || []).forEach(function (f) { try { f(p); } catch (e) { console.error(e); } }); };
   S.notify = function (title, body, type) { S.emit('notice', { title: title, body: body, type: type || 'info' }); };
 
-  /* ======================= Time (supports debug day offset) ======================= */
-  S.now = function () { return Date.now() + ((S.state && S.state.settings.dayOffset) || 0) * 86400000; };
-  S.nowDate = function () { return new Date(S.now()); };
+  /* ======================= Real-World System Time ======================= */
+  S.now = function () { return Date.now(); };
+  S.nowDate = function () { return new Date(); };
   S.today = function () { return U.dateStr(S.nowDate()); };
   S.msToMidnight = function () { var n = S.nowDate(); var m = new Date(n); m.setHours(24, 0, 0, 0); return m - n; };
 
@@ -96,6 +96,7 @@ window.SYS = window.SYS || {};
       if (raw) s = merge(defaultState(), JSON.parse(raw));
     } catch (e) { console.warn('[SYSTEM] Corrupted save, starting fresh.', e); }
     if (!s) s = defaultState();
+    if (s && s.settings) s.settings.dayOffset = 0;
     if (s && Array.isArray(s.quests)) {
       s.quests.forEach(function (q) {
         if (!q.difficulty || !S.DIFF || !S.DIFF[q.difficulty]) {
@@ -926,11 +927,6 @@ window.SYS = window.SYS || {};
     S.checkUnlocks();
     S.save();
     return true;
-  };
-  S.simulateMidnight = function () {
-    S.state.settings.dayOffset = (S.state.settings.dayOffset || 0) + 1;
-    S.checkRollover();
-    S.commit();
   };
 
   function penaltySoftener() { return 1 - Math.min(0.3, S.state.profile.stats.VIT * 0.003); }
