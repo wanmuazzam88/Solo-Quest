@@ -3,7 +3,7 @@
    Offline-first caching, static shell pre-caching, dynamic tile caching,
    and instant service worker lifecycle management.
    ========================================================================== */
-var CACHE_NAME = 'solo-quest-v3.13';
+var CACHE_NAME = 'solo-quest-v3.15';
 
 var STATIC_ASSETS = [
   './',
@@ -111,11 +111,28 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
-  // 4. Local Static Assets: Cache-First with background revalidation
+  // 4. Code & Stylesheets (.js, .css, ?v=): Network-First with Cache Fallback for instant updates
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.search.indexOf('v=') !== -1) {
+    event.respondWith(
+      fetch(request).then(function (networkResponse) {
+        if (networkResponse && networkResponse.status === 200) {
+          var copy = networkResponse.clone();
+          caches.open(CACHE_NAME).then(function (cache) {
+            cache.put(request, copy);
+          });
+        }
+        return networkResponse;
+      }).catch(function () {
+        return caches.match(request);
+      })
+    );
+    return;
+  }
+
+  // 5. Other Static Assets (Images, Icons, Fonts): Cache-First with background revalidation
   event.respondWith(
     caches.match(request).then(function (cachedResponse) {
       if (cachedResponse) {
-        // Background fetch to refresh cache
         fetch(request).then(function (networkResponse) {
           if (networkResponse && networkResponse.status === 200) {
             caches.open(CACHE_NAME).then(function (cache) {
@@ -126,7 +143,6 @@ self.addEventListener('fetch', function (event) {
         return cachedResponse;
       }
 
-      // If not in cache, fetch from network and store
       return fetch(request).then(function (networkResponse) {
         if (networkResponse && networkResponse.status === 200) {
           var copy = networkResponse.clone();

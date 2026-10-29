@@ -9,6 +9,7 @@ window.SYS = window.SYS || {};
 
   var CONFIG_KEY = 'solo_quest_cloud_config_v1';
   var TOKEN_KEY = 'solo_quest_auth_token_v1';
+  var REFRESH_TOKEN_KEY = 'solo_quest_auth_refresh_v1';
   var USER_KEY = 'solo_quest_auth_user_v1';
   var REGISTRY_KEY = 'solo_quest_hunter_registry_v1';
   var LAST_NAME_KEY = 'solo_quest_last_signup_name';
@@ -184,6 +185,7 @@ window.SYS = window.SYS || {};
 
     init: function () {
       api.token = localStorage.getItem(TOKEN_KEY) || null;
+      api.refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY) || null;
       try {
         var rawUser = localStorage.getItem(USER_KEY);
         if (rawUser) {
@@ -299,7 +301,7 @@ window.SYS = window.SYS || {};
       return api.testConnection();
     },
 
-    setSession: function (token, user) {
+    setSession: function (token, user, refreshToken) {
       api.token = token;
       api.user = user;
       if (token) localStorage.setItem(TOKEN_KEY, token);
@@ -308,7 +310,50 @@ window.SYS = window.SYS || {};
       if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
       else localStorage.removeItem(USER_KEY);
 
+      if (refreshToken) {
+        api.refreshToken = refreshToken;
+        localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      } else if (!token) {
+        api.refreshToken = null;
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
+      }
+
       S.emit('authChange', { user: user, token: token });
+    },
+
+    refreshSession: async function () {
+      var rToken = api.refreshToken || localStorage.getItem(REFRESH_TOKEN_KEY);
+      if (!rToken || api.provider !== 'supabase') return false;
+      var url = cleanUrl(api.supabaseUrl);
+      var key = cleanKey(api.supabaseAnonKey);
+      if (!url || !key) return false;
+
+      try {
+        var res = await fetch(url + '/auth/v1/token?grant_type=refresh_token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': key
+          },
+          body: JSON.stringify({ refresh_token: rToken })
+        });
+        if (res.ok) {
+          var data = await res.json();
+          if (data && data.access_token) {
+            api.token = data.access_token;
+            localStorage.setItem(TOKEN_KEY, data.access_token);
+            if (data.refresh_token) {
+              api.refreshToken = data.refresh_token;
+              localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
+            }
+            console.log('[SYSTEM LINK] Auth session token refreshed successfully.');
+            return true;
+          }
+        }
+      } catch (e) {
+        console.warn('[SUPABASE TOKEN REFRESH ERROR]', e);
+      }
+      return false;
     },
 
     clearSession: function () {
@@ -538,7 +583,7 @@ window.SYS = window.SYS || {};
             });
           } catch (e) {}
 
-          api.setSession(token, user);
+          api.setSession(token, user, json.refresh_token);
         } else {
           // Email confirmation is required by Supabase project settings
           return {
@@ -712,7 +757,7 @@ window.SYS = window.SYS || {};
           hunterName: hunterName
         };
 
-        api.setSession(token, user);
+        api.setSession(token, user, json.refresh_token);
         return { user: user, token: token };
 
       } else if (api.provider === 'custom') {
@@ -1008,6 +1053,18 @@ window.SYS = window.SYS || {};
         }) : Promise.resolve({ ok: true });
 
         var results = await Promise.all([pReq, iReq, qReq]);
+        var has401 = results.some(function (res) { return res && res.status === 401; });
+        if (has401) {
+          var refreshed = await api.refreshSession();
+          if (refreshed) {
+            headers['Authorization'] = 'Bearer ' + api.token;
+            var pReq2 = fetch(url + '/rest/v1/hunter_profiles?on_conflict=id', { method: 'POST', headers: headers, body: JSON.stringify(dbProfile) });
+            var iReq2 = fetch(url + '/rest/v1/hunter_inventory?on_conflict=user_id', { method: 'POST', headers: headers, body: JSON.stringify(dbInv) });
+            var qReq2 = dbQuests.length ? fetch(url + '/rest/v1/hunter_quests?on_conflict=user_id,id', { method: 'POST', headers: headers, body: JSON.stringify(dbQuests) }) : Promise.resolve({ ok: true });
+            results = await Promise.all([pReq2, iReq2, qReq2]);
+          }
+        }
+
         results.forEach(function (res) {
           if (res && !res.ok) {
             res.text().then(function (t) { console.warn('[SYNC UP API REJECTED]', res.status, t); });
@@ -1069,12 +1126,25 @@ window.SYS = window.SYS || {};
           var pData = pRes.ok ? await pRes.json() : null;
           var remoteProfile = pData && pData.length ? pData[0] : null;
 
-          // 2. Fetch Quests
-          var qRes = await fetch(url + '/rest/v1/hunter_quests?user_id=eq.' + api.user.id, {
+          // 2. Fetch Quests (with auto-refresh on 401)
+          var qRes = await fetch(url + '/rest/v1/hunter_quests?user_id=eq.' + api.user.id + '&order=updated_at.desc', {
             method: 'GET',
             headers: headers
           });
+
+          if (qRes.status === 401) {
+            var refreshedQ = await api.refreshSession();
+            if (refreshedQ) {
+              headers['Authorization'] = 'Bearer ' + api.token;
+              qRes = await fetch(url + '/rest/v1/hunter_quests?user_id=eq.' + api.user.id + '&order=updated_at.desc', {
+                method: 'GET',
+                headers: headers
+              });
+            }
+          }
+
           var remoteQuests = qRes.ok ? await qRes.json() : [];
+          var isExpired = (qRes.status === 401);
 
           // 3. Fetch Inventory
           var iRes = await fetch(url + '/rest/v1/hunter_inventory?user_id=eq.' + api.user.id, {
@@ -1087,7 +1157,8 @@ window.SYS = window.SYS || {};
           return {
             profile: remoteProfile,
             quests: remoteQuests,
-            inventory: remoteInv
+            inventory: remoteInv,
+            sessionExpired: isExpired
           };
         } catch (e) {
           console.warn('[SYNC DOWN ERROR]', e);

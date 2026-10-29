@@ -1809,6 +1809,24 @@ body.grace-countdown-active .grace-warning-banner {
   border-color: var(--accent-core);
   color: var(--accent-core);
 }
+.auth-status-btn.expired {
+  border-color: var(--penalty-crimson);
+  color: var(--penalty-crimson);
+  background: rgba(255, 0, 60, 0.1);
+  box-shadow: 0 0 12px rgba(255, 0, 60, 0.35);
+}
+.auth-status-btn.expired::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--penalty-crimson);
+  box-shadow: 0 0 8px var(--penalty-crimson);
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  animation: pulse-aura 1s infinite ease-in-out;
+}
 
 /* Auth Modal Specifics */
 .auth-modal-tabs {

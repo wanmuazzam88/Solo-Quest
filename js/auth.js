@@ -88,6 +88,16 @@ window.SYS = window.SYS || {};
       var label = document.getElementById('top-auth-label');
       if (!btn || !label) return;
 
+      if (auth.syncStatus === 'EXPIRED') {
+        label.textContent = 'RE-LINK';
+        btn.classList.remove('authenticated');
+        btn.classList.remove('unauthenticated');
+        btn.classList.add('expired');
+        btn.title = 'System Link Session Expired — Tap to enter passcode and resume cloud sync';
+        return;
+      }
+      btn.classList.remove('expired');
+
       if (S.api.user) {
         var hName = S.api.user.hunterName;
         var isGeneric = !hName || hName.includes('@') || hName.toUpperCase() === 'PLAYER' || hName.toUpperCase() === 'HUNTER' || /^HUNTER_[0-9A-F]{4,}$/i.test(hName);
@@ -131,6 +141,14 @@ window.SYS = window.SYS || {};
 
       try {
         var remote = await S.api.syncDown();
+        if (remote && remote.sessionExpired) {
+          auth.syncStatus = 'EXPIRED';
+          auth.updateTopbarBadge();
+          if (showToast && S.ui) {
+            S.ui.showToast('[SYSTEM LINK EXPIRED]', 'Your security token expired. Tap your hunter badge to re-enter passcode.', 'danger');
+          }
+          return;
+        }
         var lp = S.state.profile;
         var needsPush = false;
         var needsSave = false;
@@ -228,8 +246,26 @@ window.SYS = window.SYS || {};
 
             remote.quests.forEach(function (rq) {
               if (rq.id) remoteById[rq.id] = rq;
-              if (rq.preset) remoteByPreset[rq.preset] = rq;
-              if (rq.title) remoteByTitle[rq.title.trim().toLowerCase()] = rq;
+              var isComp = !!(rq.is_completed === true || rq.is_completed === 1 || rq.is_completed === 'true' || rq.isCompleted === true || rq.isCompleted === 1);
+              var prog = parseFloat(rq.current_progress != null ? rq.current_progress : (rq.currentProgress != null ? rq.currentProgress : 0));
+              var target = parseFloat(rq.target_progress != null ? rq.target_progress : (rq.targetProgress != null ? rq.targetProgress : 1));
+              if (target > 0 && prog >= target) isComp = true;
+
+              if (rq.preset) {
+                var prevP = remoteByPreset[rq.preset];
+                var prevComp = prevP ? !!(prevP.is_completed === true || prevP.is_completed === 1 || prevP.is_completed === 'true' || prevP.isCompleted) : false;
+                if (!prevP || (isComp && !prevComp) || (prog > parseFloat(prevP.current_progress || 0))) {
+                  remoteByPreset[rq.preset] = rq;
+                }
+              }
+              if (rq.title) {
+                var tKey = rq.title.trim().toLowerCase();
+                var prevT = remoteByTitle[tKey];
+                var prevCompT = prevT ? !!(prevT.is_completed === true || prevT.is_completed === 1 || prevT.is_completed === 'true' || prevT.isCompleted) : false;
+                if (!prevT || (isComp && !prevCompT) || (prog > parseFloat(prevT.current_progress || 0))) {
+                  remoteByTitle[tKey] = rq;
+                }
+              }
             });
 
             // Update existing local quests from remote
@@ -239,17 +275,22 @@ window.SYS = window.SYS || {};
                        remoteByTitle[(lq.title || '').trim().toLowerCase()];
 
               if (rq) {
-                var rComp = !!(rq.is_completed || rq.isCompleted);
-                var rProg = parseFloat(rq.current_progress || rq.currentProgress || 0);
+                var rComp = !!(rq.is_completed === true || rq.is_completed === 1 || rq.is_completed === 'true' || rq.isCompleted === true || rq.isCompleted === 1);
+                var rProg = parseFloat(rq.current_progress != null ? rq.current_progress : (rq.currentProgress != null ? rq.currentProgress : 0));
+                var rTarget = parseFloat(rq.target_progress != null ? rq.target_progress : (rq.targetProgress != null ? rq.targetProgress : lq.targetProgress));
+                if (rTarget > 0 && rProg >= rTarget) rComp = true;
 
-                if (rComp && !lq.isCompleted) {
-                  lq.isCompleted = true;
-                  lq.currentProgress = lq.targetProgress;
-                  needsSave = true;
+                if (rComp) {
+                  if (!lq.isCompleted || lq.currentProgress < lq.targetProgress) {
+                    lq.isCompleted = true;
+                    lq.currentProgress = lq.targetProgress;
+                    needsSave = true;
+                  }
                 } else if (lq.isCompleted && !rComp) {
                   needsPush = true; // Completed locally on this device, push to cloud!
                 } else if (rProg > lq.currentProgress) {
                   lq.currentProgress = rProg;
+                  if (lq.currentProgress >= lq.targetProgress) lq.isCompleted = true;
                   needsSave = true;
                 } else if (lq.currentProgress > rProg) {
                   needsPush = true;
@@ -325,8 +366,8 @@ window.SYS = window.SYS || {};
 
         if (needsSave) {
           S.save();
-          if (S.ui) S.ui.render();
         }
+        if (S.ui) S.ui.render();
 
         if (needsPush) {
           var runs = S.tracker ? S.tracker.history : [];

@@ -3004,7 +3004,8 @@ window.SYS = window.SYS || {};
     /* --- Hunter Network & Database Auth Terminal Modal --- */
     showAuthModal: function (initialTab) {
       var isAuth = S.api && !!S.api.user;
-      var activeTab = initialTab || (isAuth ? 'PROFILE' : 'LOGIN');
+      var isExpired = S.auth && S.auth.syncStatus === 'EXPIRED';
+      var activeTab = initialTab || (isExpired ? 'LOGIN' : (isAuth ? 'PROFILE' : 'LOGIN'));
 
       function renderModal() {
         var isConnected = S.api && S.api.isConnected;
@@ -3013,7 +3014,7 @@ window.SYS = window.SYS || {};
 
         var tabsHtml = '<div class="auth-modal-tabs">' +
           (isAuth ? '<button class="auth-tab-btn ' + (activeTab === 'PROFILE' ? 'active' : '') + '" data-tab="PROFILE">' + I('user', 14) + ' HUNTER IDENTITY</button>' : '') +
-          (!isAuth ? '<button class="auth-tab-btn ' + (activeTab === 'LOGIN' ? 'active' : '') + '" data-tab="LOGIN">' + I('gate', 14) + ' SYSTEM LINK (LOGIN)</button>' : '') +
+          (!isAuth || isExpired ? '<button class="auth-tab-btn ' + (activeTab === 'LOGIN' ? 'active' : '') + '" data-tab="LOGIN">' + I('gate', 14) + (isExpired ? ' RE-LINK (PASSCODE)' : ' SYSTEM LINK (LOGIN)') + '</button>' : '') +
           (!isAuth ? '<button class="auth-tab-btn ' + (activeTab === 'REGISTER' ? 'active' : '') + '" data-tab="REGISTER">' + I('shield', 14) + ' AWAKENING (REGISTER)</button>' : '') +
           '<button class="auth-tab-btn ' + (activeTab === 'DBCONFIG' ? 'active' : '') + '" data-tab="DBCONFIG">' + I('settings', 14) + ' DATABASE SETUP</button>' +
         '</div>';
@@ -3093,18 +3094,31 @@ window.SYS = window.SYS || {};
                   I('gate', 14) + ' AWAKEN & SYNC TO SUPABASE' +
                 '</button>' +
               '</div>') : '') +
+            (isExpired ?
+              ('<div style="background:rgba(255,0,60,0.1); border:1px solid rgba(255,0,60,0.4); padding:12px; margin-bottom:14px; clip-path:var(--clip-chamfer-sm);">' +
+                '<div style="color:var(--penalty-crimson); font-weight:700; font-size:12px; display:flex; align-items:center; gap:6px; margin-bottom:4px;">' +
+                  I('alert', 14) + ' SECURITY TOKEN EXPIRED' +
+                '</div>' +
+                '<div style="color:var(--text-secondary); font-size:11px; line-height:1.45; margin-bottom:10px;">' +
+                  'Your session token expired. Enter your passcode to re-authenticate and sync quests seamlessly.' +
+                '</div>' +
+                '<button type="button" class="sys-btn primary sm" id="btn-modal-relogin" style="width:100%;">' +
+                  I('gate', 14) + ' RE-LINK WITH PASSCODE' +
+                '</button>' +
+              '</div>') : '') +
             '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
               '<button class="sys-btn primary" id="btn-modal-sync-now" style="flex:1;">' + I('download', 14) + ' SYNC NOW (CLOUD DATABASE)</button>' +
               '<button class="sys-btn danger" id="btn-modal-logout" style="flex:1;">' + I('close', 14) + ' DISCONNECT (LOGOUT)</button>' +
             '</div>' +
           '</div>';
         } else if (activeTab === 'LOGIN') {
+          var prefillLogin = (S.api && S.api.user && (S.api.user.email || S.api.user.hunterName)) || (S.api && S.api.getRememberedHunterName && S.api.getRememberedHunterName()) || '';
           bodyHtml = '<form id="form-auth-login">' +
             networkStatusHtml +
             '<div id="auth-login-error" style="display:none; color:var(--penalty-crimson); font-size:12px; margin-bottom:12px; padding:8px; background:rgba(255,0,60,0.1); border:1px solid rgba(255,0,60,0.3); clip-path:var(--clip-chamfer-sm);"></div>' +
             '<div class="auth-form-group">' +
               '<label class="auth-form-label">ASSOCIATION IDENTIFIER (EMAIL OR HUNTER NAME)</label>' +
-              '<input type="text" class="sys-input" id="login-identifier" required placeholder="hunter@system.solo or Sung Jin-Woo">' +
+              '<input type="text" class="sys-input" id="login-identifier" required value="' + U.esc(prefillLogin) + '" placeholder="hunter@system.solo or Sung Jin-Woo">' +
             '</div>' +
             '<div class="auth-form-group">' +
               '<label class="auth-form-label">SECURITY PASSCODE</label>' +
@@ -3112,7 +3126,7 @@ window.SYS = window.SYS || {};
             '</div>' +
             '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">' +
               '<button type="button" class="sys-btn sm" id="btn-switch-to-register">AWAKEN NEW HUNTER</button>' +
-              '<button type="submit" class="sys-btn primary lg" id="btn-submit-login">SYSTEM LINK</button>' +
+              '<button type="submit" class="sys-btn primary lg" id="btn-submit-login">' + (isExpired ? 'RE-LINK SESSION' : 'SYSTEM LINK') + '</button>' +
             '</div>' +
           '</form>';
         } else if (activeTab === 'REGISTER') {
@@ -3386,6 +3400,16 @@ window.SYS = window.SYS || {};
               btnSub.disabled = false;
               btnSub.textContent = 'AWAKEN & SAVE PROGRESS';
             }
+          });
+        }
+
+        // Profile tab: Re-link on expired session
+        var btnRelogin = document.getElementById('btn-modal-relogin');
+        if (btnRelogin) {
+          btnRelogin.addEventListener('click', function () {
+            activeTab = 'LOGIN';
+            if (S.audio) S.audio.tap();
+            renderModal();
           });
         }
 
