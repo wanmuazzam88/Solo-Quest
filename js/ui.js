@@ -935,7 +935,7 @@ window.SYS = window.SYS || {};
 
       container.innerHTML = '<div class="system-panel" style="max-width:960px; margin:0 auto;">' +
         '<div class="panel-header">' +
-          '<div class="panel-title">' + I('status', 20) + ' [HUNTER STATUS DOSSIER]</div>' +
+          '<div class="panel-title">' + I('status', 20) + ' [HUNTER STATUS]</div>' +
           '<div class="sys-badge" style="color:' + rank.color + '">' + S.rankLabel(rank) + '</div>' +
         '</div>' +
 
