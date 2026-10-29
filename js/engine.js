@@ -50,6 +50,7 @@ window.SYS = window.SYS || {};
     var today = U.dateStr(new Date());
     return {
       version: 1,
+      purgeEpoch: 0,
       initialized: false,
       profile: {
         id: 'HNT-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
@@ -1379,6 +1380,7 @@ window.SYS = window.SYS || {};
     var pName = (S.state && S.state.profile && S.state.profile.hunterName) || 'Hunter';
     var pEmail = (S.state && S.state.profile && S.state.profile.email) || (S.api && S.api.user && S.api.user.email) || '';
     var pMode = (S.state && S.state.profile && S.state.profile.penaltyMode) || 'OPTIONAL';
+    var purgeEpoch = Date.now();
 
     // 1. Temporarily pause background syncing so it will not pull stale remote data over local reset
     if (S.auth) {
@@ -1399,14 +1401,16 @@ window.SYS = window.SYS || {};
       localStorage.removeItem(KEY);
     } catch (e) {}
     S.state = defaultState();
+    S.state.purgeEpoch = purgeEpoch;
 
     // 4. Awaken baseline profile with canonical daily quests & starter vault items
     S.awaken(pName, pMode, true, pEmail);
+    S.state.purgeEpoch = purgeEpoch;
 
     // 5. Purge remote cloud database (deletes remote quests/runs/logs and resets remote profile/inventory)
     if (S.api && typeof S.api.purgeRemoteData === 'function') {
       try {
-        await S.api.purgeRemoteData(S.state);
+        await S.api.purgeRemoteData(S.state, purgeEpoch);
       } catch (err) {
         console.warn('[RESET ALL] Remote purge failed:', err);
       }

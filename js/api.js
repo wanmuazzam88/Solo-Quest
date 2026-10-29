@@ -1114,7 +1114,7 @@ window.SYS = window.SYS || {};
           active_skin_id: p.activeSkinId || 'default',
           active_border_id: p.activeBorderId || '',
           active_shadow_id: p.activeShadowId || '',
-          equipped_relic_ids: p.equippedRelicIds || [],
+          equipped_relic_ids: (p.equippedRelicIds || []).filter(function (x) { return typeof x === 'string' && x.length > 0; }),
           updated_at: new Date().toISOString()
         };
 
@@ -1125,6 +1125,11 @@ window.SYS = window.SYS || {};
         });
 
         // 2. Upsert Inventory
+        var shadowsPayload = Object.assign({}, (state.inventory && state.inventory.shadows) || {});
+        if (state.purgeEpoch) {
+          shadowsPayload._purge_epoch = state.purgeEpoch;
+        }
+
         var dbInv = {
           user_id: api.user.id,
           owned_items: state.inventory.owned,
@@ -1132,7 +1137,7 @@ window.SYS = window.SYS || {};
           unlocked_skins: state.unlockedSkins,
           unlocked_titles: state.unlockedTitles,
           unlocked_borders: state.unlockedBorders,
-          shadows: state.inventory.shadows,
+          shadows: shadowsPayload,
           updated_at: new Date().toISOString()
         };
 
@@ -1299,7 +1304,7 @@ window.SYS = window.SYS || {};
     // ==========================================================================
     // System Memory Purge: Reset Remote Cloud Database to Baseline
     // ==========================================================================
-    purgeRemoteData: async function (freshState) {
+    purgeRemoteData: async function (freshState, purgeEpoch) {
       if (!api.user || !api.token) return;
 
       if (api.provider === 'supabase') {
@@ -1307,33 +1312,58 @@ window.SYS = window.SYS || {};
         var key = cleanKey(api.supabaseAnonKey);
         var headers = {
           'apikey': key,
-          'Authorization': 'Bearer ' + api.token
+          'Authorization': 'Bearer ' + api.token,
+          'Content-Type': 'application/json'
         };
+
+        var epoch = purgeEpoch || Date.now();
+        var nowIso = new Date().toISOString();
 
         try {
           // 1. Delete all quests from remote database
-          await fetch(url + '/rest/v1/hunter_quests?user_id=eq.' + api.user.id, {
+          var delQuests = await fetch(url + '/rest/v1/hunter_quests?user_id=eq.' + api.user.id, {
             method: 'DELETE',
-            headers: headers
+            headers: {
+              'apikey': key,
+              'Authorization': 'Bearer ' + api.token
+            }
           });
+
+          // Handle possible 401 expired session
+          if (delQuests.status === 401) {
+            var refreshed = await api.refreshSession();
+            if (refreshed) {
+              headers['Authorization'] = 'Bearer ' + api.token;
+              await fetch(url + '/rest/v1/hunter_quests?user_id=eq.' + api.user.id, {
+                method: 'DELETE',
+                headers: {
+                  'apikey': key,
+                  'Authorization': 'Bearer ' + api.token
+                }
+              });
+            }
+          }
 
           // 2. Delete all running logs
           await fetch(url + '/rest/v1/hunter_runs?user_id=eq.' + api.user.id, {
             method: 'DELETE',
-            headers: headers
+            headers: {
+              'apikey': key,
+              'Authorization': 'Bearer ' + api.token
+            }
           });
 
           // 3. Delete all daily verification logs
           await fetch(url + '/rest/v1/hunter_logs?user_id=eq.' + api.user.id, {
             method: 'DELETE',
-            headers: headers
+            headers: {
+              'apikey': key,
+              'Authorization': 'Bearer ' + api.token
+            }
           });
 
-          // 4. Overwrite profile with baseline Level 1 stats
+          // 4. Overwrite profile with baseline Level 1 stats using PATCH (atomic update)
           var baselineProfile = {
-            id: api.user.id,
-            hunter_name: (freshState.profile && freshState.profile.hunterName) || api.user.hunterName || 'Hunter',
-            email: api.user.email,
             level: 1,
             current_xp: 0,
             ap: 0,
@@ -1352,43 +1382,48 @@ window.SYS = window.SYS || {};
             combat_power: 120,
             total_focus_minutes: 0,
             total_km_run: 0.00,
-            penalty_mode: 'OPTIONAL',
+            penalty_mode: (freshState.profile && freshState.profile.penaltyMode) || 'OPTIONAL',
             in_penalty_zone: false,
             active_title: 't_weakest',
-            active_skin_id: 'skin_classic',
-            active_border_id: 'br_e',
+            active_skin_id: 'default',
+            active_border_id: '',
             active_shadow_id: '',
-            equipped_relic_ids: [null, null],
-            updated_at: new Date().toISOString()
+            equipped_relic_ids: [],
+            updated_at: nowIso
           };
 
-          headers['Prefer'] = 'resolution=merge-duplicates';
-          headers['Content-Type'] = 'application/json';
-          await fetch(url + '/rest/v1/hunter_profiles?on_conflict=id', {
-            method: 'POST',
+          var pRes = await fetch(url + '/rest/v1/hunter_profiles?id=eq.' + api.user.id, {
+            method: 'PATCH',
             headers: headers,
             body: JSON.stringify(baselineProfile)
           });
+          if (!pRes.ok) {
+            console.error('[PURGE ERROR: hunter_profiles]', pRes.status, await pRes.text());
+          }
 
-          // 5. Overwrite inventory with baseline empty vault
+          // 5. Overwrite inventory with baseline empty vault & purge epoch marker
           var baselineInv = {
             user_id: api.user.id,
-            owned_items: (freshState.inventory && freshState.inventory.owned) || {},
+            owned_items: (freshState.inventory && freshState.inventory.owned) || { c_pot_low: 1, c_key_subway: 1 },
             boxes: (freshState.inventory && freshState.inventory.boxes) || { BLESSED: 1, CURSED: 0 },
-            unlocked_skins: freshState.unlockedSkins || ['skin_classic'],
-            unlocked_titles: freshState.unlockedTitles || ['t_weakest'],
-            unlocked_borders: freshState.unlockedBorders || ['br_e'],
-            shadows: (freshState.inventory && freshState.inventory.shadows) || {},
-            updated_at: new Date().toISOString()
+            unlocked_skins: ['default'],
+            unlocked_titles: ['t_weakest'],
+            unlocked_borders: [],
+            shadows: { _purge_epoch: epoch },
+            updated_at: nowIso
           };
 
-          await fetch(url + '/rest/v1/hunter_inventory?on_conflict=user_id', {
+          var iHeaders = Object.assign({}, headers, { 'Prefer': 'resolution=merge-duplicates' });
+          var iRes = await fetch(url + '/rest/v1/hunter_inventory?on_conflict=user_id', {
             method: 'POST',
-            headers: headers,
+            headers: iHeaders,
             body: JSON.stringify(baselineInv)
           });
+          if (!iRes.ok) {
+            console.error('[PURGE ERROR: hunter_inventory]', iRes.status, await iRes.text());
+          }
 
-          // 6. Push fresh canonical quests into remote database
+          // 6. Push fresh canonical starter quests into remote database
           var dbQuests = (freshState.quests || []).map(function (q) {
             return {
               id: q.id,
@@ -1404,22 +1439,26 @@ window.SYS = window.SYS || {};
               is_exam: false,
               is_bonus: false,
               created_date: q.createdDate || S.today(),
-              updated_at: new Date().toISOString()
+              updated_at: nowIso
             };
           });
 
           if (dbQuests.length) {
-            await fetch(url + '/rest/v1/hunter_quests?on_conflict=user_id,id', {
+            var qHeaders = Object.assign({}, headers, { 'Prefer': 'resolution=merge-duplicates' });
+            var qRes = await fetch(url + '/rest/v1/hunter_quests?on_conflict=user_id,id', {
               method: 'POST',
-              headers: headers,
+              headers: qHeaders,
               body: JSON.stringify(dbQuests)
             });
+            if (!qRes.ok) {
+              console.error('[PURGE ERROR: hunter_quests]', qRes.status, await qRes.text());
+            }
           }
 
           api.notifyLiveChange();
-          console.log('[SYSTEM PURGE] Remote cloud database reset to Level 1.');
+          console.log('[SYSTEM PURGE] Remote cloud database reset to Level 1. Purge epoch:', epoch);
         } catch (e) {
-          console.warn('[SYSTEM PURGE ERROR]', e);
+          console.error('[SYSTEM PURGE EXCEPTION]', e);
         }
       }
     }

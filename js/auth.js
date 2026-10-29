@@ -191,6 +191,52 @@ window.SYS = window.SYS || {};
           }
           return;
         }
+
+        // ======================================================================
+        // PURGE EPOCH CHECK: If remote was purged more recently than local state,
+        // harmonize this device to Level 1 baseline instead of pushing stale progress
+        // ======================================================================
+        var remotePurgeEpoch = 0;
+        if (remote && remote.inventory && remote.inventory.shadows && remote.inventory.shadows._purge_epoch) {
+          remotePurgeEpoch = Number(remote.inventory.shadows._purge_epoch) || 0;
+        }
+        var localPurgeEpoch = Number(S.state.purgeEpoch || 0);
+
+        if (remotePurgeEpoch > localPurgeEpoch) {
+          console.log('[SYSTEM SYNC] Remote account purge detected (epoch ' + remotePurgeEpoch + '). Resetting local state to Level 1.');
+          var pName = (remote.profile && remote.profile.hunter_name) || (S.state.profile && S.state.profile.hunterName) || 'Hunter';
+          var pEmail = (remote.profile && remote.profile.email) || (S.state.profile && S.state.profile.email) || '';
+          var pMode = (remote.profile && remote.profile.penalty_mode) || 'OPTIONAL';
+
+          try {
+            localStorage.removeItem('solo_quest_runs_v1');
+            if (S.tracker) {
+              S.tracker.history = [];
+              S.tracker.activeRun = null;
+            }
+          } catch (e) {}
+
+          S.state = defaultState();
+          S.state.purgeEpoch = remotePurgeEpoch;
+          S.awaken(pName, pMode, true, pEmail);
+          S.state.purgeEpoch = remotePurgeEpoch;
+          S.save();
+
+          auth.syncStatus = 'SYNCED';
+          auth.updateTopbarBadge();
+          if (S.ui) {
+            S.ui.setView('quests');
+            S.ui.showToast('[SYSTEM MEMORY PURGED]', 'Account reset across all connected devices.', 'gold');
+            S.ui.render();
+          }
+          return;
+        }
+
+        // If local has a purgeEpoch and remote hasn't recorded it yet, adopt localPurgeEpoch
+        if (localPurgeEpoch > remotePurgeEpoch && remote && remote.inventory && remote.inventory.shadows) {
+          remote.inventory.shadows._purge_epoch = localPurgeEpoch;
+        }
+
         var lp = S.state.profile;
         var needsPush = false;
         var needsSave = false;
