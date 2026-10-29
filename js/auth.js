@@ -239,18 +239,28 @@ window.SYS = window.SYS || {};
             }
           } catch (e) {}
 
-          S.state = defaultState();
+          S.state = (typeof S.defaultState === 'function') ? S.defaultState() : { profile: {}, quests: [], inventory: {} };
           S.state.purgeEpoch = newEpoch;
-          S.awaken(pName, pMode, true, pEmail);
+          if (typeof S.awaken === 'function') {
+            S.awaken(pName, pMode, true, pEmail);
+          }
           S.state.purgeEpoch = newEpoch;
-          S.save();
+          if (typeof S.save === 'function') {
+            S.save();
+          }
 
           auth.syncStatus = 'SYNCED';
           auth.updateTopbarBadge();
           if (S.ui) {
-            S.ui.setView('quests');
-            S.ui.showToast('[SYSTEM MEMORY PURGED]', 'Account reset synchronized from cloud.', 'gold');
-            S.ui.render();
+            if (typeof S.ui.setView === 'function') {
+              S.ui.setView('quests');
+            }
+            if (typeof S.ui.showToast === 'function') {
+              S.ui.showToast('[SYSTEM MEMORY PURGED]', 'Account reset synchronized from cloud.', 'gold');
+            }
+            if (typeof S.ui.render === 'function') {
+              S.ui.render();
+            }
           }
           return;
         }

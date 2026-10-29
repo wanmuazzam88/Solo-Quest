@@ -81,6 +81,7 @@ window.SYS = window.SYS || {};
       settings: { sound: true, volume: 0.5, reducedFx: false, dayOffset: 0 }
     };
   }
+  S.defaultState = defaultState;
   function isObj(o) { return o && typeof o === 'object' && !Array.isArray(o); }
   function merge(base, saved) {
     if (!isObj(saved)) return base;
