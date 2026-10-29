@@ -335,8 +335,8 @@ window.SYS = window.SYS || {};
         }
 
         try {
-          // Stage 1: Ping Supabase OpenAPI endpoint (/rest/v1/)
-          var pingRes = await fetch(url + '/rest/v1/', {
+          // Stage 1: Ping Supabase Auth health endpoint (/auth/v1/health)
+          var pingRes = await fetch(url + '/auth/v1/health', {
             method: 'GET',
             headers: {
               'apikey': key,
@@ -346,29 +346,20 @@ window.SYS = window.SYS || {};
 
           api.lastPingMs = Math.max(1, Date.now() - t0);
 
-          if (pingRes.status === 401 || pingRes.status === 403) {
-            api.isConnected = false;
-            var errDetail = '';
-            try {
-              var errJson = await pingRes.json();
-              if (errJson && errJson.message) errDetail = ': ' + errJson.message;
-            } catch (e) {}
-            var projectRef = url.match(/https:\/\/([^.]+)\./) ? url.match(/https:\/\/([^.]+)\./)[1] : '';
-            throw new Error('Supabase Project URL reached, but Anon Key was rejected (HTTP ' + pingRes.status + errDetail + '). Ensure you copied the "anon" "public" key for project ' + projectRef + '.');
-          }
-
-          if (!pingRes.ok && pingRes.status !== 404) {
-            // Secondary fallback test: /auth/v1/health
-            try {
-              var authRes = await fetch(url + '/auth/v1/health', {
-                headers: { 'apikey': key }
-              });
-              if (!authRes.ok && authRes.status !== 200) {
-                throw new Error('Supabase responded with HTTP ' + pingRes.status);
-              }
-            } catch (authErr) {
-              throw new Error('Supabase responded with HTTP ' + pingRes.status);
+          if (!pingRes.ok) {
+            if (pingRes.status === 401 || pingRes.status === 403) {
+              api.isConnected = false;
+              var errDetail = '';
+              try {
+                var errJson = await pingRes.json();
+                if (errJson && (errJson.message || errJson.hint)) {
+                  errDetail = ': ' + (errJson.message || errJson.hint);
+                }
+              } catch (e) {}
+              var projectRef = url.match(/https:\/\/([^.]+)\./) ? url.match(/https:\/\/([^.]+)\./)[1] : '';
+              throw new Error('Supabase Project URL reached, but Anon Key was rejected (HTTP ' + pingRes.status + errDetail + '). Ensure you copied the "anon" "public" key for project ' + projectRef + '.');
             }
+            throw new Error('Supabase health check responded with HTTP ' + pingRes.status);
           }
 
           api.isConnected = true;

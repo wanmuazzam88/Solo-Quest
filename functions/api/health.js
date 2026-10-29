@@ -28,7 +28,7 @@ export async function onRequestGet(context) {
 
   const t0 = Date.now();
   try {
-    const pingRes = await fetch(`${cleanUrl}/rest/v1/`, {
+    const pingRes = await fetch(`${cleanUrl}/auth/v1/health`, {
       method: 'GET',
       headers: {
         'apikey': cleanKey,
