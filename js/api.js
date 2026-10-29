@@ -69,18 +69,21 @@ window.SYS = window.SYS || {};
     return k;
   }
 
+  var DEFAULT_SUPABASE_URL = 'https://ohojtsjuswbsspihrwus.supabase.co';
+  var DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ob2p0c2p1c3dic3NwaWhyd3VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyODA0NzEsImV4cCI6MjEwODg1NjQ3MX0.HdoAT4plJ3fZ2eIdJV_WXDKdwf2xR7SxDyoT_n0n3Jo';
+
   var api = S.api = {
     // Current database provider: 'supabase' | 'custom' | 'local'
-    provider: 'local',
-    supabaseUrl: '',
-    supabaseAnonKey: '',
+    provider: 'supabase',
+    supabaseUrl: DEFAULT_SUPABASE_URL,
+    supabaseAnonKey: DEFAULT_SUPABASE_KEY,
     customUrl: 'http://localhost:3000',
     token: null,
     user: null,
     isConnected: false,
     lastPingMs: null,
-    isManagedCloud: false,
-    managedPlatform: null,
+    isManagedCloud: true,
+    managedPlatform: 'Supabase Cloud',
 
     rememberHunterName: function (email, name, isExplicit) {
       var clean = sanitizeHunterName(name);
@@ -201,19 +204,35 @@ window.SYS = window.SYS || {};
         var rawCfg = localStorage.getItem(CONFIG_KEY);
         if (rawCfg) {
           var cfg = JSON.parse(rawCfg);
-          api.provider = cfg.provider || 'local';
-          api.supabaseUrl = cleanUrl(cfg.supabaseUrl);
-          api.supabaseAnonKey = cleanKey(cfg.supabaseAnonKey);
+          api.provider = (cfg.provider && cfg.provider !== 'local') ? cfg.provider : 'supabase';
+          api.supabaseUrl = cleanUrl(cfg.supabaseUrl || DEFAULT_SUPABASE_URL);
+          api.supabaseAnonKey = cleanKey(cfg.supabaseAnonKey || DEFAULT_SUPABASE_KEY);
           api.customUrl = cleanUrl(cfg.customUrl || 'http://localhost:3000');
-          api.isManagedCloud = Boolean(cfg.isManagedCloud);
-          api.managedPlatform = cfg.managedPlatform || null;
+          api.isManagedCloud = Boolean(cfg.isManagedCloud !== false);
+          api.managedPlatform = cfg.managedPlatform || 'Supabase Cloud';
+        } else {
+          api.provider = 'supabase';
+          api.supabaseUrl = DEFAULT_SUPABASE_URL;
+          api.supabaseAnonKey = DEFAULT_SUPABASE_KEY;
+          api.isManagedCloud = true;
+          api.managedPlatform = 'Supabase Cloud';
         }
-      } catch (e) {}
+      } catch (e) {
+        api.provider = 'supabase';
+        api.supabaseUrl = DEFAULT_SUPABASE_URL;
+        api.supabaseAnonKey = DEFAULT_SUPABASE_KEY;
+        api.isManagedCloud = true;
+        api.managedPlatform = 'Supabase Cloud';
+      }
 
-      // Auto-detect Cloudflare Pages managed Supabase environment
+      // Auto-detect Cloudflare Pages managed Supabase environment or test connection
       api.autoDetectCloudflare().then(function (detected) {
-        if (!detected && api.provider !== 'local') {
-          api.testConnection().catch(function () {});
+        if (!detected && api.provider === 'supabase') {
+          api.testConnection().then(function () {
+            if (S.auth && typeof S.auth.updateStatus === 'function') {
+              S.auth.updateStatus();
+            }
+          }).catch(function () {});
         }
       });
     },

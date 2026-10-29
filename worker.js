@@ -22,8 +22,11 @@ export default {
 
     // 2. /api/config endpoint - supplies Supabase credentials from Cloudflare env
     if (url.pathname === '/api/config') {
-      const rawUrl = env.SUPABASE_URL || '';
-      const rawKey = env.SUPABASE_ANON_KEY || '';
+      const defaultUrl = 'https://ohojtsjuswbsspihrwus.supabase.co';
+      const defaultKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ob2p0c2p1c3dic3NwaWhyd3VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyODA0NzEsImV4cCI6MjEwODg1NjQ3MX0.HdoAT4plJ3fZ2eIdJV_WXDKdwf2xR7SxDyoT_n0n3Jo';
+
+      const rawUrl = env.SUPABASE_URL || defaultUrl;
+      const rawKey = env.SUPABASE_ANON_KEY || defaultKey;
       const cleanUrl = rawUrl.trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, '').replace(/\/(rest|auth)\/v1\/?$/i, '');
       const cleanKey = rawKey.trim().replace(/^['"]|['"]$/g, '').replace(/\s+/g, '');
       const isConfigured = Boolean(cleanUrl && cleanKey);
