@@ -8,8 +8,8 @@ export async function onRequestGet(context) {
   const rawUrl = env.SUPABASE_URL || '';
   const rawKey = env.SUPABASE_ANON_KEY || '';
 
-  const cleanUrl = (rawUrl || '').trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, '');
-  const cleanKey = (rawKey || '').trim().replace(/^['"]|['"]$/g, '');
+  const cleanUrl = (rawUrl || '').trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, '').replace(/\/(rest|auth)\/v1\/?$/i, '');
+  const cleanKey = (rawKey || '').trim().replace(/^['"]|['"]$/g, '').replace(/\s+/g, '');
 
   if (!cleanUrl || !cleanKey) {
     return new Response(JSON.stringify({

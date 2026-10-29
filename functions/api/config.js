@@ -11,8 +11,8 @@ export async function onRequestGet(context) {
   const rawKey = env.SUPABASE_ANON_KEY || '';
 
   // Clean URL if needed
-  let cleanUrl = (rawUrl || '').trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, '');
-  let cleanKey = (rawKey || '').trim().replace(/^['"]|['"]$/g, '');
+  let cleanUrl = (rawUrl || '').trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, '').replace(/\/(rest|auth)\/v1\/?$/i, '');
+  let cleanKey = (rawKey || '').trim().replace(/^['"]|['"]$/g, '').replace(/\s+/g, '');
 
   const isConfigured = Boolean(cleanUrl && cleanKey);
 
