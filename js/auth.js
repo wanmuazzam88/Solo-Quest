@@ -172,12 +172,19 @@ window.SYS = window.SYS || {};
     },
 
     isPurging: false,
+    isSyncing: false,
+    syncQueued: false,
 
     syncWithCloud: async function (showToast) {
       if (auth.isPurging) return;
       if (!S.api || !S.api.user || !S.api.token) return;
       if (S.api.provider === 'local') return;
 
+      if (auth.isSyncing) {
+        auth.syncQueued = true;
+        return;
+      }
+      auth.isSyncing = true;
       auth.syncStatus = 'SYNCING';
       auth.updateTopbarBadge();
 
@@ -194,11 +201,12 @@ window.SYS = window.SYS || {};
 
         // ======================================================================
         // PURGE / RESET DETECTION:
-        // A) Explicit epoch marker: remotePurgeEpoch > localPurgeEpoch
-        // B) Remote Profile Reset: Remote profile is Level 1 with 0 XP, while
-        //    local device still holds higher level (or stats/gold) from before purge.
-        //    (In Solo Quest, Level and XP only advance; a drop to Level 1 indicates
-        //     an intentional account reset that all devices must adopt!)
+        // A cross-device purge is ONLY acknowledged if:
+        // 1. Both remotePurgeEpoch and localPurgeEpoch are > 0 and remotePurgeEpoch > localPurgeEpoch
+        // 2. The remote profile is actually at baseline (Level 1, 0 XP)
+        // 3. This device holds pre-purge progress from an older session (Level > 1, XP > 0, etc.)
+        // Never trigger a purge on fresh devices (localPurgeEpoch === 0) or simply because
+        // remote profile hasn't received local's newly earned XP yet!
         // ======================================================================
         var lp = S.state.profile || {};
         var remotePurgeEpoch = 0;
@@ -208,20 +216,29 @@ window.SYS = window.SYS || {};
         var localPurgeEpoch = Number(S.state.purgeEpoch || 0);
 
         var isRemotePurged = false;
-        if (remotePurgeEpoch > localPurgeEpoch) {
-          isRemotePurged = true;
-        } else if (remote && remote.profile) {
-          var rpLvl = Number(remote.profile.level) || 1;
-          var rpXp = Number(remote.profile.current_xp) || 0;
+        if (remotePurgeEpoch > 0 && localPurgeEpoch > 0 && remotePurgeEpoch > localPurgeEpoch) {
+          var rpLvl = Number(remote.profile && remote.profile.level) || 1;
+          var rpXp = Number(remote.profile && (remote.profile.current_xp != null ? remote.profile.current_xp : 0));
+          var isRemoteAtBaseline = (rpLvl === 1 && rpXp === 0);
+
           var lpLvl = Number(lp.level) || 1;
           var lpXp = Number(lp.currentXp) || 0;
           var lpGold = Number(lp.gold) || 0;
           var lpStr = (lp.stats && Number(lp.stats.STR)) || 10;
+          var localHasOldData = (lpLvl > 1 || lpXp > 0 || lpGold > 100 || lpStr > 10);
 
-          if (rpLvl === 1 && rpXp === 0 && (lpLvl > 1 || lpXp > 0 || lpGold > 100 || lpStr > 10)) {
+          if (isRemoteAtBaseline && localHasOldData) {
             isRemotePurged = true;
-            console.log('[SYSTEM SYNC] Remote profile is Level 1 baseline while local state has progress. Remote purge detected!');
+            console.log('[SYSTEM SYNC] Legitimate remote purge detected (epoch: ' + remotePurgeEpoch + '). Resetting local state to Level 1.');
+          } else {
+            // Cloud has an updated epoch but device was already at baseline or remote has progressed
+            S.state.purgeEpoch = remotePurgeEpoch;
+            needsSave = true;
           }
+        } else if (remotePurgeEpoch > 0 && localPurgeEpoch === 0) {
+          // Device did not have an epoch recorded yet; adopt cloud epoch marker cleanly without destructive reset
+          S.state.purgeEpoch = remotePurgeEpoch;
+          needsSave = true;
         }
 
         if (isRemotePurged) {
@@ -241,6 +258,7 @@ window.SYS = window.SYS || {};
 
           S.state = (typeof S.defaultState === 'function') ? S.defaultState() : { profile: {}, quests: [], inventory: {} };
           S.state.purgeEpoch = newEpoch;
+          S.state.deletedQuests = {};
           if (typeof S.awaken === 'function') {
             S.awaken(pName, pMode, true, pEmail);
           }
@@ -266,8 +284,11 @@ window.SYS = window.SYS || {};
         }
 
         // If local has a purgeEpoch and remote hasn't recorded it yet, adopt localPurgeEpoch
-        if (localPurgeEpoch > remotePurgeEpoch && remote && remote.inventory && remote.inventory.shadows) {
-          remote.inventory.shadows._purge_epoch = localPurgeEpoch;
+        if (localPurgeEpoch > remotePurgeEpoch) {
+          needsPush = true;
+          if (remote && remote.inventory && remote.inventory.shadows) {
+            remote.inventory.shadows._purge_epoch = localPurgeEpoch;
+          }
         }
 
         var needsPush = false;
@@ -570,6 +591,14 @@ window.SYS = window.SYS || {};
         auth.updateTopbarBadge();
         if (showToast && S.ui) {
           S.ui.showToast('[SYNC ANOMALY]', err.message, 'danger');
+        }
+      } finally {
+        auth.isSyncing = false;
+        if (auth.syncQueued) {
+          auth.syncQueued = false;
+          setTimeout(function () {
+            auth.syncWithCloud(false);
+          }, 60);
         }
       }
     },
