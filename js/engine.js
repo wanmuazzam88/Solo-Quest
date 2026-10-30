@@ -51,6 +51,7 @@ window.SYS = window.SYS || {};
     return {
       version: 1,
       purgeEpoch: 0,
+      deletedQuests: {},
       initialized: false,
       profile: {
         id: 'HNT-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
@@ -86,7 +87,7 @@ window.SYS = window.SYS || {};
   function merge(base, saved) {
     if (!isObj(saved)) return base;
     Object.keys(saved).forEach(function (k) {
-      if (isObj(base[k]) && isObj(saved[k]) && !['owned', 'seen', 'shadows', 'log'].includes(k)) base[k] = merge(base[k], saved[k]);
+      if (isObj(base[k]) && isObj(saved[k]) && !['owned', 'seen', 'shadows', 'log', 'deletedQuests'].includes(k)) base[k] = merge(base[k], saved[k]);
       else base[k] = saved[k];
     });
     return base;
@@ -346,6 +347,7 @@ window.SYS = window.SYS || {};
     if (!s.weeklyPlan || !s.weeklyPlan.days) {
       var wp = {
         activePreset: 'canonical',
+        updatedAt: Date.now(),
         dayTags: {
           MON: 'DAILY MANDATE', TUE: 'DAILY MANDATE', WED: 'DAILY MANDATE',
           THU: 'DAILY MANDATE', FRI: 'DAILY MANDATE', SAT: 'DAILY MANDATE', SUN: 'DAILY MANDATE'
@@ -503,6 +505,12 @@ window.SYS = window.SYS || {};
     var wp = S.ensureWeeklyPlan();
     var allDays = S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
+    // If this quest was previously deleted, untombstone it now
+    if (s.deletedQuests) {
+      if (spec.preset) delete s.deletedQuests['preset_' + spec.preset];
+      if (spec.title) delete s.deletedQuests['title_' + spec.title.trim().toLowerCase()];
+    }
+
     if (daysArray && daysArray.indexOf('TODAY_ONLY') >= 0) {
       if (editCtx && editCtx.questId) {
         var q = S.getQuest(editCtx.questId);
@@ -552,6 +560,7 @@ window.SYS = window.SYS || {};
     });
 
     wp.activePreset = 'custom';
+    wp.updatedAt = Date.now();
     S.syncTodayQuestsFromPlan(false);
     checkDailyBonus();
     S.commit();
@@ -564,6 +573,14 @@ window.SYS = window.SYS || {};
     if (dayCode && wp.days[dayCode]) {
       targetItem = wp.days[dayCode].find(function (x) { return x.planId === planId; });
     }
+    if (!targetItem) {
+      (S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']).forEach(function (d) {
+        if (!targetItem && wp.days[d]) {
+          targetItem = wp.days[d].find(function (x) { return x.planId === planId; });
+        }
+      });
+    }
+
     if (removeAllDays && targetItem && targetItem.groupId) {
       (S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']).forEach(function (d) {
         wp.days[d] = (wp.days[d] || []).filter(function (x) { return x.groupId !== targetItem.groupId; });
@@ -572,6 +589,30 @@ window.SYS = window.SYS || {};
       wp.days[dayCode] = wp.days[dayCode].filter(function (x) { return x.planId !== planId; });
     }
     wp.activePreset = 'custom';
+    wp.updatedAt = Date.now();
+
+    // Remove matching active quests & tombstone/remote delete
+    if (targetItem) {
+      var matchingQuests = (S.state.quests || []).filter(function (q) {
+        if (targetItem.planId && q.planId === targetItem.planId) return true;
+        if (targetItem.groupId && q.groupId === targetItem.groupId) return true;
+        if (targetItem.preset && q.preset === targetItem.preset) return true;
+        return q.title.toLowerCase() === targetItem.title.toLowerCase() && q.category === targetItem.category;
+      });
+      matchingQuests.forEach(function (mq) {
+        S.state.deletedQuests = S.state.deletedQuests || {};
+        S.state.deletedQuests[mq.id] = Date.now();
+        if (mq.preset) S.state.deletedQuests['preset_' + mq.preset] = Date.now();
+        if (mq.title) S.state.deletedQuests['title_' + mq.title.trim().toLowerCase()] = Date.now();
+        if (S.api && typeof S.api.deleteQuest === 'function') {
+          S.api.deleteQuest(mq.id);
+        }
+      });
+      S.state.quests = S.state.quests.filter(function (q) {
+        return !matchingQuests.some(function (mq) { return mq.id === q.id; });
+      });
+    }
+
     S.syncTodayQuestsFromPlan(false);
     checkDailyBonus();
     S.commit();
@@ -590,6 +631,7 @@ window.SYS = window.SYS || {};
       wp.dayTags[d] = srcTag;
     });
     wp.activePreset = 'custom';
+    wp.updatedAt = Date.now();
     S.syncTodayQuestsFromPlan(false);
     checkDailyBonus();
     S.commit();
@@ -598,9 +640,29 @@ window.SYS = window.SYS || {};
   S.clearDayPlan = function (dayCode) {
     var wp = S.ensureWeeklyPlan();
     if (!wp || !dayCode || !wp.days[dayCode]) return;
+    var removedItems = (wp.days[dayCode] || []).slice();
     wp.days[dayCode] = [];
     wp.dayTags[dayCode] = 'REST & RECOVERY';
     wp.activePreset = 'custom';
+    wp.updatedAt = Date.now();
+
+    if (dayCode === S.dayCode(S.state.currentDate)) {
+      removedItems.forEach(function (item) {
+        var mq = (S.state.quests || []).find(function (q) {
+          return (item.planId && q.planId === item.planId) || (item.groupId && q.groupId === item.groupId) || (q.title.toLowerCase() === item.title.toLowerCase() && q.category === item.category);
+        });
+        if (mq) {
+          S.state.deletedQuests = S.state.deletedQuests || {};
+          S.state.deletedQuests[mq.id] = Date.now();
+          if (mq.preset) S.state.deletedQuests['preset_' + mq.preset] = Date.now();
+          if (mq.title) S.state.deletedQuests['title_' + mq.title.trim().toLowerCase()] = Date.now();
+          if (S.api && typeof S.api.deleteQuest === 'function') {
+            S.api.deleteQuest(mq.id);
+          }
+        }
+      });
+    }
+
     S.syncTodayQuestsFromPlan(false);
     checkDailyBonus();
     S.commit();
@@ -621,12 +683,37 @@ window.SYS = window.SYS || {};
         });
       });
       wp.activePreset = 'canonical';
+      // Untombstone canonical presets
+      if (s.deletedQuests) {
+        ['pushups', 'situps', 'squats', 'running'].forEach(function (p) {
+          delete s.deletedQuests['preset_' + p];
+        });
+      }
     } else if (presetId === 'blank') {
       allDays.forEach(function (d) {
         wp.dayTags[d] = 'CUSTOM DIRECTIVE';
         wp.days[d] = [];
       });
       wp.activePreset = 'blank';
+
+      // Tombstone & remote delete all active plan quests
+      var toRemove = (s.quests || []).filter(function (q) {
+        return !q.isPenaltyQuest && !q.isExam && !q.isBonus && !q.isRedemption && !q.dungeon && !q.oneOff;
+      });
+      s.deletedQuests = s.deletedQuests || {};
+      var removeIds = [];
+      toRemove.forEach(function (q) {
+        s.deletedQuests[q.id] = Date.now();
+        if (q.preset) s.deletedQuests['preset_' + q.preset] = Date.now();
+        if (q.title) s.deletedQuests['title_' + q.title.trim().toLowerCase()] = Date.now();
+        removeIds.push(q.id);
+      });
+      if (S.api && typeof S.api.deleteQuests === 'function' && removeIds.length) {
+        S.api.deleteQuests(removeIds);
+      }
+      s.quests = (s.quests || []).filter(function (q) {
+        return q.isPenaltyQuest || q.isExam || q.isBonus || q.isRedemption || q.dungeon || q.oneOff;
+      });
     } else {
       var presetObj = (S.PLAN_PRESETS || []).find(function (p) { return p.id === presetId; });
       if (!presetObj || !presetObj.days) return false;
@@ -639,6 +726,7 @@ window.SYS = window.SYS || {};
       });
       wp.activePreset = presetId;
     }
+    wp.updatedAt = Date.now();
     S.syncTodayQuestsFromPlan(false);
     checkDailyBonus();
     S.commit();
@@ -739,16 +827,37 @@ window.SYS = window.SYS || {};
   S.deleteQuest = function (id) {
     var q = S.getQuest(id);
     if (!q || q.isPenaltyQuest || q.isExam) return;
+    var s = S.state;
     var wp = S.ensureWeeklyPlan();
-    var todayCode = S.dayCode(S.state.currentDate);
-    if (wp && wp.days && wp.days[todayCode]) {
-      wp.days[todayCode] = wp.days[todayCode].filter(function (p) {
-        if (q.planId && p.planId === q.planId) return false;
-        if (q.groupId && p.groupId === q.groupId) return false;
-        return !(p.title.toLowerCase() === q.title.toLowerCase() && p.category === q.category);
+
+    // 1. Tombstone so cloud sync poller never resurrects it
+    s.deletedQuests = s.deletedQuests || {};
+    s.deletedQuests[id] = Date.now();
+    if (q.preset) s.deletedQuests['preset_' + q.preset] = Date.now();
+    if (q.title) s.deletedQuests['title_' + q.title.trim().toLowerCase()] = Date.now();
+
+    // 2. Remove from weekly plan across all days if recurring/preset
+    if (wp && wp.days) {
+      (S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']).forEach(function (d) {
+        wp.days[d] = (wp.days[d] || []).filter(function (p) {
+          if (q.planId && p.planId === q.planId) return false;
+          if (q.groupId && p.groupId === q.groupId) return false;
+          if (q.preset && p.preset === q.preset) return false;
+          return !(p.title.toLowerCase() === q.title.toLowerCase() && p.category === q.category);
+        });
       });
+      wp.activePreset = 'custom';
+      wp.updatedAt = Date.now();
     }
-    S.state.quests = S.state.quests.filter(function (x) { return x.id !== id; });
+
+    // 3. Remove from daily active quests
+    s.quests = (s.quests || []).filter(function (x) { return x.id !== id; });
+
+    // 4. Remote delete from Supabase
+    if (S.api && typeof S.api.deleteQuest === 'function') {
+      S.api.deleteQuest(id);
+    }
+
     checkDailyBonus();
     S.commit();
   };

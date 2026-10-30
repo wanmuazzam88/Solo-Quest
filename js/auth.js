@@ -442,8 +442,23 @@ window.SYS = window.SYS || {};
               }
             });
 
-            // If remote has quests not yet in local state, add them safely
+            // If remote has quests not yet in local state, add them safely (unless tombstoned/deleted)
+            var deletedQuests = S.state.deletedQuests || {};
             remote.quests.forEach(function (rq) {
+              var isTombstoned = !!(
+                deletedQuests[rq.id] ||
+                (rq.preset && deletedQuests['preset_' + rq.preset]) ||
+                (rq.title && deletedQuests['title_' + rq.title.trim().toLowerCase()])
+              );
+
+              if (isTombstoned) {
+                // Delete from Supabase as well so it doesn't linger
+                if (S.api && typeof S.api.deleteQuest === 'function') {
+                  S.api.deleteQuest(rq.id);
+                }
+                return; // DO NOT restore into localQuests!
+              }
+
               var existsLocally = localQuests.some(function (lq) {
                 return lq.id === rq.id ||
                        (rq.preset && lq.preset === rq.preset) ||
@@ -498,6 +513,30 @@ window.SYS = window.SYS || {};
                 if (rb > lb) { lInv.boxes[bKey] = rb; needsSave = true; }
                 else if (lb > rb) { needsPush = true; }
               });
+            }
+
+            // 8. Weekly Plan Synchronization
+            if (rInv.shadows && rInv.shadows._weekly_plan) {
+              var rPlan = rInv.shadows._weekly_plan;
+              var lPlan = S.state.weeklyPlan;
+              if (rPlan && rPlan.days) {
+                var rTime = Number(rPlan.updatedAt || 0);
+                var lTime = Number((lPlan && lPlan.updatedAt) || 0);
+                var remoteIsNewer = rTime > lTime || (!lPlan && rPlan) || (lPlan && lPlan.activePreset === 'canonical' && rPlan.activePreset !== 'canonical');
+                if (remoteIsNewer) {
+                  if (JSON.stringify(lPlan) !== JSON.stringify(rPlan)) {
+                    S.state.weeklyPlan = rPlan;
+                    if (typeof S.syncTodayQuestsFromPlan === 'function') {
+                      S.syncTodayQuestsFromPlan(false);
+                    }
+                    needsSave = true;
+                  }
+                } else if (lTime > rTime) {
+                  needsPush = true;
+                }
+              }
+            } else if (S.state.weeklyPlan) {
+              needsPush = true;
             }
           }
 

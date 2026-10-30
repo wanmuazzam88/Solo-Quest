@@ -750,8 +750,14 @@ window.SYS = window.SYS || {};
         btn.addEventListener('click', function () {
           var id = btn.getAttribute('data-quest-id');
           if (id) {
-            if (S.audio) S.audio.tap();
-            S.deleteQuest(id);
+            var q = S.getQuest(id);
+            var title = q ? ('"' + q.title + '"') : 'this quest';
+            if (confirm('[SYSTEM CONFIRMATION] Permanently remove ' + title + ' from your schedule?')) {
+              if (S.audio) S.audio.tap();
+              S.deleteQuest(id);
+              UI.showToast('[DIRECTIVE EXPUNGED]', title + ' removed from schedule.', 'info');
+              UI.render();
+            }
           }
         });
       });
@@ -776,8 +782,12 @@ window.SYS = window.SYS || {};
           var planId = btn.getAttribute('data-plan-id');
           var dayCode = btn.getAttribute('data-day') || activeDay;
           if (planId && dayCode) {
-            if (S.audio) S.audio.tap();
-            S.removePlannedQuest(dayCode, planId, false);
+            if (confirm('[SYSTEM CONFIRMATION] Remove this planned quest?')) {
+              if (S.audio) S.audio.tap();
+              S.removePlannedQuest(dayCode, planId, false);
+              UI.showToast('[DIRECTIVE REMOVED]', 'Quest removed from schedule.', 'info');
+              UI.render();
+            }
           }
         });
       });

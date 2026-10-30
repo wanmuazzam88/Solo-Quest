@@ -1129,6 +1129,9 @@ window.SYS = window.SYS || {};
         if (state.purgeEpoch) {
           shadowsPayload._purge_epoch = state.purgeEpoch;
         }
+        if (state.weeklyPlan) {
+          shadowsPayload._weekly_plan = state.weeklyPlan;
+        }
 
         var dbInv = {
           user_id: api.user.id,
@@ -1223,6 +1226,78 @@ window.SYS = window.SYS || {};
       } else {
         return { success: true, offline: true };
       }
+    },
+
+    // ==========================================================================
+    // Remote Quest Deletion: Permanently Remove From Cloud Database
+    // ==========================================================================
+    deleteQuest: async function (questId) {
+      if (!api.user || !api.token || !questId) return false;
+      if (api.provider === 'supabase') {
+        var url = cleanUrl(api.supabaseUrl);
+        var key = cleanKey(api.supabaseAnonKey);
+        try {
+          var res = await fetch(url + '/rest/v1/hunter_quests?user_id=eq.' + api.user.id + '&id=eq.' + encodeURIComponent(questId), {
+            method: 'DELETE',
+            headers: {
+              'apikey': key,
+              'Authorization': 'Bearer ' + api.token
+            }
+          });
+          if (res.status === 401) {
+            var refreshed = await api.refreshSession();
+            if (refreshed) {
+              await fetch(url + '/rest/v1/hunter_quests?user_id=eq.' + api.user.id + '&id=eq.' + encodeURIComponent(questId), {
+                method: 'DELETE',
+                headers: {
+                  'apikey': key,
+                  'Authorization': 'Bearer ' + api.token
+                }
+              });
+            }
+          }
+          return res.ok;
+        } catch (e) {
+          console.warn('[API DELETE QUEST ERROR]', e);
+          return false;
+        }
+      }
+      return true;
+    },
+
+    deleteQuests: async function (questIds) {
+      if (!api.user || !api.token || !Array.isArray(questIds) || !questIds.length) return false;
+      if (api.provider === 'supabase') {
+        var url = cleanUrl(api.supabaseUrl);
+        var key = cleanKey(api.supabaseAnonKey);
+        try {
+          var inParam = questIds.map(function (id) { return encodeURIComponent(id); }).join(',');
+          var res = await fetch(url + '/rest/v1/hunter_quests?user_id=eq.' + api.user.id + '&id=in.(' + inParam + ')', {
+            method: 'DELETE',
+            headers: {
+              'apikey': key,
+              'Authorization': 'Bearer ' + api.token
+            }
+          });
+          if (res.status === 401) {
+            var refreshed = await api.refreshSession();
+            if (refreshed) {
+              await fetch(url + '/rest/v1/hunter_quests?user_id=eq.' + api.user.id + '&id=in.(' + inParam + ')', {
+                method: 'DELETE',
+                headers: {
+                  'apikey': key,
+                  'Authorization': 'Bearer ' + api.token
+                }
+              });
+            }
+          }
+          return res.ok;
+        } catch (e) {
+          console.warn('[API DELETE QUESTS ERROR]', e);
+          return false;
+        }
+      }
+      return true;
     },
 
     // ==========================================================================
