@@ -1858,7 +1858,6 @@ window.SYS = window.SYS || {};
           '</div>' +
           '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
             '<button class="sys-btn primary" id="btn-settings-open-auth">' + I('user', 14) + ' ' + (isAuth ? 'MANAGE SYSTEM LINK' : 'AWAKEN / SYSTEM LINK') + '</button>' +
-            '<button class="sys-btn" id="btn-settings-configure-db">' + I('settings', 14) + ' CONFIGURE DATABASE</button>' +
             (isAuth ? '<button class="sys-btn" id="btn-settings-force-sync">' + I('download', 14) + ' FORCE CLOUD SYNC</button>' : '') +
           '</div>' +
         '</div>' +
@@ -1920,13 +1919,6 @@ window.SYS = window.SYS || {};
       if (btnSettingsAuth) {
         btnSettingsAuth.addEventListener('click', function () {
           UI.showAuthModal();
-        });
-      }
-
-      var btnSettingsCfgDb = container.querySelector('#btn-settings-configure-db');
-      if (btnSettingsCfgDb) {
-        btnSettingsCfgDb.addEventListener('click', function () {
-          UI.showAuthModal('DBCONFIG');
         });
       }
 
