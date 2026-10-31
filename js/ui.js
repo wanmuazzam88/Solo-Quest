@@ -1940,18 +1940,6 @@ window.SYS = window.SYS || {};
             '<button class="sys-btn danger" id="btn-reset-data">' + I('trash', 14) + ' PURGE SYSTEM MEMORY</button>' +
           '</div>' +
         '</div>' +
-
-        // Visuals & Solo Leveling Intro Animation
-        '<div>' +
-          '<div class="font-display text-accent" style="font-size:14px; font-weight:700; margin-bottom:8px;">' + I('eye', 16) + ' [SYSTEM AWAKENING CINEMATIC]</div>' +
-          '<div class="flex-between" style="padding:12px; background:rgba(0,229,255,0.03); border:1px solid rgba(0,229,255,0.2); clip-path:var(--clip-chamfer-sm); flex-wrap:wrap; gap:10px;">' +
-            '<div>' +
-              '<div style="font-weight:700; color:var(--text-primary); font-size:13px;">Cinematic "ARISE" Title Card</div>' +
-              '<div style="font-size:11px; color:var(--text-muted);">Replay the Solo Leveling monumental ARISE cinematic with anamorphic flare, letterbox bars, and seismic sub-bass sound design.</div>' +
-            '</div>' +
-            '<button class="sys-btn primary" id="btn-replay-intro">' + I('play', 14) + ' REPLAY "ARISE" CINEMATIC</button>' +
-          '</div>' +
-        '</div>' +
       '</div>';
 
       var btnSettingsAuth = container.querySelector('#btn-settings-open-auth');
@@ -2085,16 +2073,6 @@ window.SYS = window.SYS || {};
             btnReset.disabled = false;
             btnReset.innerHTML = origHtml;
           }
-        }
-      });
-
-      var btnReplay = container.querySelector('#btn-replay-intro');
-      if (btnReplay) btnReplay.addEventListener('click', function () {
-        if (S.intro && S.intro.play) {
-          S.intro.play(function () {
-            // Intro completed, refresh settings view
-            UI.render();
-          });
         }
       });
     },
