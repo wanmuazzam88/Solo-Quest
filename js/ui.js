@@ -1837,6 +1837,17 @@ window.SYS = window.SYS || {};
       var isConnected = S.api && S.api.isConnected;
       var isAuth = S.api && !!S.api.user;
 
+      var curHunterName = (S.api && S.api.user && S.api.user.hunterName) ||
+                          (p && p.hunterName) ||
+                          (S.api && S.api.getRememberedHunterName && S.api.getRememberedHunterName()) ||
+                          'Hunter';
+      if (curHunterName.includes('@')) {
+        curHunterName = (S.api && S.api.getRememberedHunterName && S.api.getRememberedHunterName(curHunterName)) || curHunterName.split('@')[0];
+      }
+      var curEmail = (S.api && S.api.user && S.api.user.email) ||
+                     (p && p.email) ||
+                     '';
+
       container.innerHTML = '<div class="system-panel" style="max-width:760px; margin:0 auto;">' +
         '<div class="panel-header">' +
           '<div class="panel-title">' + I('settings', 20) + ' [SYSTEM CONFIGURATION & PROTOCOLS]</div>' +
@@ -1860,6 +1871,34 @@ window.SYS = window.SYS || {};
             '<button class="sys-btn primary" id="btn-settings-open-auth">' + I('user', 14) + ' ' + (isAuth ? 'MANAGE SYSTEM LINK' : 'AWAKEN / SYSTEM LINK') + '</button>' +
             (isAuth ? '<button class="sys-btn" id="btn-settings-force-sync">' + I('download', 14) + ' FORCE CLOUD SYNC</button>' : '') +
           '</div>' +
+        '</div>' +
+
+        // Hunter Identity & Credentials Card (Edit Hunter Name & Email)
+        '<div style="margin-bottom:18px; padding:14px; background:rgba(0,229,255,0.04); border:1px solid rgba(0,229,255,0.25); clip-path:var(--clip-chamfer-sm);">' +
+          '<div class="flex-between" style="margin-bottom:8px; flex-wrap:wrap; gap:6px;">' +
+            '<div class="font-display text-accent" style="font-size:14px; font-weight:700;">' + I('user', 16) + ' [HUNTER IDENTITY & CREDENTIALS]</div>' +
+            '<span class="sys-badge font-display text-gold" style="font-size:11px;">RANK ' + S.rank().code + '</span>' +
+          '</div>' +
+          '<div style="font-size:12px; color:var(--text-secondary); margin-bottom:12px; line-height:1.5;">' +
+            'Modify your registered Hunter codename and Association email. Changes update your hunter card, cloud database, and global leaderboards.' +
+          '</div>' +
+          '<form id="form-settings-identity">' +
+            '<div id="settings-identity-error" style="display:none; color:var(--penalty-crimson); font-size:12px; margin-bottom:10px; padding:8px; background:rgba(255,0,60,0.1); border:1px solid rgba(255,0,60,0.3); clip-path:var(--clip-chamfer-sm);"></div>' +
+            '<div id="settings-identity-success" style="display:none; color:var(--sys-cyan); font-size:12px; margin-bottom:10px; padding:8px; background:rgba(0,229,255,0.1); border:1px solid rgba(0,229,255,0.3); clip-path:var(--clip-chamfer-sm);"></div>' +
+            '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:12px;">' +
+              '<div class="auth-form-group" style="margin-bottom:0;">' +
+                '<label class="auth-form-label">HUNTER CODENAME (NAME)</label>' +
+                '<input type="text" class="sys-input" id="set-hunter-name" required maxlength="18" value="' + U.esc(curHunterName) + '" placeholder="e.g., Sung Jin-Woo">' +
+              '</div>' +
+              '<div class="auth-form-group" style="margin-bottom:0;">' +
+                '<label class="auth-form-label">ASSOCIATION EMAIL</label>' +
+                '<input type="email" class="sys-input" id="set-hunter-email" required value="' + U.esc(curEmail) + '" placeholder="e.g., hunter@system.solo">' +
+              '</div>' +
+            '</div>' +
+            '<div style="display:flex; justify-content:flex-end;">' +
+              '<button type="submit" class="sys-btn primary" id="btn-save-identity">' + I('check', 14) + ' UPDATE IDENTITY</button>' +
+            '</div>' +
+          '</form>' +
         '</div>' +
 
         // Audio & Audio Volume
@@ -1926,6 +1965,68 @@ window.SYS = window.SYS || {};
       if (btnSettingsSync) {
         btnSettingsSync.addEventListener('click', function () {
           if (S.auth) S.auth.triggerSync(true);
+        });
+      }
+
+      var formIdentity = container.querySelector('#form-settings-identity');
+      if (formIdentity) {
+        formIdentity.addEventListener('submit', async function (e) {
+          e.preventDefault();
+          var nameInput = container.querySelector('#set-hunter-name');
+          var emailInput = container.querySelector('#set-hunter-email');
+          var btnSave = container.querySelector('#btn-save-identity');
+          var errEl = container.querySelector('#settings-identity-error');
+          var succEl = container.querySelector('#settings-identity-success');
+
+          if (errEl) errEl.style.display = 'none';
+          if (succEl) succEl.style.display = 'none';
+
+          var newName = nameInput ? nameInput.value.trim() : '';
+          var newEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
+
+          if (!newName || newName.length < 2) {
+            if (errEl) {
+              errEl.textContent = 'Hunter name must be at least 2 characters.';
+              errEl.style.display = 'block';
+            }
+            return;
+          }
+          if (newEmail && !/\S+@\S+\.\S+/.test(newEmail)) {
+            if (errEl) {
+              errEl.textContent = 'Please enter a valid email address.';
+              errEl.style.display = 'block';
+            }
+            return;
+          }
+
+          if (btnSave) {
+            btnSave.disabled = true;
+            btnSave.textContent = 'UPDATING CREDENTIALS...';
+          }
+
+          try {
+            var res = await S.api.updateIdentity(newName, newEmail);
+            if (succEl) {
+              succEl.textContent = (res && res.message) || 'Hunter credentials updated successfully.';
+              succEl.style.display = 'block';
+            }
+            UI.showToast('[IDENTITY RECONFIGURED]', 'Codename set to "' + (res.hunterName || newName) + '".', 'cyan');
+            if (S.audio) S.audio.award();
+            setTimeout(function () {
+              UI.render();
+            }, 600);
+          } catch (err) {
+            console.error('[UPDATE IDENTITY ERROR]', err);
+            if (errEl) {
+              errEl.textContent = err.message || 'Failed to update credentials.';
+              errEl.style.display = 'block';
+            }
+            UI.showToast('[UPDATE FAILED]', err.message || 'Failed to update credentials.', 'danger');
+            if (btnSave) {
+              btnSave.disabled = false;
+              btnSave.textContent = 'UPDATE IDENTITY';
+            }
+          }
         });
       }
 

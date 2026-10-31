@@ -939,6 +939,154 @@ window.SYS = window.SYS || {};
     },
 
     // ==========================================================================
+    // Update Hunter Identity & Credentials (Codename & Email)
+    // ==========================================================================
+    updateIdentity: async function (newName, newEmail) {
+      newName = String(newName || '').trim();
+      newEmail = String(newEmail || '').trim().toLowerCase();
+
+      var cleanName = sanitizeHunterName(newName);
+      if (!cleanName || cleanName.length < 2) {
+        throw new Error('Hunter name must be at least 2 characters.');
+      }
+      if (cleanName.length > 18) {
+        throw new Error('Hunter name must be at most 18 characters.');
+      }
+      if (newEmail && !/\S+@\S+\.\S+/.test(newEmail)) {
+        throw new Error('Please enter a valid email address.');
+      }
+
+      var currentUserId = api.user && api.user.id;
+      var curEmail = (api.user && api.user.email) || (S.state && S.state.profile && S.state.profile.email) || '';
+      var curName = (api.user && api.user.hunterName) || (S.state && S.state.profile && S.state.profile.hunterName) || 'Hunter';
+
+      var nameChanged = cleanName.toLowerCase() !== curName.toLowerCase();
+      var emailChanged = !!(newEmail && newEmail !== curEmail.toLowerCase());
+
+      if (!nameChanged && !emailChanged) {
+        return { success: true, hunterName: cleanName, email: curEmail, message: 'No changes detected.' };
+      }
+
+      var emailNotice = '';
+
+      if (api.provider === 'supabase' && api.user && api.token && api.supabaseUrl && api.supabaseAnonKey) {
+        var url = cleanUrl(api.supabaseUrl);
+        var key = cleanKey(api.supabaseAnonKey);
+
+        // 1. If name changed, verify uniqueness on Supabase
+        if (nameChanged) {
+          try {
+            var checkRes = await fetch(url + '/rest/v1/hunter_profiles?hunter_name=ilike.' + encodeURIComponent(cleanName) + '&id=neq.' + currentUserId + '&select=id&limit=1', {
+              headers: { 'apikey': key, 'Authorization': 'Bearer ' + api.token }
+            });
+            if (checkRes.ok) {
+              var existingRows = await checkRes.json();
+              if (existingRows && existingRows.length > 0) {
+                throw new Error('Hunter name "' + cleanName + '" is already claimed by another hunter. Please choose a unique name.');
+              }
+            }
+          } catch (errCheck) {
+            if (errCheck.message && errCheck.message.includes('already claimed')) throw errCheck;
+          }
+        }
+
+        // 2. If email or name changed, update Supabase Auth user record
+        var authUpdates = {};
+        if (emailChanged) authUpdates.email = newEmail;
+        if (nameChanged) authUpdates.data = { hunter_name: cleanName };
+
+        var authRes = await fetch(url + '/auth/v1/user', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': key,
+            'Authorization': 'Bearer ' + api.token
+          },
+          body: JSON.stringify(authUpdates)
+        });
+
+        if (authRes.status === 401) {
+          var refreshed = await api.refreshSession();
+          if (refreshed) {
+            authRes = await fetch(url + '/auth/v1/user', {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': key,
+                'Authorization': 'Bearer ' + api.token
+              },
+              body: JSON.stringify(authUpdates)
+            });
+          }
+        }
+
+        if (!authRes.ok) {
+          var authErr = await authRes.json();
+          throw new Error(authErr.msg || authErr.message || authErr.error_description || 'Failed to update credentials in authentication.');
+        }
+
+        var authJson = await authRes.json();
+        if (emailChanged && authJson && authJson.new_email && authJson.new_email !== authJson.email) {
+          emailNotice = ' A verification link was sent to ' + newEmail + '.';
+        }
+
+        // 3. Update hunter_profiles table row
+        var profileUpdates = { updated_at: new Date().toISOString() };
+        if (nameChanged) profileUpdates.hunter_name = cleanName;
+        if (emailChanged) profileUpdates.email = newEmail;
+
+        var patchRes = await fetch(url + '/rest/v1/hunter_profiles?id=eq.' + currentUserId, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': key,
+            'Authorization': 'Bearer ' + api.token
+          },
+          body: JSON.stringify(profileUpdates)
+        });
+
+        if (patchRes.status === 401) {
+          var ref2 = await api.refreshSession();
+          if (ref2) {
+            await fetch(url + '/rest/v1/hunter_profiles?id=eq.' + currentUserId, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': key,
+                'Authorization': 'Bearer ' + api.token
+              },
+              body: JSON.stringify(profileUpdates)
+            });
+          }
+        }
+      }
+
+      // 4. Update local state & session
+      if (S.state && S.state.profile) {
+        if (nameChanged) S.state.profile.hunterName = cleanName;
+        if (emailChanged) S.state.profile.email = newEmail;
+      }
+      if (api.user) {
+        if (nameChanged) api.user.hunterName = cleanName;
+        if (emailChanged) api.user.email = newEmail;
+        api.setSession(api.token, api.user, api.refreshToken);
+      }
+      api.rememberHunterName(newEmail || curEmail, cleanName, true);
+      S.commit();
+
+      if (S.auth && typeof S.auth.triggerSync === 'function') {
+        S.auth.triggerSync(false);
+      }
+
+      return {
+        success: true,
+        hunterName: cleanName,
+        email: newEmail || curEmail,
+        message: 'Hunter identity updated successfully.' + emailNotice
+      };
+    },
+
+    // ==========================================================================
     // Real People Global Leaderboards (Database Query)
     // ==========================================================================
     fetchLeaderboard: async function (view, targetTierIndex) {
