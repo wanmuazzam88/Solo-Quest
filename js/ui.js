@@ -3023,7 +3023,7 @@ window.SYS = window.SYS || {};
           (isAuth ? '<button class="auth-tab-btn ' + (activeTab === 'PROFILE' ? 'active' : '') + '" data-tab="PROFILE">' + I('user', 14) + ' HUNTER IDENTITY</button>' : '') +
           (!isAuth || isExpired ? '<button class="auth-tab-btn ' + (activeTab === 'LOGIN' ? 'active' : '') + '" data-tab="LOGIN">' + I('gate', 14) + (isExpired ? ' RE-LINK (PASSCODE)' : ' SYSTEM LINK (LOGIN)') + '</button>' : '') +
           (!isAuth ? '<button class="auth-tab-btn ' + (activeTab === 'REGISTER' ? 'active' : '') + '" data-tab="REGISTER">' + I('shield', 14) + ' AWAKENING (REGISTER)</button>' : '') +
-          '<button class="auth-tab-btn ' + (activeTab === 'DBCONFIG' ? 'active' : '') + '" data-tab="DBCONFIG">' + I('settings', 14) + ' DATABASE SETUP</button>' +
+          (activeTab === 'DBCONFIG' ? '<button class="auth-tab-btn active" data-tab="DBCONFIG">' + I('settings', 14) + ' DATABASE SETUP</button>' : '') +
         '</div>';
 
         var isLocal = S.api && S.api.provider === 'local';
@@ -3080,10 +3080,10 @@ window.SYS = window.SYS || {};
                   '<span class="db-latency-badge testing" style="font-size:10px;">LOCAL ONLY</span>' +
                 '</div>' +
                 '<div style="color:var(--text-secondary); font-size:11px; line-height:1.45; margin-bottom:10px;">' +
-                  'Your hunter progression is saved on this phone. Link a free Supabase cloud database via Cloudflare Pages or in Database Setup to go online and compete on the global leaderboard.' +
+                  'Your hunter progression is saved on this device. Awaken or Link your account to sync with the cloud database and compete on the global leaderboard.' +
                 '</div>' +
                 '<button type="button" class="sys-btn primary sm" id="btn-modal-go-online" style="width:100%;">' +
-                  I('settings', 14) + ' CONNECT SUPABASE CLOUD (GO ONLINE)' +
+                  I('shield', 14) + ' AWAKEN / LINK CLOUD ACCOUNT' +
                 '</button>' +
               '</div>') : '') +
             (S.api && S.api.provider === 'supabase' && S.api.user && String(S.api.user.id).startsWith('local_') ?
@@ -3448,7 +3448,7 @@ window.SYS = window.SYS || {};
         var btnGoOnline = document.getElementById('btn-modal-go-online');
         if (btnGoOnline) {
           btnGoOnline.addEventListener('click', function () {
-            activeTab = 'DBCONFIG';
+            activeTab = 'LOGIN';
             if (S.audio) S.audio.tap();
             renderModal();
           });
