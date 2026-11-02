@@ -629,6 +629,7 @@ window.SYS = window.SYS || {};
       if (q.isPenaltyQuest) cardCls += ' penalty-quest';
       if (q.isExam) cardCls += ' exam-quest';
 
+      var canManage = !q.isPenaltyQuest && !q.isExam;
       var progressControls = '';
       if (!q.isCompleted) {
         if (q.mode === 'CHECK') {
@@ -659,10 +660,12 @@ window.SYS = window.SYS || {};
           '</div>';
         }
       } else {
-        progressControls = '<div class="sys-badge font-mono" style="color:#39FF88;">' + I('check', 14) + ' COMPLETED</div>';
+        progressControls = '<div style="display:flex; align-items:center; justify-content:space-between; width:100%; flex-wrap:wrap; gap:6px;">' +
+          '<div class="sys-badge font-mono" style="color:#39FF88;">' + I('check', 14) + ' COMPLETED</div>' +
+          (canManage && !q.isBonus && !q.isRedemption && !q.dungeon ? '<button type="button" class="sys-btn sm btn-reset-quest" data-quest-id="' + q.id + '" title="Reset progress to 0" style="padding:4px 8px; font-size:11px;">' + I('reroll', 12) + ' RESET PROGRESS</button>' : '') +
+        '</div>';
       }
 
-      var canManage = !q.isPenaltyQuest && !q.isExam;
       var schedDays = (!q.isPenaltyQuest && !q.isExam && !q.isBonus && !q.isRedemption && !q.dungeon && !q.oneOff) ? S.getQuestScheduledDays(q) : null;
       var schedBadge = schedDays ? (schedDays.length === 7 ? 'DAILY' : schedDays.join('·')) : (q.isBonus ? 'BONUS' : q.oneOff ? 'TODAY' : '');
 
@@ -741,6 +744,23 @@ window.SYS = window.SYS || {};
           if (q) {
             if (S.audio) S.audio.tap();
             UI.openForgeModal({ editQuest: q, defaultDay: S.dayCode() });
+          }
+        });
+      });
+
+      // Reset quest progress
+      col.querySelectorAll('.btn-reset-quest').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.getAttribute('data-quest-id');
+          if (id) {
+            var q = S.getQuest(id);
+            var title = q ? ('"' + q.title + '"') : 'this quest';
+            if (confirm('[SYSTEM RE-INITIALIZE] Reset progress for ' + title + ' back to 0?')) {
+              if (S.audio) S.audio.tap();
+              S.resetQuestProgress(id);
+              UI.showToast('[DIRECTIVE RE-INITIALIZED]', title + ' reset to 0.', 'cyan');
+              UI.render();
+            }
           }
         });
       });

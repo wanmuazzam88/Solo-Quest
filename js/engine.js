@@ -491,6 +491,7 @@ window.SYS = window.SYS || {};
           preset: spec.preset,
           dScalar: null,
           expiresAt: null,
+          createdDate: s.currentDate || S.today(),
           createdAt: Date.now(),
           completedAt: null
         };
@@ -789,7 +790,8 @@ window.SYS = window.SYS || {};
       recurring: o.recurring !== false && !o.isExam && !o.isPenaltyQuest && !o.isBonus && !o.dungeon && !o.isRedemption,
       isPenaltyQuest: !!o.isPenaltyQuest, isExam: !!o.isExam, isBonus: !!o.isBonus, isRedemption: !!o.isRedemption,
       dungeon: o.dungeon || null, preset: o.preset || null, dScalar: o.dScalar || null,
-      expiresAt: o.expiresAt || null, createdAt: Date.now(), completedAt: null
+      expiresAt: o.expiresAt || null, createdDate: o.createdDate || (S.state && S.state.currentDate) || S.today(),
+      createdAt: Date.now(), completedAt: null
     };
     if (o.recurring === false) q.recurring = false;
     S.state.quests.push(q);
@@ -879,6 +881,16 @@ window.SYS = window.SYS || {};
   };
   S.maxProgress = function (id) { var q = S.getQuest(id); if (q) S.addProgress(id, q.targetProgress - q.currentProgress); };
   S.sealQuest = function (id) { var q = S.getQuest(id); if (q && !q.isCompleted) { q.currentProgress = q.targetProgress; completeQuest(q); S.commit(); } };
+  S.resetQuestProgress = function (id) {
+    var q = S.getQuest(id);
+    if (!q) return false;
+    q.currentProgress = 0;
+    q.isCompleted = false;
+    q.completedAt = null;
+    q.createdDate = (S.state && S.state.currentDate) || S.today();
+    S.commit();
+    return true;
+  };
 
   function completeQuest(q) {
     var s = S.state, p = s.profile, rec = s.records, log = S.dayLog();

@@ -214,6 +214,7 @@ window.SYS = window.SYS || {};
 
   // Boot on DOM ready
   document.addEventListener('DOMContentLoaded', function () {
+    if (S.checkRollover) { S.checkRollover(); }
     if (S.audio) S.audio.init();
     if (S.gateMgr) S.gateMgr.init();
     if (S.tracker) S.tracker.init();

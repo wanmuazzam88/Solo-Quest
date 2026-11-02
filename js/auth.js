@@ -420,14 +420,72 @@ window.SYS = window.SYS || {};
             needsSave = true;
           }
 
-          // 6. Quests Smart Merge (Completed status and highest progress are preserved)
+          // 6. Quests Smart Merge (Completed status and progress scoped to current day)
           if (Array.isArray(remote.quests) && remote.quests.length) {
             var localQuests = S.state.quests || [];
+            var today = S.state.currentDate || S.today();
+            var deletedQuests = S.state.deletedQuests || {};
+
+            var validRemoteQuests = [];
+            var staleRemoteQuests = [];
+
+            remote.quests.forEach(function (rq) {
+              var isTombstoned = !!(
+                deletedQuests[rq.id] ||
+                (rq.preset && deletedQuests['preset_' + rq.preset]) ||
+                (rq.title && deletedQuests['title_' + rq.title.trim().toLowerCase()])
+              );
+
+              if (isTombstoned) {
+                if (S.api && typeof S.api.deleteQuest === 'function') {
+                  S.api.deleteQuest(rq.id);
+                }
+                return;
+              }
+
+              var isSpecial = !!(rq.is_penalty_quest || rq.isPenaltyQuest || rq.is_exam || rq.isExam || rq.is_redemption || rq.isRedemption || rq.dungeon || rq.oneOff);
+              var rqDate = rq.created_date || rq.createdDate;
+              var rqUpdatedDate = rq.updated_at ? new Date(rq.updated_at).toISOString().slice(0, 10) : null;
+              var isPastDay = (!isSpecial && ((rqDate && rqDate < today) || (!rqDate && rqUpdatedDate && rqUpdatedDate < today)));
+
+              if (isPastDay) {
+                staleRemoteQuests.push(rq);
+                // Clean up stale past day quest from Supabase so it does not linger
+                if (S.api && typeof S.api.deleteQuest === 'function') {
+                  S.api.deleteQuest(rq.id);
+                }
+                return;
+              }
+
+              validRemoteQuests.push(rq);
+            });
+
+            // Sanitize any local daily quest that was infected by yesterday's completed quest
+            staleRemoteQuests.forEach(function (sq) {
+              var sqTitle = sq.title ? sq.title.trim().toLowerCase() : '';
+              localQuests.forEach(function (lq) {
+                var lqTitle = lq.title ? lq.title.trim().toLowerCase() : '';
+                var isSpecialLq = !!(lq.isPenaltyQuest || lq.isExam || lq.isRedemption || lq.dungeon || lq.oneOff);
+                if (!isSpecialLq) {
+                  var isPoisoned = lq.id === sq.id || (sqTitle && lqTitle === sqTitle && (!lq.createdDate || lq.createdDate < today || (sq.is_completed && lq.isCompleted)));
+                  if (isPoisoned) {
+                    lq.id = (S.util && S.util.uid) ? S.util.uid() : ('q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6));
+                    lq.currentProgress = 0;
+                    lq.isCompleted = false;
+                    lq.completedAt = null;
+                    lq.createdDate = today;
+                    needsSave = true;
+                    needsPush = true;
+                  }
+                }
+              });
+            });
+
             var remoteById = {};
             var remoteByPreset = {};
             var remoteByTitle = {};
 
-            remote.quests.forEach(function (rq) {
+            validRemoteQuests.forEach(function (rq) {
               if (rq.id) remoteById[rq.id] = rq;
               var isComp = !!(rq.is_completed === true || rq.is_completed === 1 || rq.is_completed === 'true' || rq.isCompleted === true || rq.isCompleted === 1);
               var prog = parseFloat(rq.current_progress != null ? rq.current_progress : (rq.currentProgress != null ? rq.currentProgress : 0));
@@ -453,11 +511,11 @@ window.SYS = window.SYS || {};
 
             // Update existing local quests from remote with multi-device resolution
             localQuests.forEach(function (lq) {
+              var candById = remoteById[lq.id];
               var candByPreset = lq.preset ? remoteByPreset[lq.preset] : null;
               var candByTitle = lq.title ? remoteByTitle[lq.title.trim().toLowerCase()] : null;
-              var candById = remoteById[lq.id];
 
-              var candidates = [candByPreset, candByTitle, candById].filter(Boolean);
+              var candidates = [candById, candByPreset, candByTitle].filter(Boolean);
               var rq = null;
               if (candidates.length) {
                 rq = candidates[0];
@@ -479,7 +537,7 @@ window.SYS = window.SYS || {};
                 var rTarget = parseFloat(rq.target_progress != null ? rq.target_progress : (rq.targetProgress != null ? rq.targetProgress : lq.targetProgress));
                 if (rTarget > 0 && rProg >= rTarget) rComp = true;
 
-                // Unify quest IDs so both devices operate on the identical database record
+                // Unify quest IDs so both devices operate on identical database record
                 if (rq.id && lq.id !== rq.id) {
                   lq.id = rq.id;
                   needsSave = true;
@@ -505,59 +563,49 @@ window.SYS = window.SYS || {};
               }
             });
 
-            // If remote has quests not yet in local state, add them safely (unless tombstoned/deleted)
-            var deletedQuests = S.state.deletedQuests || {};
-            remote.quests.forEach(function (rq) {
-              var isTombstoned = !!(
-                deletedQuests[rq.id] ||
-                (rq.preset && deletedQuests['preset_' + rq.preset]) ||
-                (rq.title && deletedQuests['title_' + rq.title.trim().toLowerCase()])
-              );
-
-              if (isTombstoned) {
-                // Delete from Supabase as well so it doesn't linger
-                if (S.api && typeof S.api.deleteQuest === 'function') {
-                  S.api.deleteQuest(rq.id);
-                }
-                return; // DO NOT restore into localQuests!
-              }
-
-              var existsLocally = localQuests.some(function (lq) {
-                return lq.id === rq.id ||
-                       (rq.preset && lq.preset === rq.preset) ||
-                       (rq.title && lq.title && lq.title.trim().toLowerCase() === rq.title.trim().toLowerCase());
-              });
-
-              if (!existsLocally) {
-                var cat = rq.category || 'HABIT';
-                var presetDef = (rq.preset && S.PRESETS && S.PRESETS[rq.preset]) ? S.PRESETS[rq.preset] : null;
-                var diff = rq.difficulty || (presetDef ? presetDef.difficulty : 'E');
-                if (!S.DIFF || !S.DIFF[diff]) diff = 'E';
-                var primStat = rq.primaryStat || rq.primary_stat || (presetDef ? presetDef.primaryStat : (S.CATS && S.CATS[cat] ? S.CATS[cat].stat : 'STR'));
-                var unit = rq.unit || (presetDef ? presetDef.unit : 'REPS');
-                var mode = rq.mode || (presetDef ? presetDef.mode : (unit === 'CHECK' ? 'CHECK' : (unit === 'MINS' ? 'DURATION' : 'COUNTER')));
-
-                localQuests.push({
-                  id: rq.id,
-                  title: rq.title,
-                  category: cat,
-                  difficulty: diff,
-                  primaryStat: primStat,
-                  unit: unit,
-                  mode: mode,
-                  targetProgress: parseFloat(rq.target_progress || rq.targetProgress || (presetDef ? presetDef.target : 1)),
-                  currentProgress: parseFloat(rq.current_progress || rq.currentProgress || 0),
-                  isCompleted: !!(rq.is_completed || rq.isCompleted),
-                  preset: rq.preset || null,
-                  isPenaltyQuest: !!(rq.is_penalty_quest || rq.isPenaltyQuest),
-                  isExam: !!(rq.is_exam || rq.isExam),
-                  isBonus: !!(rq.is_bonus || rq.isBonus),
-                  isRedemption: !!(rq.is_redemption || rq.isRedemption),
-                  isMandatory: rq.is_mandatory !== undefined ? !!rq.is_mandatory : (presetDef && presetDef.isMandatory !== undefined ? !!presetDef.isMandatory : true),
-                  recurring: rq.recurring !== false && !rq.is_penalty_quest && !rq.isPenaltyQuest && !rq.is_exam && !rq.isExam && !rq.is_bonus && !rq.isBonus && !rq.is_redemption && !rq.isRedemption,
-                  createdDate: rq.created_date || rq.createdDate || S.today()
+            // If remote has valid quests for today not yet in local state, add them safely
+            validRemoteQuests.forEach(function (rq) {
+              var isSpecial = !!(rq.is_penalty_quest || rq.isPenaltyQuest || rq.is_exam || rq.isExam || rq.is_redemption || rq.isRedemption || rq.dungeon || rq.oneOff);
+              var rqDate = rq.created_date || rq.createdDate;
+              // Only adopt if it is a persistent special quest OR a quest explicitly created for today
+              if (isSpecial || rqDate === today) {
+                var existsLocally = localQuests.some(function (lq) {
+                  return lq.id === rq.id ||
+                         (rq.preset && lq.preset === rq.preset) ||
+                         (rq.title && lq.title && lq.title.trim().toLowerCase() === rq.title.trim().toLowerCase());
                 });
-                needsSave = true;
+
+                if (!existsLocally) {
+                  var cat = rq.category || 'HABIT';
+                  var presetDef = (rq.preset && S.PRESETS && S.PRESETS[rq.preset]) ? S.PRESETS[rq.preset] : null;
+                  var diff = rq.difficulty || (presetDef ? presetDef.difficulty : 'E');
+                  if (!S.DIFF || !S.DIFF[diff]) diff = 'E';
+                  var primStat = rq.primaryStat || rq.primary_stat || (presetDef ? presetDef.primaryStat : (S.CATS && S.CATS[cat] ? S.CATS[cat].stat : 'STR'));
+                  var unit = rq.unit || (presetDef ? presetDef.unit : 'REPS');
+                  var mode = rq.mode || (presetDef ? presetDef.mode : (unit === 'CHECK' ? 'CHECK' : (unit === 'MINS' ? 'DURATION' : 'COUNTER')));
+
+                  localQuests.push({
+                    id: rq.id,
+                    title: rq.title,
+                    category: cat,
+                    difficulty: diff,
+                    primaryStat: primStat,
+                    unit: unit,
+                    mode: mode,
+                    targetProgress: parseFloat(rq.target_progress || rq.targetProgress || (presetDef ? presetDef.target : 1)),
+                    currentProgress: parseFloat(rq.current_progress || rq.currentProgress || 0),
+                    isCompleted: !!(rq.is_completed || rq.isCompleted),
+                    preset: rq.preset || null,
+                    isPenaltyQuest: !!(rq.is_penalty_quest || rq.isPenaltyQuest),
+                    isExam: !!(rq.is_exam || rq.isExam),
+                    isBonus: !!(rq.is_bonus || rq.isBonus),
+                    isRedemption: !!(rq.is_redemption || rq.isRedemption),
+                    isMandatory: rq.is_mandatory !== undefined ? !!rq.is_mandatory : (presetDef && presetDef.isMandatory !== undefined ? !!presetDef.isMandatory : true),
+                    recurring: rq.recurring !== false && !rq.is_penalty_quest && !rq.isPenaltyQuest && !rq.is_exam && !rq.isExam && !rq.is_bonus && !rq.isBonus && !rq.is_redemption && !rq.isRedemption,
+                    createdDate: rqDate || today
+                  });
+                  needsSave = true;
+                }
               }
             });
           } else if (S.state.quests && S.state.quests.length) {
