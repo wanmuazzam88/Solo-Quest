@@ -1085,8 +1085,8 @@ window.SYS = window.SYS || {};
         // Active Gate Screen
         var def = S.gateDef(g);
         var rem = S.gateRemaining();
-        container.innerHTML = '<div class="system-panel" style="max-width:680px; margin:0 auto;">' +
-          '<div class="panel-header">' +
+        container.innerHTML = '<div class="system-panel gate-panel active-gate-panel" style="max-width:680px; margin:0 auto;">' +
+          '<div class="panel-header gate-header">' +
             '<div class="panel-title">' + I('gate', 20) + ' ' + def.name + ' [' + g.phase + ' PHASE]</div>' +
             (g.darkLock ? '<div class="sys-badge text-danger font-mono">' + I('lock', 14) + ' DARK LOCK ACTIVE</div>' : '') +
           '</div>' +
@@ -1130,13 +1130,13 @@ window.SYS = window.SYS || {};
       var linkedQuest = UI.pendingLinkedQuestId ? S.getQuest(UI.pendingLinkedQuestId) : null;
       var inPenalty = S.state.profile.inPenaltyZone;
 
-      container.innerHTML = '<div class="system-panel" style="max-width:860px; margin:0 auto;">' +
-        '<div class="panel-header">' +
+      container.innerHTML = '<div class="system-panel gate-panel" style="max-width:860px; margin:0 auto;">' +
+        '<div class="panel-header gate-header">' +
           '<div class="panel-title">' + I('gate', 20) + ' [SELECT DUNGEON GATE]</div>' +
-          '<div class="flex-between gap-10">' +
-            '<label class="flex-between gap-6 font-mono" style="cursor:pointer; font-size:12px; color:var(--text-secondary);">' +
+          '<div class="flex-between gap-10 gate-header-controls">' +
+            '<label class="flex-between gap-6 font-mono gate-darklock-toggle" style="cursor:pointer; font-size:12px; color:var(--text-secondary);">' +
               '<input type="checkbox" id="chk-dark-lock" checked style="accent-color:var(--accent-core);">' +
-              I('lock', 14) + ' ENGAGE DARK LOCK (FULLSCREEN + FOCUS SHIELD)' +
+              I('lock', 14) + ' <span>ENGAGE DARK LOCK (FULLSCREEN + FOCUS SHIELD)</span>' +
             '</label>' +
           '</div>' +
         '</div>' +

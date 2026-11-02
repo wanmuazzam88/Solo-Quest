@@ -300,6 +300,7 @@ window.SYS = window.SYS || {};
       s.quests = s.quests.filter(function (q) { return !q.isExam; });
       s.profile.gold += 200 * (s.profile.rankTierIndex + 1);
       s.inventory.boxes.BLESSED += 2;
+      s.inventory.updatedAt = Date.now();
       S.emit('rankUp', { rank: S.rank() });
       checkExamEligibility();
     }
@@ -913,7 +914,7 @@ window.SYS = window.SYS || {};
     if (h < 6) rec.dawnClears++;
     if (h === 23) rec.midnightClears++;
     if (q.difficulty === 'A' || q.difficulty === 'S') rec.highRankQuests++;
-    if (q.dungeon) { rec.dungeonsCleared++; s.inventory.boxes.BLESSED++; S.notify('[DUNGEON CLEARED]', q.title + ' — Reward: Blessed Random Box x1.', 'gold'); }
+    if (q.dungeon) { rec.dungeonsCleared++; s.inventory.boxes.BLESSED++; s.inventory.updatedAt = Date.now(); S.notify('[DUNGEON CLEARED]', q.title + ' — Reward: Blessed Random Box x1.', 'gold'); }
 
     S.emit('questComplete', result);
     checkExamComplete();
@@ -929,6 +930,7 @@ window.SYS = window.SYS || {};
     s.dailyBonusClaimed = true;
     s.profile.fatigue = 0;
     s.inventory.boxes.BLESSED++;
+    s.inventory.updatedAt = Date.now();
     s.profile.gold += 50; s.records.goldEarned += 50;
     s.profile.essenceStones += 2;
     S.emit('dailyComplete', {});
@@ -938,8 +940,11 @@ window.SYS = window.SYS || {};
     var p = S.state.profile;
     if (p.unallocatedAp <= 0 || !p.stats.hasOwnProperty(stat)) return;
     p.unallocatedAp--; p.stats[stat]++;
+    p.ap = p.unallocatedAp;
+    p.statsUpdatedAt = Date.now();
     S.checkUnlocks();
     S.commit();
+    S.emit('statAllocated', { stat: stat });
   };
 
   /* --- Bonus Quest re-roll (AGI reduces cooldown) --- */
@@ -1156,8 +1161,8 @@ window.SYS = window.SYS || {};
         gainXp(xp);
         p.essenceStones += def.essence; summary.essence = def.essence;
         var chance = def.lootChance + p.stats.PER * 0.0015;
-        if (g.breached) { s.inventory.boxes.CURSED++; summary.box = 'CURSED'; }
-        else if (Math.random() < chance) { s.inventory.boxes.BLESSED++; summary.box = 'BLESSED'; }
+        if (g.breached) { s.inventory.boxes.CURSED++; s.inventory.updatedAt = Date.now(); summary.box = 'CURSED'; }
+        else if (Math.random() < chance) { s.inventory.boxes.BLESSED++; s.inventory.updatedAt = Date.now(); summary.box = 'BLESSED'; }
         p.stats.PER += g.darkLock && !g.breached ? 2 : 1;
       }
       if (linked && !linked.isCompleted) {
@@ -1211,6 +1216,7 @@ window.SYS = window.SYS || {};
     var s = S.state, inv = s.inventory, p = s.profile;
     if (S.isFrozen() || inv.boxes[type] <= 0) return null;
     inv.boxes[type]--;
+    inv.updatedAt = Date.now();
     s.records.boxesOpened++;
     var rarity = rollRarity(type);
     var pool = S.VAULT.filter(function (it) { return it.rarity === rarity && (it.category === 'RELIC' || (it.category === 'CONSUMABLE' && it.effect.type !== 'passive' || it.id === 'c_rune_protect')); });
@@ -1232,6 +1238,7 @@ window.SYS = window.SYS || {};
     s.lootHistory = s.lootHistory.slice(0, 20);
     S.checkUnlocks();
     S.commit();
+    S.emit('boxOpened', { type: type, result: res });
     return res;
   };
 
@@ -1263,9 +1270,11 @@ window.SYS = window.SYS || {};
       case 'passive': S.notify('[SYSTEM]', 'This rune activates automatically at midnight.', 'info'); return false;
     }
     s.inventory.owned[id]--;
+    s.inventory.updatedAt = Date.now();
     S.notify('[ITEM USED] ' + it.name, msg, 'info');
     S.checkUnlocks();
     S.commit();
+    S.emit('itemUsed', { id: id });
     return true;
   };
 
@@ -1363,8 +1372,9 @@ window.SYS = window.SYS || {};
     var wallet = entry.cur === 'gold' ? 'gold' : 'essenceStones';
     if (p[wallet] < entry.price) { S.notify('[INSUFFICIENT ' + (entry.cur === 'gold' ? 'GOLD' : 'ESSENCE') + ']', 'Required: ' + entry.price + '.', 'danger'); return false; }
     p[wallet] -= entry.price;
-    if (entry.box) s.inventory.boxes[entry.box]++;
+    if (entry.box) { s.inventory.boxes[entry.box]++; s.inventory.updatedAt = Date.now(); }
     else grant(entry.id, 1);
+    s.inventory.updatedAt = Date.now();
     S.notify('[PURCHASE COMPLETE]', (entry.name || S.ITEM[entry.id].name) + ' added to your inventory.', 'info');
     S.checkUnlocks();
     S.commit();

@@ -1280,6 +1280,9 @@ window.SYS = window.SYS || {};
         if (state.weeklyPlan) {
           shadowsPayload._weekly_plan = state.weeklyPlan;
         }
+        if (state.inventory && state.inventory.updatedAt) {
+          shadowsPayload._inv_updated_at = state.inventory.updatedAt;
+        }
 
         var dbInv = {
           user_id: api.user.id,

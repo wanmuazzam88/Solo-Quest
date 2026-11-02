@@ -39,6 +39,12 @@ window.SYS = window.SYS || {};
       S.on('levelUp', function () {
         auth.syncWithCloud(false);
       });
+      S.on('statAllocated', function () {
+        auth.debouncedSync();
+      });
+      S.on('boxOpened', function () {
+        auth.debouncedSync();
+      });
       S.on('trackerFinished', function () {
         auth.syncWithCloud(true);
       });
@@ -318,33 +324,69 @@ window.SYS = window.SYS || {};
             }
           }
 
-          // 2. Unallocated AP
+          // 2 & 3. Stats & Unallocated AP Synchronization
+          if (!lp.stats) lp.stats = { STR: 10, AGI: 10, VIT: 10, INT: 10, PER: 10 };
           var rAp = Number(rp.ap != null ? rp.ap : 0);
           var lAp = Number(lp.unallocatedAp != null ? lp.unallocatedAp : (lp.ap || 0));
+
+          var lStatSum = ['STR', 'AGI', 'VIT', 'INT', 'PER'].reduce(function (sum, k) {
+            return sum + (Number(lp.stats && lp.stats[k]) || 10);
+          }, 0);
+          var rStatSum = (Number(rp.str) || 10) + (Number(rp.agi) || 10) + (Number(rp.vit) || 10) + (Number(rp.int) || 10) + (Number(rp.per) || 10);
+
           if (rLvl > lLvl) {
+            // Remote achieved a higher level on another device: adopt remote level, XP, AP and stats
             lp.unallocatedAp = rAp;
             lp.ap = rAp;
+            ['STR', 'AGI', 'VIT', 'INT', 'PER'].forEach(function (stat) {
+              var rVal = Number(rp[stat.toLowerCase()] || 10);
+              if (rVal > (lp.stats[stat] || 10)) {
+                lp.stats[stat] = rVal;
+              }
+            });
             needsSave = true;
           } else if (lLvl > rLvl) {
+            // Local device reached higher level: push local state
             needsPush = true;
-          } else if (rAp !== lAp) {
-            lp.unallocatedAp = Math.max(lAp, rAp);
-            lp.ap = lp.unallocatedAp;
-            needsSave = true;
-          }
-
-          // 3. Stats (STR, AGI, VIT, INT, PER)
-          if (!lp.stats) lp.stats = { STR: 10, AGI: 10, VIT: 10, INT: 10, PER: 10 };
-          ['STR', 'AGI', 'VIT', 'INT', 'PER'].forEach(function (stat) {
-            var rVal = Number(rp[stat.toLowerCase()] || 10);
-            var lVal = Number(lp.stats[stat] || 10);
-            if (rVal > lVal) {
-              lp.stats[stat] = rVal;
-              needsSave = true;
-            } else if (lVal > rVal) {
+          } else {
+            // Same Level: compare stat points allocated vs remaining AP
+            if (lStatSum > rStatSum) {
+              // Local has allocated AP points into stats!
+              // Local's stats and lower AP are authoritative; do NOT adopt remote's unspent AP
+              lp.ap = lAp;
               needsPush = true;
+            } else if (rStatSum > lStatSum) {
+              // Remote device allocated AP points into stats on another device
+              ['STR', 'AGI', 'VIT', 'INT', 'PER'].forEach(function (stat) {
+                var rVal = Number(rp[stat.toLowerCase()] || 10);
+                lp.stats[stat] = rVal;
+              });
+              lp.unallocatedAp = rAp;
+              lp.ap = rAp;
+              needsSave = true;
+            } else {
+              // Stat totals match: sync any individual stat discrepancies
+              ['STR', 'AGI', 'VIT', 'INT', 'PER'].forEach(function (stat) {
+                var rVal = Number(rp[stat.toLowerCase()] || 10);
+                var lVal = Number(lp.stats[stat] || 10);
+                if (rVal > lVal) {
+                  lp.stats[stat] = rVal;
+                  needsSave = true;
+                } else if (lVal > rVal) {
+                  needsPush = true;
+                }
+              });
+
+              if (rAp > lAp) {
+                lp.unallocatedAp = rAp;
+                lp.ap = rAp;
+                needsSave = true;
+              } else if (lAp > rAp) {
+                lp.ap = lAp;
+                needsPush = true;
+              }
             }
-          });
+          }
 
           // 4. Gold & Essence
           var rGold = Number(rp.gold || 0);
@@ -522,18 +564,70 @@ window.SYS = window.SYS || {};
             needsPush = true;
           }
 
-          // 7. Inventory
+          // 7. Inventory & Boxes Synchronization
           if (remote.inventory) {
             var rInv = remote.inventory;
             var lInv = S.state.inventory || {};
+            lInv.boxes = lInv.boxes || { RANDOM: 0, BLESSED: 0, CURSED: 0 };
+
+            var rInvTime = Number(rInv.shadows && rInv.shadows._inv_updated_at) ||
+              (rInv.updated_at ? new Date(rInv.updated_at).getTime() : 0);
+            var lInvTime = Number(lInv.updatedAt || 0);
+
             if (rInv.boxes && typeof rInv.boxes === 'object') {
-              lInv.boxes = lInv.boxes || { RANDOM: 0, BLESSED: 0, CURSED: 0 };
-              ['RANDOM', 'BLESSED', 'CURSED'].forEach(function (bKey) {
-                var rb = Number(rInv.boxes[bKey] || 0);
-                var lb = Number(lInv.boxes[bKey] || 0);
-                if (rb > lb) { lInv.boxes[bKey] = rb; needsSave = true; }
-                else if (lb > rb) { needsPush = true; }
-              });
+              var rBoxes = rInv.boxes;
+              var isRemoteNewer = rInvTime > lInvTime;
+              var isLocalNewer = lInvTime > rInvTime;
+
+              if (isLocalNewer) {
+                // Local device consumed or earned boxes more recently: push to cloud!
+                needsPush = true;
+              } else if (isRemoteNewer) {
+                // Cloud holds newer authoritative inventory from another device
+                var boxDiff = false;
+                ['RANDOM', 'BLESSED', 'CURSED'].forEach(function (bKey) {
+                  var rb = Number(rBoxes[bKey] || 0);
+                  if (lInv.boxes[bKey] !== rb) {
+                    lInv.boxes[bKey] = rb;
+                    boxDiff = true;
+                  }
+                });
+                if (boxDiff) {
+                  lInv.updatedAt = rInvTime;
+                  needsSave = true;
+                }
+              } else {
+                // Timestamps equal or untracked
+                var boxDiff = false;
+                ['RANDOM', 'BLESSED', 'CURSED'].forEach(function (bKey) {
+                  var rb = Number(rBoxes[bKey] || 0);
+                  var lb = Number(lInv.boxes[bKey] || 0);
+                  if (lb > rb) {
+                    needsPush = true;
+                  } else if (rb > lb) {
+                    if (lInvTime > 0) {
+                      // Local has mutated inventory before; preserve local count
+                      needsPush = true;
+                    } else {
+                      // Fresh device with no local updates: adopt remote boxes
+                      lInv.boxes[bKey] = rb;
+                      boxDiff = true;
+                    }
+                  }
+                });
+                if (boxDiff) {
+                  needsSave = true;
+                }
+              }
+            }
+
+            if (rInv.owned_items && typeof rInv.owned_items === 'object') {
+              if (rInvTime > lInvTime) {
+                lInv.owned = Object.assign({}, rInv.owned_items);
+                needsSave = true;
+              } else if (lInvTime > rInvTime) {
+                needsPush = true;
+              }
             }
 
             // 8. Weekly Plan Synchronization
