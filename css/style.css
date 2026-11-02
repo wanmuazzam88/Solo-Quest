@@ -1028,29 +1028,83 @@ html, body {
   }
 }
 
-/* --- Dark Lock Fullscreen Override --- */
+/* --- Dark Lock Fullscreen Override (Static Lock Shield) --- */
+html.dark-lock-active,
 body.dark-lock-active {
-  user-select: none;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  position: fixed !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100% !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  inset: 0 !important;
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  scrollbar-width: none !important;
 }
+
+body.dark-lock-active::-webkit-scrollbar,
+body.dark-lock-active *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+body.dark-lock-active #app-root {
+  height: 100% !important;
+  height: 100dvh !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  max-height: 100dvh !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  touch-action: none !important;
+}
+
 body.dark-lock-active .system-topbar,
 body.dark-lock-active .mobile-dock {
   display: none !important;
 }
+
 body.dark-lock-active .main-viewport {
-  padding-top: calc(constant(safe-area-inset-top, 0px) + 24px) !important;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 24px) !important;
-  padding-bottom: calc(constant(safe-area-inset-bottom, 0px) + 24px) !important;
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px) !important;
-  min-height: 100vh;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  height: 100% !important;
+  height: 100dvh !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  max-height: 100dvh !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+  padding-top: calc(constant(safe-area-inset-top, 0px) + 16px) !important;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 16px) !important;
+  padding-bottom: calc(constant(safe-area-inset-bottom, 0px) + 16px) !important;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)) !important;
+  padding-right: max(16px, env(safe-area-inset-right, 0px)) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
 }
+
 body.dark-lock-active .gate-panel {
-  width: 100%;
-  margin: 0 auto;
+  width: 100% !important;
+  max-width: 520px !important;
+  margin: 0 auto !important;
+  overflow: hidden !important;
+}
+
+body.dark-lock-active button,
+body.dark-lock-active .sys-btn {
+  touch-action: manipulation !important;
+  pointer-events: auto !important;
 }
 
 /* --- Grace Countdown Warning Banner --- */

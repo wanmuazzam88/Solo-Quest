@@ -35,6 +35,11 @@ window.SYS = window.SYS || {};
       S.on('gateCleared', function () {
         G.disengageDarkLock();
       });
+
+      // Resume Dark Lock if app was opened mid-gate
+      if (S.state && S.state.gate && S.state.gate.darkLock) {
+        G.engageDarkLock();
+      }
     },
 
     /* --- Request Screen Wake Lock --- */
@@ -88,13 +93,26 @@ window.SYS = window.SYS || {};
       G.requestWakeLock();
       G.requestFullscreen();
       G.clearGrace();
+      document.documentElement.classList.add('dark-lock-active');
       document.body.classList.add('dark-lock-active');
+      document.addEventListener('touchmove', G.preventTouchScroll, { passive: false });
     },
 
     disengageDarkLock: function () {
       G.clearGrace();
       G.releaseWakeLock();
+      document.documentElement.classList.remove('dark-lock-active');
       document.body.classList.remove('dark-lock-active');
+      document.removeEventListener('touchmove', G.preventTouchScroll);
+    },
+
+    preventTouchScroll: function (e) {
+      if (document.body.classList.contains('dark-lock-active')) {
+        // Prevent rubberband scrolling while allowing button interaction
+        if (!e.target.closest('button, .sys-btn, input, a')) {
+          e.preventDefault();
+        }
+      }
     },
 
     /* --- Telemetry Handlers --- */
