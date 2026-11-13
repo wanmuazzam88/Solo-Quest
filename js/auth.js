@@ -707,6 +707,22 @@ window.SYS = window.SYS || {};
             } else if (S.state.weeklyPlan) {
               needsPush = true;
             }
+            if (rInv.shadows._muscle_log) {
+              var remoteMl = rInv.shadows._muscle_log;
+              delete rInv.shadows._muscle_log;
+              if (remoteMl && typeof remoteMl === 'object') {
+                var rMlTime = remoteMl.updatedAt || 0;
+                var lMlTime = (S.state.muscleLog && S.state.muscleLog.updatedAt) || 0;
+                if (rMlTime > lMlTime) {
+                  S.state.muscleLog = remoteMl;
+                  needsPull = true;
+                } else if (lMlTime > rMlTime) {
+                  needsPush = true;
+                }
+              }
+            } else if (S.state.muscleLog) {
+              needsPush = true;
+            }
           }
 
         } else {

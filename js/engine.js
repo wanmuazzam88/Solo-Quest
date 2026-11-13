@@ -335,7 +335,8 @@ window.SYS = window.SYS || {};
       unit: mode === 'CHECK' ? 'CHECK' : unit,
       mode: mode,
       isMandatory: o.isMandatory !== false,
-      preset: o.preset || null
+      preset: o.preset || null,
+      muscles: Array.isArray(o.muscles) && o.muscles.length ? o.muscles.slice(0, 6) : null
     };
   }
 
@@ -452,6 +453,7 @@ window.SYS = window.SYS || {};
         existing.mode = spec.mode;
         existing.isMandatory = spec.isMandatory;
         existing.preset = spec.preset;
+        existing.muscles = spec.muscles || null;
         existing.planId = pItem.planId;
         existing.groupId = pItem.groupId;
         existing.recurring = true;
@@ -487,6 +489,7 @@ window.SYS = window.SYS || {};
           isRedemption: false,
           dungeon: null,
           preset: spec.preset,
+          muscles: spec.muscles || null,
           dScalar: null,
           expiresAt: null,
           createdDate: s.currentDate || S.today(),
@@ -523,6 +526,7 @@ window.SYS = window.SYS || {};
           q.unit = spec.unit;
           q.mode = spec.mode;
           q.isMandatory = spec.isMandatory;
+          q.muscles = spec.muscles || null;
           q.oneOff = true;
           q.recurring = false;
         }
@@ -788,6 +792,7 @@ window.SYS = window.SYS || {};
       recurring: o.recurring !== false && !o.isExam && !o.isPenaltyQuest && !o.isBonus && !o.dungeon && !o.isRedemption,
       isPenaltyQuest: !!o.isPenaltyQuest, isExam: !!o.isExam, isBonus: !!o.isBonus, isRedemption: !!o.isRedemption,
       dungeon: o.dungeon || null, preset: o.preset || null, dScalar: o.dScalar || null,
+      muscles: Array.isArray(o.muscles) && o.muscles.length ? o.muscles.slice(0, 6) : null,
       expiresAt: o.expiresAt || null, createdDate: o.createdDate || (S.state && S.state.currentDate) || S.today(),
       createdAt: Date.now(), completedAt: null
     };
@@ -898,6 +903,7 @@ window.SYS = window.SYS || {};
     if (diff > 0) {
       if (q.unit === 'REPS') S.state.records.repsLogged += diff;
     }
+    if (S.syncQuestMuscleCredit) S.syncQuestMuscleCredit(q, true);
     if (q.currentProgress >= q.targetProgress) completeQuest(q);
     S.commit();
   };
@@ -910,6 +916,7 @@ window.SYS = window.SYS || {};
     q.isCompleted = false;
     q.completedAt = null;
     q.createdDate = (S.state && S.state.currentDate) || S.today();
+    if (S.syncQuestMuscleCredit) S.syncQuestMuscleCredit(q, true);
     S.commit();
     return true;
   };
@@ -918,6 +925,7 @@ window.SYS = window.SYS || {};
     var s = S.state, p = s.profile, rec = s.records, log = S.dayLog();
     q.isCompleted = true;
     q.completedAt = S.now();
+    if (S.syncQuestMuscleCredit) S.syncQuestMuscleCredit(q, false);
     var result = { q: q, xp: 0, gold: 0, stat: 0, frozen: false };
 
     if (q.isPenaltyQuest) {

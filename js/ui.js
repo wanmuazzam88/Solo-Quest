@@ -17,8 +17,15 @@ window.SYS = window.SYS || {};
 
   var UI = S.ui = {
     init: function () {
+      try {
+        var params = new URLSearchParams(window.location.search || '');
+        var initView = params.get('view');
+        if (initView && ['quests', 'status', 'physique', 'gate', 'vault', 'settings'].indexOf(initView) >= 0) {
+          currentView = initView;
+        }
+      } catch (e) {}
       UI.bindEvents();
-      UI.render();
+      UI.setView(currentView);
       UI.applyActiveTheme();
 
       // Listen for system state events
@@ -151,6 +158,9 @@ window.SYS = window.SYS || {};
             break;
           case 'status':
             UI.renderStatusView(container);
+            break;
+          case 'physique':
+            if (S.renderPhysiqueView) S.renderPhysiqueView(container);
             break;
           case 'gate':
             UI.renderGateView(container);
@@ -657,6 +667,17 @@ window.SYS = window.SYS || {};
 
       var schedDays = (!q.isPenaltyQuest && !q.isExam && !q.isBonus && !q.isRedemption && !q.dungeon && !q.oneOff) ? S.getQuestScheduledDays(q) : null;
       var schedBadge = schedDays ? (schedDays.length === 7 ? 'DAILY' : schedDays.join('·')) : (q.isBonus ? 'BONUS' : q.oneOff ? 'TODAY' : '');
+      var qMuscles = (S.inferMusclesFromQuest && S.MUSCLE_MAP) ? S.inferMusclesFromQuest(q) : [];
+      var muscleBadgesHtml = '';
+      if (qMuscles && qMuscles.length) {
+        muscleBadgesHtml = '<div class="quest-muscle-row">' +
+          '<span class="font-mono" style="font-size:9.5px; color:var(--text-muted); letter-spacing:0.06em;">MUSCLES:</span>' +
+          qMuscles.map(function (mid) {
+            var mObj = S.MUSCLE_MAP[mid];
+            return mObj ? '<span class="quest-muscle-pill" data-muscle-jump="' + mid + '" title="View in Physique Matrix">' + mObj.short + '</span>' : '';
+          }).join('') +
+        '</div>';
+      }
 
       return '<div class="' + cardCls + '" id="quest-' + q.id + '">' +
         '<div class="quest-header-row">' +
@@ -677,6 +698,7 @@ window.SYS = window.SYS || {};
           '<span>PROGRESS: ' + q.currentProgress + ' / ' + q.targetProgress + ' ' + (q.unit !== 'CHECK' ? S.UNITS[q.unit] || '' : '') + '</span>' +
           '<span>+' + xpPay + ' XP // +' + goldPay + ' G // [' + (q.primaryStat || 'STR') + ' +' + (S.DIFF[q.difficulty] ? S.DIFF[q.difficulty].stat : 1) + ']</span>' +
         '</div>' +
+        muscleBadgesHtml +
 
         '<div class="progress-bar-wrap" style="margin-bottom:8px;"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
 
@@ -697,6 +719,19 @@ window.SYS = window.SYS || {};
           if (S.audio) S.audio.tap();
           if (inc === 'MAX') S.maxProgress(id);
           else S.addProgress(id, Number(inc));
+        });
+      });
+
+      // Jump to Physique view when clicking a muscle pill on a quest card
+      col.querySelectorAll('[data-muscle-jump]').forEach(function (pill) {
+        pill.addEventListener('click', function () {
+          var mid = pill.getAttribute('data-muscle-jump');
+          if (mid && S.ensureMuscleLog) {
+            var ml = S.ensureMuscleLog();
+            ml.selectedMuscle = mid;
+          }
+          if (S.audio) S.audio.tap();
+          UI.setView('physique');
         });
       });
 
@@ -1798,6 +1833,19 @@ window.SYS = window.SYS || {};
               '<div class="font-mono" id="forge-sched-summary" style="font-size:10px; color:var(--text-muted); margin-top:6px;"></div>' +
             '</div>' +
 
+            (S.MUSCLES ? '<div class="forge-schedule-box" style="padding:8px 10px;">' +
+              '<div class="flex-between" style="margin-bottom:6px; flex-wrap:wrap; gap:4px;">' +
+                '<span class="font-mono" style="font-size:10px; color:var(--accent-core); font-weight:700; letter-spacing:0.06em;">TARGET MUSCLES (OPTIONAL // AUTO-DETECTS BY DEFAULT)</span>' +
+                '<button type="button" class="quick-day-btn" id="btn-forge-clear-muscles">AUTO-DETECT</button>' +
+              '</div>' +
+              '<div style="display:flex; flex-wrap:wrap; gap:5px;" id="forge-muscle-chips">' +
+                S.MUSCLES.map(function (m) {
+                  var isSel = editItem && Array.isArray(editItem.muscles) && editItem.muscles.indexOf(m.id) >= 0;
+                  return '<button type="button" class="forge-tpl-chip forge-muscle-chip' + (isSel ? ' active' : '') + '" data-muscle-id="' + m.id + '" style="padding:3px 7px; font-size:9.5px;">' + m.short + '</button>';
+                }).join('') +
+              '</div>' +
+            '</div>' : '') +
+
             '<div class="flex-between" style="padding:8px 10px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.08); clip-path:var(--clip-chamfer-sm);">' +
               '<label class="font-mono" style="font-size:11px; display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text-primary);">' +
                 '<input type="checkbox" id="forge-mand" ' + (initMand ? 'checked' : '') + ' style="accent-color:var(--accent-core); width:15px; height:15px;">' +
@@ -1895,6 +1943,26 @@ window.SYS = window.SYS || {};
         });
       });
 
+      var selectedMuscles = (editItem && Array.isArray(editItem.muscles)) ? editItem.muscles.slice() : [];
+      document.querySelectorAll('.forge-muscle-chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+          var mid = chip.getAttribute('data-muscle-id');
+          if (!mid) return;
+          if (S.audio) S.audio.tap();
+          var idx = selectedMuscles.indexOf(mid);
+          if (idx >= 0) selectedMuscles.splice(idx, 1);
+          else if (selectedMuscles.length < 5) selectedMuscles.push(mid);
+          chip.classList.toggle('active', selectedMuscles.indexOf(mid) >= 0);
+        });
+      });
+      var btnClearMuscles = document.getElementById('btn-forge-clear-muscles');
+      if (btnClearMuscles) {
+        btnClearMuscles.addEventListener('click', function () {
+          selectedMuscles = [];
+          document.querySelectorAll('.forge-muscle-chip').forEach(function (c) { c.classList.remove('active'); });
+        });
+      }
+
       var btnDelAll = document.getElementById('btn-forge-delete-all');
       if (btnDelAll && editItem) {
         btnDelAll.addEventListener('click', function () {
@@ -1937,7 +2005,8 @@ window.SYS = window.SYS || {};
             unit: unit,
             mode: mode,
             isMandatory: mand,
-            preset: editItem ? editItem.preset : null
+            preset: editItem ? editItem.preset : null,
+            muscles: selectedMuscles.length ? selectedMuscles : null
           }, selectedDays, editCtx);
 
           if (S.audio) S.audio.questComplete();
