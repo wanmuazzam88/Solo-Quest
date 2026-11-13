@@ -2803,23 +2803,89 @@ div[data-netlify-badge-wrapper] {
 @media (max-width: 960px) {
   .bodystatus-shell {
     grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .bodystatus-stage-panel {
+    padding: 10px;
   }
   .bs-viewport-wrap {
-    height: clamp(420px, 60vh, 560px);
+    height: clamp(390px, 58dvh, 540px);
   }
   .bs-floating-hud {
     top: 8px;
     right: 8px;
-    width: min(244px, calc(100% - 16px));
-    padding: 9px 10px;
+    width: min(230px, calc(100% - 16px));
+    padding: 8px 10px;
   }
   .bs-cam-bar {
-    bottom: 26px;
+    bottom: 24px;
     max-width: calc(100% - 16px);
   }
   .bs-snap-btn {
     padding: 4px 7px;
     font-size: 9.5px;
+  }
+}
+
+@media (max-width: 600px) {
+  .bodystatus-stage-panel {
+    padding: 8px;
+  }
+  .bodystatus-stage-panel .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 8px !important;
+  }
+  .bs-viewport-wrap {
+    height: clamp(380px, 60dvh, 500px);
+  }
+  .bs-floating-hud {
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    width: auto;
+    padding: 7px 9px;
+  }
+  .bs-hud-header {
+    margin-bottom: 4px;
+  }
+  .bs-hud-kicker {
+    font-size: 8px;
+  }
+  .bs-hud-title {
+    font-size: 14px;
+  }
+  .bs-hud-meta-row {
+    margin-bottom: 5px;
+  }
+  .bs-hud-stats {
+    gap: 6px;
+    margin-bottom: 5px;
+  }
+  .bs-stat-cell {
+    padding: 4px 6px;
+  }
+  .bs-stat-val {
+    font-size: 13px;
+  }
+  .bs-rec-bar-wrap {
+    margin-bottom: 4px;
+  }
+  .bs-cam-bar {
+    bottom: 22px;
+    gap: 4px;
+    padding: 4px 5px;
+  }
+  .bs-snap-btn {
+    padding: 4px 6px;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+  }
+  .bs-drag-hint {
+    font-size: 8.5px;
+    bottom: 5px;
+    letter-spacing: 0.04em;
   }
 }
 

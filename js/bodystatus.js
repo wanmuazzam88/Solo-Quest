@@ -728,6 +728,14 @@ window.SYS = window.SYS || {};
     updateSidePanelsDOM();
   }
 
+  function getResponsiveRadius(baseRadius) {
+    var aspect = threeCtx.camera ? threeCtx.camera.aspect : 1;
+    if (aspect < 0.95) {
+      return baseRadius * (1 + (0.95 - aspect) * 0.55);
+    }
+    return baseRadius;
+  }
+
   function snapCamera(preset) {
     if (S.audio) {
       try { S.audio.tap(); } catch (e) {}
@@ -739,32 +747,33 @@ window.SYS = window.SYS || {};
       var diff = ((target - cur + Math.PI) % twoPi + twoPi) % twoPi - Math.PI;
       return cur + diff;
     }
+    var rSnap = getResponsiveRadius(2.45);
     switch (preset) {
       case 'FRONT':
         threeCtx.targetTheta = nearestAngle(0);
         threeCtx.targetPhi = Math.PI / 2;
-        threeCtx.targetRadius = 2.45;
+        threeCtx.targetRadius = rSnap;
         break;
       case 'BACK':
         threeCtx.targetTheta = nearestAngle(Math.PI);
         threeCtx.targetPhi = Math.PI / 2;
-        threeCtx.targetRadius = 2.45;
+        threeCtx.targetRadius = rSnap;
         break;
       case 'LEFT':
         threeCtx.targetTheta = nearestAngle(-Math.PI / 2);
         threeCtx.targetPhi = Math.PI / 2;
-        threeCtx.targetRadius = 2.45;
+        threeCtx.targetRadius = rSnap;
         break;
       case 'RIGHT':
         threeCtx.targetTheta = nearestAngle(Math.PI / 2);
         threeCtx.targetPhi = Math.PI / 2;
-        threeCtx.targetRadius = 2.45;
+        threeCtx.targetRadius = rSnap;
         break;
       case 'RESET':
       default:
         threeCtx.targetTheta = nearestAngle(0.25);
         threeCtx.targetPhi = 1.48;
-        threeCtx.targetRadius = 2.55;
+        threeCtx.targetRadius = getResponsiveRadius(2.55);
         break;
     }
     document.querySelectorAll('[data-cam-snap]').forEach(function (b) {
@@ -777,7 +786,10 @@ window.SYS = window.SYS || {};
     if (!mount || !threeCtx.renderer || !threeCtx.camera) return;
     var w = mount.clientWidth || 320;
     var h = mount.clientHeight || 480;
-    threeCtx.camera.aspect = w / h;
+    var aspect = w / h;
+    threeCtx.camera.aspect = aspect;
+    // Widen FOV slightly on narrow portrait screens so full arm span fits comfortably
+    threeCtx.camera.fov = aspect < 0.85 ? 46 : 40;
     threeCtx.camera.updateProjectionMatrix();
     threeCtx.renderer.setSize(w, h, false);
   }
@@ -1028,6 +1040,10 @@ window.SYS = window.SYS || {};
         mount.innerHTML = '';
         mount.appendChild(threeCtx.renderer.domElement);
         resizeRenderer();
+        if (!threeCtx.hasSizedOnce) {
+          threeCtx.hasSizedOnce = true;
+          threeCtx.targetRadius = threeCtx.currentRadius = getResponsiveRadius(2.55);
+        }
         startAnimLoop();
         if (threeCtx.loaded) {
           S.applyMuscleColorsTo3D();
