@@ -2822,3 +2822,79 @@ div[data-netlify-badge-wrapper] {
     font-size: 9.5px;
   }
 }
+
+.bs-hud-breakdown {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  padding-top: 2px;
+}
+
+.bs-quest-sync-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.bs-quest-sync-item {
+  width: 100%;
+  text-align: left;
+  background: rgba(7, 11, 20, 0.72);
+  border: 1px solid rgba(0, 229, 255, 0.22);
+  padding: 7px 9px;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.bs-quest-sync-item:hover {
+  border-color: #00E5FF;
+  background: rgba(0, 229, 255, 0.08);
+}
+
+.bs-quest-sync-item.completed {
+  border-color: rgba(0, 230, 118, 0.45);
+}
+
+.bs-qsync-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.bs-qsync-prog {
+  font-size: 10px;
+  color: #00E5FF;
+}
+
+.bs-quest-sync-item.completed .bs-qsync-prog {
+  color: #00E676;
+}
+
+.bs-qsync-muscles {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  margin: 3px 0 5px;
+}
+
+.bs-qsync-bar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.bs-qsync-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00E5FF, #2979FF);
+}
+
+.bs-quest-sync-item.completed .bs-qsync-fill {
+  background: #00E676;
+}

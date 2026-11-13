@@ -290,10 +290,13 @@ window.SYS = window.SYS || {};
     var key = quest.id + '_' + dateKey;
     var prev = t.questCredits[key] || 0;
 
-    // Convert quest progress ratio into equivalent sets (e.g. completed physical quest = 4 sets)
+    // Convert quest progress ratio into equivalent sets scaled by difficulty/unit
+    var diffScale = { E: 3, D: 4, C: 5, B: 6, A: 8, S: 10 };
     var target = Math.max(1, Number(quest.targetProgress) || 1);
     var prog = Math.max(0, Math.min(target, Number(quest.currentProgress) || 0));
-    var targetSets = quest.unit === 'SETS' ? Math.min(10, target) : 4;
+    var targetSets = quest.unit === 'SETS'
+      ? Math.min(14, target)
+      : (diffScale[quest.difficulty] || 4);
     var nowSets = quest.isCompleted ? targetSets : Math.round((prog / target) * targetSets * 100) / 100;
     var delta = Math.round((nowSets - prev) * 100) / 100;
     if (Math.abs(delta) < 0.05) return;
@@ -304,11 +307,43 @@ window.SYS = window.SYS || {};
     t.questCredits[key] = nowSets;
     t.updatedAt = nowTs;
 
+    // Upsert quest activation in workoutHistory so recent activations reflect quests automatically
+    var histIdx = t.workoutHistory.findIndex(function (h) { return h.questKey === key; });
+    if (nowSets > 0) {
+      var entry = {
+        id: 'qwk_' + key,
+        questKey: key,
+        exerciseId: quest.preset || 'quest',
+        exerciseName: quest.title + (quest.isCompleted ? ' [CLEAR]' : ' (' + prog + '/' + target + ')'),
+        sets: Math.round(nowSets * 10) / 10,
+        primary: mapping.primary.slice(),
+        secondary: mapping.secondary.slice(),
+        timestamp: nowTs
+      };
+      if (histIdx >= 0) t.workoutHistory[histIdx] = entry;
+      else t.workoutHistory.unshift(entry);
+      if (t.workoutHistory.length > 40) t.workoutHistory.length = 40;
+    } else if (histIdx >= 0) {
+      t.workoutHistory.splice(histIdx, 1);
+    }
+
     if (S.applyMuscleColorsTo3D) S.applyMuscleColorsTo3D();
     if (!silent) {
       updateHudWindowDOM();
       updateSidePanelsDOM();
     }
+  };
+
+  /* Sync every physical quest currently in S.state.quests (catches already-completed or synced quests) */
+  S.syncAllQuestsToBody = function () {
+    if (!S.state || !Array.isArray(S.state.quests)) return;
+    S.ensureAnatomyTracker();
+    S.state.quests.forEach(function (q) {
+      if (q && (q.currentProgress > 0 || q.isCompleted)) {
+        S.syncQuestMuscleCredit(q, true);
+      }
+    });
+    if (S.applyMuscleColorsTo3D) S.applyMuscleColorsTo3D();
   };
 
   /* --- 5. Persistent Three.js 3D Viewport & Recoloring Engine --- */
@@ -499,6 +534,7 @@ window.SYS = window.SYS || {};
         });
 
         threeCtx.scene.add(root);
+        if (S.syncAllQuestsToBody) S.syncAllQuestsToBody();
         S.applyMuscleColorsTo3D();
         updateSelectionRim();
 
@@ -814,10 +850,9 @@ window.SYS = window.SYS || {};
       '<div class="bs-rec-bar-wrap">' +
         '<div class="bs-rec-bar-fill" style="width:' + st.recoveryPct + '%; background:' + recColor + ';"></div>' +
       '</div>' +
-      '<div class="bs-hud-actions">' +
-        '<button type="button" class="sys-btn sm" data-muscle-delta="-1" data-muscle-id="' + st.id + '">-1 SET</button>' +
-        '<button type="button" class="sys-btn sm primary" data-muscle-delta="1" data-muscle-id="' + st.id + '">+1 SET</button>' +
-        '<button type="button" class="sys-btn sm gold" data-muscle-delta="3" data-muscle-id="' + st.id + '">+3 SETS</button>' +
+      '<div class="bs-hud-breakdown font-mono">' +
+        '<span>PRIMARY: ' + st.primarySets + 's</span>' +
+        '<span>SECONDARY: ' + st.secondarySets + 's</span>' +
       '</div>';
   }
 
@@ -833,14 +868,6 @@ window.SYS = window.SYS || {};
         hud.classList.add('hidden');
       });
     }
-    hud.querySelectorAll('[data-muscle-delta]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var id = btn.getAttribute('data-muscle-id');
-        var delta = Number(btn.getAttribute('data-muscle-delta')) || 0;
-        if (S.audio) { try { S.audio.tap(); } catch (e) {} }
-        S.adjustMuscleSets(id, delta);
-      });
-    });
   }
 
   function updateSidePanelsDOM() {
@@ -863,11 +890,45 @@ window.SYS = window.SYS || {};
       });
     }
 
+    var questsEl = document.getElementById('bs-quest-sync-list');
+    if (questsEl) {
+      var physQuests = (S.state && Array.isArray(S.state.quests))
+        ? S.state.quests.filter(function (q) {
+            var cat = S.CATS && S.CATS[q.category];
+            return cat && cat.physical;
+          })
+        : [];
+      if (!physQuests.length) {
+        questsEl.innerHTML = '<div class="font-mono" style="font-size:11px; color:var(--text-muted); padding:6px 0;">No physical quests active today. Add workout quests in the Quests tab to automatically color your body.</div>';
+      } else {
+        questsEl.innerHTML = physQuests.map(function (q) {
+          var map = S.inferAnatomyMuscles(q);
+          var pct = Math.min(100, Math.round(((q.currentProgress || 0) / Math.max(1, q.targetProgress || 1)) * 100));
+          var primLabel = map.primary.map(function (id) { return (MUSCLE_MAP[id] && MUSCLE_MAP[id].name) || id; }).join(', ');
+          var firstId = map.primary[0] || map.secondary[0] || '';
+          return '<button type="button" class="bs-quest-sync-item' + (q.isCompleted ? ' completed' : '') + '" data-focus-muscle="' + U.esc(firstId) + '">' +
+            '<div class="bs-qsync-top">' +
+              '<span class="bs-qsync-title">' + U.esc(q.title) + '</span>' +
+              '<span class="bs-qsync-prog font-mono">' + (q.isCompleted ? 'CLEAR' : q.currentProgress + '/' + q.targetProgress) + '</span>' +
+            '</div>' +
+            '<div class="bs-qsync-muscles font-mono">' + (primLabel ? 'Target: ' + U.esc(primLabel) : 'Physical Conditioning') + '</div>' +
+            '<div class="bs-qsync-bar"><div class="bs-qsync-fill" style="width:' + pct + '%;"></div></div>' +
+          '</button>';
+        }).join('');
+        questsEl.querySelectorAll('[data-focus-muscle]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var mid = btn.getAttribute('data-focus-muscle');
+            if (mid) selectMuscle(mid, true);
+          });
+        });
+      }
+    }
+
     var logEl = document.getElementById('bs-workout-history');
     if (logEl) {
       var hist = S.ensureAnatomyTracker().workoutHistory;
       if (!hist.length) {
-        logEl.innerHTML = '<div class="font-mono" style="font-size:11px; color:var(--text-muted); padding:8px 0;">No workout sets logged yet. Log an exercise above or complete physical quests.</div>';
+        logEl.innerHTML = '<div class="font-mono" style="font-size:11px; color:var(--text-muted); padding:8px 0;">Complete or log progress on physical quests in the Quests tab to activate muscles automatically.</div>';
       } else {
         logEl.innerHTML = hist.slice(0, 6).map(function (h) {
           return '<div class="bs-history-row">' +
@@ -881,12 +942,10 @@ window.SYS = window.SYS || {};
   }
 
   /* --- 7. Main View Renderer --- */
-  var selectedExId = WORKOUT_EXERCISES[1].id;
-  var selectedSets = 3;
-
   S.renderBodyStatusView = function (container) {
     if (!container) return;
     S.ensureAnatomyTracker();
+    if (S.syncAllQuestsToBody) S.syncAllQuestsToBody();
 
     // Preserve canvas element across UI.render() re-mounts
     var prevMount = document.getElementById('bodystatus-canvas-mount');
@@ -938,27 +997,18 @@ window.SYS = window.SYS || {};
         '<div class="bodystatus-side-col">' +
           '<div class="system-panel bs-logger-panel">' +
             '<div class="panel-header" style="margin-bottom:10px;">' +
-              '<div class="panel-title" style="font-size:13px;">[WORKOUT RECOLORING ENGINE]</div>' +
-              '<button type="button" class="sys-btn sm danger" id="btn-bs-reset">RESET ALL</button>' +
-            '</div>' +
-            '<div class="bs-form-row">' +
-              '<label class="bs-field-lbl font-mono" for="bs-ex-select">EXERCISE</label>' +
-              '<select id="bs-ex-select" class="sys-input bs-select">' +
-                WORKOUT_EXERCISES.map(function (ex) {
-                  return '<option value="' + ex.id + '"' + (ex.id === selectedExId ? ' selected' : '') + '>[' + ex.cat + '] ' + U.esc(ex.name) + '</option>';
-                }).join('') +
-              '</select>' +
-            '</div>' +
-            '<div class="bs-ex-preview font-mono" id="bs-ex-preview"></div>' +
-            '<div class="bs-sets-log-row">' +
-              '<div class="bs-sets-picker">' +
-                '<button type="button" class="sys-btn sm" id="btn-bs-sets-dec">-</button>' +
-                '<span class="font-mono" id="bs-sets-display" style="min-width:68px; text-align:center; font-weight:700;">' + selectedSets + ' SETS</span>' +
-                '<button type="button" class="sys-btn sm" id="btn-bs-sets-inc">+</button>' +
+              '<div class="panel-title" style="font-size:13px;">[QUEST-SYNCED MUSCLE ENGINE]</div>' +
+              '<div style="display:flex; gap:6px;">' +
+                '<button type="button" class="sys-btn sm primary" id="btn-bs-go-quests">QUESTS</button>' +
+                '<button type="button" class="sys-btn sm danger" id="btn-bs-reset">RESET</button>' +
               '</div>' +
-              '<button type="button" class="sys-btn primary" id="btn-bs-log-ex" style="flex:1;">LOG WORKOUT</button>' +
             '</div>' +
-            '<div class="bs-history-title font-mono">RECENT ACTIVATIONS</div>' +
+            '<div class="font-mono" style="font-size:10.5px; color:var(--text-secondary); margin-bottom:10px; line-height:1.45;">' +
+              'Muscles automatically ignite &amp; rank up as you log reps or complete physical quests.' +
+            '</div>' +
+            '<div class="bs-history-title font-mono">ACTIVE PHYSICAL QUESTS</div>' +
+            '<div id="bs-quest-sync-list" class="bs-quest-sync-list"></div>' +
+            '<div class="bs-history-title font-mono" style="margin-top:10px;">RECENT QUEST ACTIVATIONS</div>' +
             '<div id="bs-workout-history" class="bs-history-list"></div>' +
           '</div>' +
 
@@ -993,40 +1043,11 @@ window.SYS = window.SYS || {};
       });
     });
 
-    // Bind workout logger controls
-    var exSel = document.getElementById('bs-ex-select');
-    function refreshExPreview() {
-      var preview = document.getElementById('bs-ex-preview');
-      if (!preview) return;
-      var ex = WORKOUT_EXERCISES.find(function (x) { return x.id === selectedExId; }) || WORKOUT_EXERCISES[0];
-      preview.innerHTML = '<span style="color:#00E5FF;">PRIMARY:</span> ' + U.esc(ex.primary.join(', ')) +
-        (ex.secondary.length ? '<br><span style="color:#6E85A6;">SECONDARY (0.5x):</span> ' + U.esc(ex.secondary.join(', ')) : '');
-    }
-    if (exSel) {
-      exSel.addEventListener('change', function () {
-        selectedExId = exSel.value;
-        refreshExPreview();
-      });
-    }
-    refreshExPreview();
-
-    var decBtn = document.getElementById('btn-bs-sets-dec');
-    var incBtn = document.getElementById('btn-bs-sets-inc');
-    var setsDisp = document.getElementById('bs-sets-display');
-    if (decBtn) decBtn.addEventListener('click', function () {
-      selectedSets = Math.max(1, selectedSets - 1);
-      if (setsDisp) setsDisp.textContent = selectedSets + ' SETS';
-    });
-    if (incBtn) incBtn.addEventListener('click', function () {
-      selectedSets = Math.min(15, selectedSets + 1);
-      if (setsDisp) setsDisp.textContent = selectedSets + ' SETS';
-    });
-
-    var logBtn = document.getElementById('btn-bs-log-ex');
-    if (logBtn) {
-      logBtn.addEventListener('click', function () {
-        if (S.audio) { try { S.audio.questComplete(); } catch (e) {} }
-        S.logWorkoutExercise(selectedExId, selectedSets);
+    // Bind quest & reset controls
+    var goQuestsBtn = document.getElementById('btn-bs-go-quests');
+    if (goQuestsBtn) {
+      goQuestsBtn.addEventListener('click', function () {
+        if (S.ui && S.ui.setView) S.ui.setView('quests');
       });
     }
 
