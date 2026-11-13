@@ -2410,3 +2410,415 @@ div[data-netlify-badge-wrapper] {
 
 
 
+
+/* ==========================================================================
+   BODY STATUS 3D // SOLO LEVELING SYSTEM ANATOMY SCANNER
+   ========================================================================== */
+.bodystatus-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
+  gap: 14px;
+  max-width: 1280px;
+  margin: 0 auto;
+  align-items: start;
+}
+
+.bodystatus-stage-panel {
+  background: #070B14;
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.12), inset 0 0 32px rgba(0, 102, 255, 0.08);
+  padding: 14px;
+  clip-path: var(--clip-chamfer);
+}
+
+.bs-rank-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.bs-leg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  letter-spacing: 0.06em;
+}
+
+.bs-leg-item i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.bs-viewport-wrap {
+  position: relative;
+  height: clamp(460px, 66vh, 690px);
+  background: #070B14;
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  overflow: hidden;
+  clip-path: var(--clip-chamfer-sm);
+}
+
+.bs-grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background-image:
+    linear-gradient(to right, rgba(0, 229, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 229, 255, 0.045) 1px, transparent 1px);
+  background-size: 28px 28px;
+  box-shadow: inset 0 0 48px rgba(4, 6, 10, 0.85);
+}
+
+.bs-canvas-mount {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.bs-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(7, 11, 20, 0.86);
+  backdrop-filter: blur(4px);
+}
+.bs-loading-overlay.hidden { display: none; }
+
+/* Floating Translucent System Window */
+.bs-floating-hud {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: min(272px, calc(100% - 24px));
+  z-index: 6;
+  background: rgba(7, 11, 20, 0.78);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 229, 255, 0.55);
+  box-shadow: 0 0 22px rgba(0, 229, 255, 0.22), inset 0 0 14px rgba(0, 229, 255, 0.08);
+  padding: 11px 12px;
+  clip-path: var(--clip-chamfer-sm);
+}
+.bs-floating-hud.hidden { display: none; }
+
+.bs-hud-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.bs-hud-kicker {
+  font-size: 9px;
+  color: #00E5FF;
+  letter-spacing: 0.1em;
+}
+
+.bs-hud-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+  line-height: 1.15;
+}
+
+.bs-hud-close {
+  background: transparent;
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  color: var(--text-secondary);
+  width: 22px;
+  height: 22px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.bs-hud-close:hover { color: #00E5FF; border-color: #00E5FF; }
+
+.bs-hud-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.bs-rank-pill {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border: 1px solid;
+  letter-spacing: 0.08em;
+}
+
+.bs-group-pill {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+.bs-hud-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.bs-stat-cell {
+  background: rgba(14, 24, 44, 0.7);
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  padding: 6px 8px;
+}
+
+.bs-stat-lbl {
+  display: block;
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+.bs-stat-val {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.bs-rec-bar-wrap {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  margin-bottom: 9px;
+  overflow: hidden;
+}
+
+.bs-rec-bar-fill {
+  height: 100%;
+  transition: width 0.25s ease, background 0.25s ease;
+}
+
+.bs-hud-actions {
+  display: flex;
+  gap: 5px;
+}
+.bs-hud-actions .sys-btn {
+  flex: 1;
+  padding: 5px 4px;
+  font-size: 10px;
+}
+
+/* Camera Snap Buttons */
+.bs-cam-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  gap: 5px;
+  padding: 5px 7px;
+  background: rgba(7, 11, 20, 0.82);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  clip-path: var(--clip-chamfer-sm);
+}
+
+.bs-snap-btn {
+  background: rgba(14, 24, 44, 0.7);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 5px 9px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.bs-snap-btn:hover,
+.bs-snap-btn.active {
+  color: #070B14;
+  background: #00E5FF;
+  border-color: #00E5FF;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.45);
+}
+
+.bs-drag-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 7px;
+  text-align: center;
+  z-index: 5;
+  pointer-events: none;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: rgba(192, 208, 230, 0.65);
+}
+
+/* Side Column: Workout Logger + 21 Muscle Roster */
+.bodystatus-side-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bs-form-row {
+  margin-bottom: 8px;
+}
+
+.bs-field-lbl {
+  display: block;
+  font-size: 10px;
+  color: #00E5FF;
+  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+}
+
+.bs-select {
+  width: 100%;
+  background: #070B14;
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.bs-ex-preview {
+  font-size: 10.5px;
+  line-height: 1.45;
+  padding: 7px 9px;
+  background: rgba(7, 11, 20, 0.72);
+  border: 1px solid rgba(0, 229, 255, 0.16);
+  margin-bottom: 10px;
+}
+
+.bs-sets-log-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.bs-sets-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(7, 11, 20, 0.75);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  padding: 3px;
+}
+
+.bs-history-title {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.bs-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 165px;
+  overflow-y: auto;
+}
+
+.bs-history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  background: rgba(7, 11, 20, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 11px;
+}
+
+.bs-history-sets {
+  color: #00E5FF;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bs-muscle-roster {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  max-height: 310px;
+  overflow-y: auto;
+}
+
+.bs-roster-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(7, 11, 20, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.bs-roster-chip:hover,
+.bs-roster-chip.active {
+  border-color: #00E5FF;
+  background: rgba(0, 229, 255, 0.1);
+}
+
+.bs-roster-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.bs-roster-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bs-roster-rank {
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+@media (max-width: 960px) {
+  .bodystatus-shell {
+    grid-template-columns: 1fr;
+  }
+  .bs-viewport-wrap {
+    height: clamp(420px, 60vh, 560px);
+  }
+  .bs-floating-hud {
+    top: 8px;
+    right: 8px;
+    width: min(244px, calc(100% - 16px));
+    padding: 9px 10px;
+  }
+  .bs-cam-bar {
+    bottom: 26px;
+    max-width: calc(100% - 16px);
+  }
+  .bs-snap-btn {
+    padding: 4px 7px;
+    font-size: 9.5px;
+  }
+}

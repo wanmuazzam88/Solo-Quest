@@ -898,6 +898,7 @@ window.SYS = window.SYS || {};
     if (diff > 0) {
       if (q.unit === 'REPS') S.state.records.repsLogged += diff;
     }
+    if (S.syncQuestMuscleCredit) S.syncQuestMuscleCredit(q, true);
     if (q.currentProgress >= q.targetProgress) completeQuest(q);
     S.commit();
   };
@@ -910,6 +911,7 @@ window.SYS = window.SYS || {};
     q.isCompleted = false;
     q.completedAt = null;
     q.createdDate = (S.state && S.state.currentDate) || S.today();
+    if (S.syncQuestMuscleCredit) S.syncQuestMuscleCredit(q, true);
     S.commit();
     return true;
   };
@@ -918,6 +920,7 @@ window.SYS = window.SYS || {};
     var s = S.state, p = s.profile, rec = s.records, log = S.dayLog();
     q.isCompleted = true;
     q.completedAt = S.now();
+    if (S.syncQuestMuscleCredit) S.syncQuestMuscleCredit(q, false);
     var result = { q: q, xp: 0, gold: 0, stat: 0, frozen: false };
 
     if (q.isPenaltyQuest) {

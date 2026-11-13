@@ -18,7 +18,14 @@ window.SYS = window.SYS || {};
   var UI = S.ui = {
     init: function () {
       UI.bindEvents();
-      UI.render();
+      try {
+        var params = new URLSearchParams(window.location.search);
+        var reqView = params.get('view');
+        if (reqView && ['quests', 'status', 'bodystatus', 'gate', 'vault', 'settings'].indexOf(reqView) >= 0) {
+          currentView = reqView;
+        }
+      } catch (e) {}
+      UI.setView(currentView);
       UI.applyActiveTheme();
 
       // Listen for system state events
@@ -151,6 +158,9 @@ window.SYS = window.SYS || {};
             break;
           case 'status':
             UI.renderStatusView(container);
+            break;
+          case 'bodystatus':
+            if (S.renderBodyStatusView) S.renderBodyStatusView(container);
             break;
           case 'gate':
             UI.renderGateView(container);

@@ -3,7 +3,7 @@
    Offline-first caching, static shell pre-caching, and instant service
    worker lifecycle management.
    ========================================================================== */
-var CACHE_NAME = 'solo-quest-v3.36';
+var CACHE_NAME = 'solo-quest-v3.37';
 
 var STATIC_ASSETS = [
   './',
@@ -13,6 +13,9 @@ var STATIC_ASSETS = [
   './js/icons.js',
   './js/data.js',
   './js/engine.js',
+  './js/vendor/three.min.js',
+  './js/vendor/GLTFLoader.js',
+  './js/bodystatus.js',
   './js/api.js',
   './js/auth.js',
   './js/audio.js',
@@ -20,6 +23,7 @@ var STATIC_ASSETS = [
   './js/gate.js',
   './js/ui.js',
   './js/app.js',
+  './assets/models/hunter_anatomy.glb',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
