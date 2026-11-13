@@ -1,7 +1,7 @@
 # SOLO QUEST // HUNTER DATABASE & AUTHENTICATION SETUP GUIDE
 **THE SYSTEM // PROJECT: ARISE — CLOUD & LOCAL DATABASE ARCHITECTURE**
 
-Welcome, Hunter. Solo Quest features a database and authentication architecture designed to preserve your hunter progression (points, stats, daily quests, and vault relics) and power the real global Hunter Association leaderboards.
+Welcome, Hunter. Solo Quest features a database and authentication architecture designed to preserve your hunter progression (points, stats, daily quests, and vault relics) across devices.
 
 ---
 
@@ -13,7 +13,6 @@ Solo Quest supports two database options depending on your preference:
 | :--- | :--- | :--- |
 | **Hosting** | Free Cloud PostgreSQL (Supabase) | Local Machine / Self-Hosted VPS |
 | **Setup Time** | ~3 Minutes (Zero code installation) | ~1 Minute (Requires Node.js runtime) |
-| **Global Leaderboard** | Real hunters worldwide across the internet | Local LAN / Single server users |
 | **Cross-Device Sync** | Yes (Phone, PC, Tablet, PWA) | Only when server is online and port-forwarded |
 | **Dependencies** | Zero (Direct browser fetch to REST API) | Zero npm dependencies (Native `http`, `crypto`) |
 | **Security** | PostgreSQL Row Level Security (RLS) & JWT | Salted PBKDF2 Password Hashing & HS256 JWT |
@@ -39,11 +38,11 @@ Supabase gives you a 100% free hosted PostgreSQL database with built-in authenti
 5. Click **Run** (green button).
 
 > **What this creates in PostgreSQL:**
-> - `hunter_profiles`: Stores Level, XP, AP, STR, AGI, VIT, INT, PER, Gold, Essence, Rank Code, Streak, HRS Score, and Combat Power.
+> - `hunter_profiles`: Stores Level, XP, AP, STR, AGI, VIT, INT, PER, Gold, Essence, Rank Code, Streak, and Combat Power.
 > - `hunter_quests`: Stores all daily quests, custom forged quests, completion states, and progress.
 > - `hunter_inventory`: Stores owned relics, loot boxes, monarch shadows, skins, and titles.
 > - `hunter_logs`: Real-time audit history of quest completions and rank exams.
-> - **Row Level Security (RLS)**: Public read access for global leaderboards, private authenticated write access for user accounts.
+> - **Row Level Security (RLS)**: Private authenticated read/write access scoped to each user account.
 > - **Trigger `handle_new_hunter()`**: Automatically initializes a hunter profile when a new user signs up.
 
 ### Step 3: Copy Your API Keys
@@ -83,7 +82,7 @@ If your project is hosted on Cloudflare Pages:
    - *Standard*: Optional penalty quest with streak recovery.
    - *Hardcore Manhwa*: Mandatory Blood Crimson penalty zone if daily quests are missed by midnight.
 5. Click **AWAKEN & SAVE PROGRESS**.
-6. Your account is awakened, all local stats are uploaded to PostgreSQL, and your name appears on the live global leaderboard!
+6. Your account is awakened and all local stats are synchronized to PostgreSQL!
 
 ---
 
@@ -115,19 +114,7 @@ Base URL: http://localhost:3000
 
 ---
 
-## 4. HOW LIVE LEADERBOARDS WORK
-
-Unlike hardcoded mock data, the Solo Quest leaderboard connects directly to your database:
-
-1. **Seasonal Vanguard**: Ranks all verified registered hunters by total **HRS (Hunter Rating Score)**, calculated dynamically from completed quests, workout volume, and focus minutes.
-2. **Division Bracket**: Filters real hunters within your exact rank tier (`E-IV` up to `S-I` and `National Level`).
-3. **Hall of Monarchs**: Ranks all-time champions by **Combat Power** and level ascension.
-
-Hunters registered in the database display a `[VERIFIED]` badge in the ranking table. Clicking **SYNC** refreshes the standings with the latest cloud records.
-
----
-
-## 5. AUTOMATIC BIDIRECTIONAL SYNC
+## 4. AUTOMATIC BIDIRECTIONAL SYNC
 
 Once authenticated:
 - **Instant Save on Mutation**: Earning XP, assigning Ability Points (STR, AGI, VIT, INT, PER), forging custom quests, or collecting Gold/Essence triggers a debounced cloud save.
@@ -135,13 +122,13 @@ Once authenticated:
 
 ---
 
-## 6. TROUBLESHOOTING
+## 5. TROUBLESHOOTING
 
 | Symptom | Cause | Solution |
 | :--- | :--- | :--- |
 | **Ping shows "OFFLINE // UNREACHABLE"** | Invalid Supabase URL or Anon Key | Double check `https://` prefix and ensure you copied the `anon` public key (not the service_role key). |
 | **"Authentication failed" on register** | Email already in use or password < 6 chars | Use a unique email or log in using the **SYSTEM LINK (LOGIN)** tab. |
-| **"Failed to query Supabase leaderboard"** | `schema.sql` was not run in Supabase | Open the SQL Editor in Supabase, paste `supabase/schema.sql`, and execute it to enable public read policies. |
+| **Missing table / RLS error** | `schema.sql` was not run in Supabase | Open the SQL Editor in Supabase, paste `supabase/schema.sql`, and execute it to create all tables and RLS policies. |
 
 ---
 *THE SYSTEM // NEVER SINK INTO WEAKNESS. ARISE.*

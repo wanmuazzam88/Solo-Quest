@@ -1,7 +1,6 @@
 /* ==============================================================================
    THE SYSTEM // PROJECT: ARISE — Authentication & Live Database Coordinator
-   Wires hunter authentication, automatic cloud state synchronization, and
-   replaces hardcoded rivals with real registered hunters on global leaderboards.
+   Wires hunter authentication and automatic cloud state synchronization.
    ============================================================================== */
 window.SYS = window.SYS || {};
 (function (S) {
@@ -13,12 +12,6 @@ window.SYS = window.SYS || {};
   var auth = S.auth = {
     syncStatus: 'OFFLINE', // 'OFFLINE' | 'UNAUTHENTICATED' | 'SYNCING' | 'SYNCED' | 'ERROR'
     lastSyncTime: null,
-    cachedLeaderboards: {
-      VANGUARD: [],
-      DIVISION: [],
-      HALL: []
-    },
-    isFetchingLeaderboard: false,
 
     init: function () {
       // 1. Initial status
@@ -64,10 +57,7 @@ window.SYS = window.SYS || {};
         }
       });
 
-      // 5. Initial leaderboard fetch from database
-      auth.refreshLeaderboards();
-
-      // 6. Connect live realtime telemetry and poller
+      // 5. Connect live realtime telemetry and poller
       if (S.api && S.api.user && S.api.token) {
         setTimeout(function () {
           auth.syncWithCloud(false);
@@ -736,7 +726,6 @@ window.SYS = window.SYS || {};
         auth.syncStatus = 'SYNCED';
         auth.lastSyncTime = new Date();
         auth.updateTopbarBadge();
-        auth.refreshLeaderboards();
 
         if (showToast && S.ui) {
           S.ui.showToast('[SYSTEM SYNCHRONIZED]', 'Data synchronized across devices.', 'cyan');
@@ -820,106 +809,7 @@ window.SYS = window.SYS || {};
         auth.syncStatus = 'ERROR';
         auth.updateTopbarBadge();
       }
-    },
-
-    // ==========================================================================
-    // Real People Leaderboards: Database Fetching & Caching
-    // ==========================================================================
-    refreshLeaderboards: async function () {
-      if (auth.isFetchingLeaderboard) return;
-      auth.isFetchingLeaderboard = true;
-
-      try {
-        var views = ['VANGUARD', 'DIVISION', 'HALL'];
-        var userTier = S.state.profile.rankTierIndex;
-
-        for (var i = 0; i < views.length; i++) {
-          var v = views[i];
-          var rows = await S.api.fetchLeaderboard(v, v === 'DIVISION' ? userTier : null);
-          if (rows && rows.length) {
-            auth.cachedLeaderboards[v] = rows;
-          }
-        }
-      } catch (e) {
-        // Network offline, keep cached
-      } finally {
-        auth.isFetchingLeaderboard = false;
-        if (S.ui && typeof S.ui.render === 'function') {
-          // Re-render leaderboard views if active
-          var rankView = document.querySelector('.vault-tab-btn');
-          if (rankView) S.ui.render();
-        }
-      }
-    },
-
-    getRealLeaderboard: function (view) {
-      view = (view || 'VANGUARD').toUpperCase();
-      var cached = auth.cachedLeaderboards[view];
-
-      // If we have real people from database, format and return them
-      if (cached && cached.length) {
-        var currentName = S.state.profile.hunterName.toUpperCase();
-        var userInList = false;
-
-        var mapped = cached.map(function (r, idx) {
-          var isYou = r.you || r.name.toUpperCase() === currentName;
-          if (isYou) userInList = true;
-          return {
-            pos: idx + 1,
-            name: r.name,
-            tier: r.tier || 'E-IV',
-            level: r.level || 1,
-            streak: r.streak || 0,
-            score: r.score || 0,
-            you: isYou
-          };
-        });
-
-        // Ensure current active user is always represented on the leaderboard!
-        if (!userInList) {
-          var p = S.state.profile;
-          var myScore = view === 'HALL' ? S.combatPower() : S.seasonHrs().total;
-          var me = {
-            pos: mapped.length + 1,
-            name: p.hunterName.toUpperCase(),
-            tier: S.rank().code,
-            level: p.level,
-            streak: p.streakDays,
-            score: myScore,
-            you: true
-          };
-          mapped.push(me);
-          mapped.sort(function (a, b) { return b.score - a.score; });
-          mapped.forEach(function (row, i) { row.pos = i + 1; });
-        }
-
-        return mapped;
-      }
-
-      // If database has not returned yet or in offline mode:
-      // Show user as #1 real player in their system
-      var cur = S.state.profile;
-      var curScore = view === 'HALL' ? S.combatPower() : S.seasonHrs().total;
-      return [{
-        pos: 1,
-        name: cur.hunterName.toUpperCase(),
-        tier: S.rank().code,
-        level: cur.level,
-        streak: cur.streakDays,
-        score: curScore,
-        you: true
-      }];
     }
-  };
-
-  // Wire S.boards to query real people from the database
-  var originalBoards = S.boards;
-  S.boards = function (view) {
-    var realList = auth.getRealLeaderboard(view);
-    if (realList && realList.length) {
-      return realList;
-    }
-    return originalBoards(view);
   };
 
   auth.init();

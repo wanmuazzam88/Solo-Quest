@@ -9,7 +9,6 @@ window.SYS = window.SYS || {};
 
   var currentView = 'quests';
   var activeVaultTab = 'RELIC';
-  var activeRankTab = 'VANGUARD';
   var selectedPlanDay = null;
   var lastKnownToday = null;
 
@@ -158,9 +157,6 @@ window.SYS = window.SYS || {};
             break;
           case 'vault':
             UI.renderVaultView(container);
-            break;
-          case 'rank':
-            UI.renderRankView(container);
             break;
           case 'settings':
             UI.renderSettingsView(container);
@@ -830,14 +826,14 @@ window.SYS = window.SYS || {};
       });
     },
 
-    /* --- Column 3: Vault & Leaderboard --- */
+    /* --- Column 3: Vault & Promotion Exam --- */
     renderVaultColumn: function (col) {
       var p = S.state.profile;
       var r1 = p.equippedRelicIds[0] ? S.ITEM[p.equippedRelicIds[0]] : null;
       var r2 = p.equippedRelicIds[1] ? S.ITEM[p.equippedRelicIds[1]] : null;
       var shadow = p.activeShadowId ? S.ITEM[p.activeShadowId] : null;
-
-      var rivals = S.boards('DIVISION').slice(0, 5);
+      var canExam = S.isEligibleForExam();
+      var nextR = S.nextRank();
 
       col.innerHTML = '<div class="system-panel">' +
         '<div class="panel-header">' +
@@ -865,7 +861,7 @@ window.SYS = window.SYS || {};
           '<div class="panel-title" style="font-size:13px;">' + I('box', 16) + ' RANDOM BOXES</div>' +
         '</div>' +
 
-        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;">' +
+        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;' + (canExam ? ' margin-bottom:14px;' : '') + '">' +
           '<button class="sys-btn gold" id="btn-open-blessed" ' + (S.state.inventory.boxes.BLESSED <= 0 ? 'disabled' : '') + '>' +
             I('box', 16) + ' BLESSED BOX (' + S.state.inventory.boxes.BLESSED + ')' +
           '</button>' +
@@ -874,25 +870,23 @@ window.SYS = window.SYS || {};
           '</button>' +
         '</div>' +
 
-        // Division Leaderboard Preview
-        '<div class="panel-header" style="margin-bottom:8px;">' +
-          '<div class="panel-title" style="font-size:13px;">' + I('trophy', 16) + ' DIVISION BRACKET</div>' +
-          '<span class="font-mono text-accent" style="font-size:11px;">' + S.rank().code + ' LEAGUE</span>' +
-        '</div>' +
-
-        '<table class="leaderboard-table">' +
-          '<thead><tr><th>#</th><th>HUNTER</th><th>HRS</th></tr></thead>' +
-          '<tbody>' +
-            rivals.map(function (row) {
-              return '<tr class="' + (row.you ? 'user-row' : '') + '">' +
-                '<td>' + row.pos + '</td>' +
-                '<td>' + U.esc(row.name) + (row.you ? ' (YOU)' : '') + '</td>' +
-                '<td style="text-align:right;">' + U.fmt(row.score) + '</td>' +
-              '</tr>';
-            }).join('') +
-          '</tbody>' +
-        '</table>' +
+        (canExam ? '<div class="penalty-timer-card" style="border-color:var(--loot-mythic-gold); background:rgba(255,183,3,0.08); margin-top:4px;">' +
+          '<div style="display:flex; align-items:center; gap:8px;">' +
+            I('star', 18, 'text-gold') +
+            '<div>' +
+              '<div class="font-display text-gold" style="font-weight:700; font-size:12px;">PROMOTION EXAM // ' + nextR.code + '</div>' +
+              '<div style="font-size:10.5px; color:var(--text-muted);">Advance before midnight.</div>' +
+            '</div>' +
+          '</div>' +
+          '<button class="sys-btn sm gold" id="btn-col-start-exam">' + I('play', 12) + ' EXAM</button>' +
+        '</div>' : '') +
       '</div>';
+
+      var btnColExam = col.querySelector('#btn-col-start-exam');
+      if (btnColExam) btnColExam.addEventListener('click', function () {
+        S.startExam();
+        UI.render();
+      });
 
       var btnFull = col.querySelector('#btn-open-full-vault');
       if (btnFull) btnFull.addEventListener('click', function () { UI.setView('vault'); });
@@ -968,6 +962,18 @@ window.SYS = window.SYS || {};
             '</div>' +
           '</div>' +
         '</div>' +
+
+        // Promotion Exam Banner (if eligible)
+        (S.isEligibleForExam() ? '<div class="penalty-timer-card" style="border-color:var(--loot-mythic-gold); background:rgba(255,183,3,0.08); margin-bottom:18px;">' +
+          '<div style="display:flex; align-items:center; gap:10px;">' +
+            I('star', 20, 'text-gold') +
+            '<div>' +
+              '<div class="font-display text-gold" style="font-weight:700; font-size:14px;">PROMOTION EXAM AVAILABLE // ADVANCE TO ' + S.nextRank().code + '</div>' +
+              '<div style="font-size:11px; color:var(--text-muted);">Pass high-intensity trials before midnight to promote. Skip disallowed.</div>' +
+            '</div>' +
+          '</div>' +
+          '<button class="sys-btn gold" id="btn-start-exam">' + I('play', 14) + ' ENTER EXAM</button>' +
+        '</div>' : '') +
 
         // XP & Vitals
         '<div style="margin-bottom:18px;">' +
@@ -1065,6 +1071,12 @@ window.SYS = window.SYS || {};
           '</div>' +
         '</div>' +
       '</div>';
+
+      var btnExam = container.querySelector('#btn-start-exam');
+      if (btnExam) btnExam.addEventListener('click', function () {
+        S.startExam();
+        UI.setView('quests');
+      });
 
       container.querySelectorAll('.btn-alloc').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -1349,107 +1361,6 @@ window.SYS = window.SYS || {};
       });
     },
 
-    /* ======================================================================
-       VIEW: RANKINGS & PROMOTION EXAMS
-       ====================================================================== */
-    renderRankView: function (container) {
-      var p = S.state.profile;
-      var canExam = S.isEligibleForExam();
-      var nextR = S.nextRank();
-      var rows = S.boards(activeRankTab);
-      var isConnected = S.api && S.api.isConnected;
-      var isLocalOnly = !S.api || S.api.provider === 'local';
-      var isAuth = S.api && !!S.api.user;
-
-      var dbBadgeHtml = '<span class="db-latency-badge ' + (isConnected ? 'online' : isLocalOnly ? 'testing' : 'offline') + '" title="Database Connection Status">' +
-        '<span class="db-status-dot ' + (isConnected ? 'pulsing' : '') + '"></span>' +
-        (isConnected ? ('LIVE NETWORK // ' + rows.length + ' VERIFIED HUNTERS') : isLocalOnly ? 'LOCAL HUD (OFFLINE)' : 'DATABASE STANDBY') +
-      '</span>';
-
-      container.innerHTML = '<div class="system-panel">' +
-        '<div class="panel-header" style="flex-wrap:wrap; gap:8px;">' +
-          '<div class="panel-title">' + I('trophy', 20) + ' [GLOBAL HUNTER ASSOCIATION RANKINGS]</div>' +
-          '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
-            dbBadgeHtml +
-            '<button class="sys-btn sm" id="btn-rank-refresh" title="Refresh Live Database Rankings">' + I('radar', 13) + ' SYNC</button>' +
-            (!isAuth ? '<button class="sys-btn sm primary" id="btn-rank-link" title="Awaken or link profile to register on global leaderboard">' + I('gate', 13) + ' SYSTEM LINK</button>' : '') +
-            '<div class="sys-badge font-mono text-gold">HRS: ' + U.fmt(S.seasonHrs().total) + '</div>' +
-          '</div>' +
-        '</div>' +
-
-        // Promotion Exam Banner
-        (canExam ? '<div class="penalty-timer-card" style="border-color:var(--loot-mythic-gold); background:rgba(255,183,3,0.08); margin-bottom:14px;">' +
-          '<div style="display:flex; align-items:center; gap:10px;">' +
-            I('star', 20, 'text-gold') +
-            '<div>' +
-              '<div class="font-display text-gold" style="font-weight:700; font-size:14px;">PROMOTION EXAM AVAILABLE // ADVANCE TO ' + nextR.code + '</div>' +
-              '<div style="font-size:11px; color:var(--text-muted);">Pass high-intensity trials before midnight to promote. Skip disallowed.</div>' +
-            '</div>' +
-          '</div>' +
-          '<button class="sys-btn gold" id="btn-start-exam">' + I('play', 14) + ' ENTER EXAM</button>' +
-        '</div>' : '') +
-
-        // Leaderboard Tabs
-        '<div class="vault-tabs">' +
-          '<button class="vault-tab-btn ' + (activeRankTab === 'VANGUARD' ? 'active' : '') + '" data-tab="VANGUARD">SEASONAL VANGUARD</button>' +
-          '<button class="vault-tab-btn ' + (activeRankTab === 'DIVISION' ? 'active' : '') + '" data-tab="DIVISION">' + S.rank().code + ' DIVISION BRACKET</button>' +
-          '<button class="vault-tab-btn ' + (activeRankTab === 'HALL' ? 'active' : '') + '" data-tab="HALL">HALL OF MONARCHS (ALL-TIME)</button>' +
-        '</div>' +
-
-        '<table class="leaderboard-table">' +
-          '<thead>' +
-            '<tr><th>#</th><th>HUNTER</th><th>RANK</th><th>' + (activeRankTab === 'HALL' ? 'LEVEL / STREAK' : 'HRS') + '</th><th style="text-align:right;">' + (activeRankTab === 'HALL' ? 'POWER' : 'SCORE') + '</th></tr>' +
-          '</thead>' +
-          '<tbody>' +
-            rows.map(function (r) {
-              return '<tr class="' + (r.you ? 'user-row' : '') + '">' +
-                '<td>' + r.pos + '</td>' +
-                '<td>' +
-                  '<span>' + U.esc(r.name) + '</span>' +
-                  (r.you ? ' <span class="sys-badge" style="font-size:9px; color:var(--accent-core); border-color:var(--accent-core); margin-left:4px;">YOU</span>' : '<span class="verified-hunter-badge">VERIFIED</span>') +
-                '</td>' +
-                '<td><span class="sys-badge" style="font-size:10px;">' + r.tier + '</span></td>' +
-                '<td>' + (activeRankTab === 'HALL' ? 'Lv.' + r.level + ' / ' + r.streak + 'd' : U.fmt(r.score)) + '</td>' +
-                '<td style="text-align:right;">' + U.fmt(r.score) + '</td>' +
-              '</tr>';
-            }).join('') +
-          '</tbody>' +
-        '</table>' +
-      '</div>';
-
-      container.querySelectorAll('.vault-tab-btn[data-tab]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          activeRankTab = btn.getAttribute('data-tab');
-          if (S.audio) S.audio.tap();
-          UI.renderRankView(container);
-        });
-      });
-
-      var btnRefresh = container.querySelector('#btn-rank-refresh');
-      if (btnRefresh) {
-        btnRefresh.addEventListener('click', async function () {
-          btnRefresh.disabled = true;
-          btnRefresh.textContent = 'SYNCING...';
-          if (S.auth) await S.auth.refreshLeaderboards();
-          UI.renderRankView(container);
-          UI.showToast('[DATABASE LEADERBOARD SYNCED]', 'Live rankings refreshed from the Hunter Association database.', 'cyan');
-        });
-      }
-
-      var btnLink = container.querySelector('#btn-rank-link');
-      if (btnLink) {
-        btnLink.addEventListener('click', function () {
-          UI.showAuthModal();
-        });
-      }
-
-      var btnExam = container.querySelector('#btn-start-exam');
-      if (btnExam) btnExam.addEventListener('click', function () {
-        S.startExam();
-        UI.setView('quests');
-      });
-    },
-
 
     /* ======================================================================
        VIEW: SETTINGS & TOOLS
@@ -1488,7 +1399,7 @@ window.SYS = window.SYS || {};
           '<div style="font-size:12px; color:var(--text-secondary); margin-bottom:12px; line-height:1.5;">' +
             (isAuth ?
               ('Authenticated as <strong>' + U.esc(S.api.user.hunterName) + '</strong> (' + U.esc(S.api.user.email) + '). All progression (points, stats, quests, and inventory) synchronizes directly to Cloudflare & Supabase.') :
-              'Database credentials are bound automatically to Cloudflare Pages. Awaken or Link your Hunter account to compete on the real global leaderboard.') +
+              'Database credentials are bound automatically to Cloudflare Pages. Awaken or Link your Hunter account to back up and sync progression across devices.') +
           '</div>' +
           '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
             '<button class="sys-btn primary" id="btn-settings-open-auth">' + I('user', 14) + ' ' + (isAuth ? 'MANAGE SYSTEM LINK' : 'AWAKEN / SYSTEM LINK') + '</button>' +
@@ -1503,7 +1414,7 @@ window.SYS = window.SYS || {};
             '<span class="sys-badge font-display text-gold" style="font-size:11px;">RANK ' + S.rank().code + '</span>' +
           '</div>' +
           '<div style="font-size:12px; color:var(--text-secondary); margin-bottom:12px; line-height:1.5;">' +
-            'Modify your registered Hunter codename and Association email. Changes update your hunter card, cloud database, and global leaderboards.' +
+            'Modify your registered Hunter codename and Association email. Changes update your hunter card and cloud database profile.' +
           '</div>' +
           '<form id="form-settings-identity">' +
             '<div id="settings-identity-error" style="display:none; color:var(--penalty-crimson); font-size:12px; margin-bottom:10px; padding:8px; background:rgba(255,0,60,0.1); border:1px solid rgba(255,0,60,0.3); clip-path:var(--clip-chamfer-sm);"></div>' +
@@ -2387,7 +2298,7 @@ window.SYS = window.SYS || {};
                   '<input type="email" class="sys-input" id="awaken-email" placeholder="hunter@association.kr" value="' + U.esc(existingEmail) + '" style="width:100%; height:32px; padding:4px 8px; font-size:12px; box-sizing:border-box;" required>' +
                 '</div>' +
                 '<div>' +
-                  '<label class="font-mono text-muted" style="display:block; font-size:9.5px; letter-spacing:0.05em; margin-bottom:2px;">SECURITY PASSCODE (FOR LEADERBOARD SYNC)</label>' +
+                  '<label class="font-mono text-muted" style="display:block; font-size:9.5px; letter-spacing:0.05em; margin-bottom:2px;">SECURITY PASSCODE (FOR CLOUD SYNC)</label>' +
                   '<input type="password" class="sys-input" id="awaken-pass" placeholder="Min 6 characters (Optional)" maxlength="32" style="width:100%; height:32px; padding:4px 8px; font-size:12px; box-sizing:border-box;">' +
                 '</div>' +
                 '<div>' +
@@ -2728,7 +2639,7 @@ window.SYS = window.SYS || {};
                   '<span class="db-latency-badge testing" style="font-size:10px;">LOCAL ONLY</span>' +
                 '</div>' +
                 '<div style="color:var(--text-secondary); font-size:11px; line-height:1.45; margin-bottom:10px;">' +
-                  'Your hunter progression is saved on this device. Awaken or Link your account to sync with the cloud database and compete on the global leaderboard.' +
+                  'Your hunter progression is saved on this device. Awaken or Link your account to sync with the cloud database across devices.' +
                 '</div>' +
                 '<button type="button" class="sys-btn primary sm" id="btn-modal-go-online" style="width:100%;">' +
                   I('shield', 14) + ' AWAKEN / LINK CLOUD ACCOUNT' +

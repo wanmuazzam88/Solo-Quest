@@ -1,7 +1,7 @@
 /* ==========================================================================
    THE SYSTEM // Progression Engine
    State + persistence, XP curve, quest payouts, ranks & promotion exams,
-   midnight evaluation, Penalty Zone, Dungeon Gates, loot, vault & HRS.
+   midnight evaluation, Penalty Zone, Dungeon Gates, loot, vault & progression.
    ========================================================================== */
 window.SYS = window.SYS || {};
 (function (S) {
@@ -127,7 +127,7 @@ window.SYS = window.SYS || {};
   S.dayLog = function (date) {
     date = date || S.state.currentDate;
     var l = S.state.log;
-    if (!l[date]) l[date] = { xp: 0, hrsXp: 0, capQuests: 0, capFocus: 0, focusMins: 0, verifiedMins: 0, quests: 0, perfect: false, failed: false, resolved: false };
+    if (!l[date]) l[date] = { xp: 0, focusMins: 0, verifiedMins: 0, quests: 0, perfect: false, failed: false, resolved: false };
     return l[date];
   };
 
@@ -938,7 +938,6 @@ window.SYS = window.SYS || {};
         var fat = (dObj.fatigue || 15) * (1 - Math.min(0.5, p.stats.VIT * 0.004)) * Math.max(0, 1 - S.buffSum('fatigue'));
         p.fatigue = U.clamp(p.fatigue + fat, 0, 100);
       }
-      if (log.capQuests < 6) { log.hrsXp += xp; log.capQuests++; }
       result.xp = xp; result.gold = gold; result.stat = stat;
       gainXp(xp);
     }
@@ -1188,10 +1187,6 @@ window.SYS = window.SYS || {};
       if (!S.isFrozen()) {
         var xp = S.gatePayout(def, cat, g.breached);
         summary.xp = xp;
-        var room = Math.max(0, 240 - log.capFocus);
-        var counted = Math.min(room, mins);
-        if (counted > 0) log.hrsXp += Math.floor(xp * counted / mins);
-        log.capFocus += mins;
         gainXp(xp);
         p.essenceStones += def.essence; summary.essence = def.essence;
         var chance = def.lootChance + p.stats.PER * 0.0015;
@@ -1444,60 +1439,6 @@ window.SYS = window.SYS || {};
     var nq = s.quests.filter(function (q) { return !(q.isRedemption && !q.isCompleted && q.expiresAt && q.expiresAt < now); });
     if (nq.length !== s.quests.length) { s.quests = nq; changed = true; S.notify('[REDEMPTION EXPIRED]', 'The lost streak can no longer be recovered by quest.', 'danger'); }
     return changed;
-  };
-
-  /* ======================= Hunter Rating Score & Leaderboards ======================= */
-  /** HRS = (sum capped XP) * (1 + ln(S+1)/4) + 15*M_focus - 250*P_failed */
-  S.hrs = function (fromDate, toDate) {
-    var s = S.state, xp = 0, mins = 0, failed = 0;
-    Object.keys(s.log).forEach(function (d) {
-      if (d < fromDate || d > toDate) return;
-      var l = s.log[d];
-      xp += l.hrsXp; mins += l.verifiedMins;
-      if (l.failed && !l.resolved) failed++;
-    });
-    var streakF = 1 + Math.log(s.profile.streakDays + 1) / 4;
-    return { total: Math.max(0, Math.floor(xp * streakF + 15 * mins - 250 * failed)), xp: xp, streakF: streakF, mins: mins, failed: failed };
-  };
-  S.seasonHrs = function () { var t = S.state.currentDate; return S.hrs(U.weekStart(t), t); };
-
-  S.boards = function (view) {
-    var s = S.state;
-    var p = (s && s.profile) ? s.profile : { hunterName: 'PLAYER', rankTierIndex: 0, level: 1, maxStreak: 0 };
-    var t = (s && s.currentDate) ? s.currentDate : S.today();
-    var ws = U.weekStart(t);
-    var dayIdx = (U.parseDate(t).getDay() + 6) % 7;
-    var now = S.nowDate();
-    var frac = Math.max(0.04, (dayIdx + (now.getHours() * 60 + now.getMinutes()) / 1440) / 7);
-    var tier = Math.max(0, Math.min(S.RANKS.length - 1, p.rankTierIndex || 0));
-    var rand = U.rng(U.hash(ws + (view || 'VANGUARD') + (view === 'DIVISION' ? tier : '')));
-    var names = (S.RIVAL_NAMES && S.RIVAL_NAMES.length) ? S.RIVAL_NAMES.slice() : ['HUNTER_CHA', 'BAEK_YOON', 'HWANG_DONGSOO', 'CHOI_JONGIN'];
-    for (var i = names.length - 1; i > 0; i--) { var j = Math.floor(rand() * (i + 1)); var tmp = names[i]; names[i] = names[j]; names[j] = tmp; }
-    var rows = [];
-    var myRank = S.rank ? S.rank() : S.RANKS[0];
-    var me = { name: (p.hunterName || 'PLAYER').toUpperCase(), you: true, tier: (myRank ? myRank.code : 'E-IV'), level: p.level || 1 };
-    if (view === 'HALL') {
-      for (var k = 0; k < Math.min(names.length, 49); k++) {
-        var lv = Math.max(1, Math.floor(Math.pow(rand(), 1.8) * 118) + 1);
-        var ti = 0; for (var x = 0; x < S.RANKS.length; x++) if (lv >= S.RANKS[x].minLevel) ti = x;
-        ti = Math.max(0, Math.min(S.RANKS.length - 1, ti - Math.floor(rand() * 3)));
-        rows.push({ name: names[k], tier: S.RANKS[ti].code, level: lv, streak: Math.floor(rand() * lv * 3), score: Math.floor(lv * 60 + lv * 55 * (0.8 + rand() * 0.5) + ti * 250) });
-      }
-      me.streak = p.maxStreak || 0; me.score = S.combatPower ? S.combatPower() : 100;
-    } else {
-      var count = Math.min(names.length, 49);
-      for (var m = 0; m < count; m++) {
-        var rt = view === 'DIVISION' ? tier : Math.floor(Math.pow(rand(), 1.6) * S.RANKS.length);
-        rt = Math.max(0, Math.min(S.RANKS.length - 1, rt));
-        var typical = (rt + 1) * 210 + 300;
-        rows.push({ name: names[m], tier: S.RANKS[rt].code, score: Math.floor(typical * 7 * frac * (0.35 + rand() * 1.3)) });
-      }
-      me.score = (S.seasonHrs && S.seasonHrs().total) ? S.seasonHrs().total : 0;
-    }
-    rows.push(me);
-    rows.sort(function (a, b) { return (b.score || 0) - (a.score || 0); });
-    rows.forEach(function (r, i) { r.pos = i + 1; });
-    return rows;
   };
 
   /* ======================= Onboarding ======================= */

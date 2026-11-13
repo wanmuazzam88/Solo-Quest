@@ -1087,84 +1087,6 @@ window.SYS = window.SYS || {};
     },
 
     // ==========================================================================
-    // Real People Global Leaderboards (Database Query)
-    // ==========================================================================
-    fetchLeaderboard: async function (view, targetTierIndex) {
-      view = (view || 'VANGUARD').toUpperCase();
-
-      if (api.provider === 'supabase' && api.supabaseUrl && api.supabaseAnonKey) {
-        var url = cleanUrl(api.supabaseUrl);
-        var key = cleanKey(api.supabaseAnonKey);
-
-        var orderParam = 'hrs_score.desc';
-        if (view === 'HALL') {
-          orderParam = 'combat_power.desc,level.desc';
-        }
-
-        var filterParam = '';
-        if (view === 'DIVISION' && targetTierIndex !== undefined && targetTierIndex !== null) {
-          filterParam = '&rank_tier_index=eq.' + targetTierIndex;
-        }
-
-        var endpoint = url + '/rest/v1/hunter_profiles?select=id,hunter_name,level,rank_code,rank_tier_index,streak_days,hrs_score,combat_power,total_focus_minutes&order=' + orderParam + filterParam + '&limit=50';
-
-        try {
-          var res = await fetch(endpoint, {
-            method: 'GET',
-            headers: {
-              'apikey': key,
-              'Authorization': 'Bearer ' + (api.token || key)
-            }
-          });
-
-          if (!res.ok) {
-            return null; // Gracefully fallback if table does not exist
-          }
-
-          var rows = await res.json();
-          var currentUserId = api.user ? api.user.id : null;
-
-          return rows.map(function (r, idx) {
-            var isYou = currentUserId && (r.id === currentUserId || r.hunter_name.toLowerCase() === (api.user.hunterName || '').toLowerCase());
-            return {
-              pos: idx + 1,
-              id: r.id,
-              name: r.hunter_name.toUpperCase(),
-              tier: r.rank_code || 'E-IV',
-              tierIndex: r.rank_tier_index || 0,
-              level: r.level || 1,
-              streak: r.streak_days || 0,
-              score: view === 'HALL' ? (r.combat_power || 120) : (r.hrs_score || 0),
-              combatPower: r.combat_power || 120,
-              focusMins: r.total_focus_minutes || 0,
-              you: isYou
-            };
-          });
-        } catch (e) {
-          return null;
-        }
-
-      } else if (api.provider === 'custom' && api.customUrl) {
-        var host = cleanUrl(api.customUrl);
-        var query = '?view=' + view + (targetTierIndex !== undefined ? '&tier=' + targetTierIndex : '');
-        var res2 = await fetch(host + '/api/leaderboard' + query, { method: 'GET' });
-        if (!res2.ok) throw new Error('Custom server leaderboard query failed');
-
-        var json = await res2.json();
-        var curName = api.user ? (api.user.hunterName || '').toUpperCase() : '';
-
-        return (json.leaderboard || []).map(function (r) {
-          r.you = curName && r.name.toUpperCase() === curName;
-          return r;
-        });
-
-      } else {
-        // Offline / Local fallback: Calculate from local state
-        return null;
-      }
-    },
-
-    // ==========================================================================
     // Cloud Synchronization: Sync Up (Save Points, Stats, Quests, Vault)
     // ==========================================================================
     syncUp: async function (state) {
@@ -1208,7 +1130,6 @@ window.SYS = window.SYS || {};
         rankCode: S.rank().code,
         streakDays: p.streakDays,
         maxStreak: p.maxStreak,
-        hrsScore: S.seasonHrs().total,
         combatPower: S.combatPower(),
         totalFocusMinutes: p.totalFocusMinutes || 0,
         penaltyMode: p.penaltyMode,
@@ -1250,7 +1171,6 @@ window.SYS = window.SYS || {};
           rank_code: S.rank().code,
           streak_days: p.streakDays,
           max_streak: p.maxStreak,
-          hrs_score: S.seasonHrs().total,
           combat_power: S.combatPower(),
           total_focus_minutes: p.totalFocusMinutes || 0,
           penalty_mode: p.penaltyMode,
@@ -1591,7 +1511,6 @@ window.SYS = window.SYS || {};
             rank_code: 'E-IV',
             streak_days: 0,
             max_streak: 0,
-            hrs_score: 0,
             combat_power: 120,
             total_focus_minutes: 0,
             penalty_mode: (freshState.profile && freshState.profile.penaltyMode) || 'OPTIONAL',

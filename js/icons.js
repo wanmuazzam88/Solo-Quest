@@ -62,7 +62,6 @@ window.SYS = window.SYS || {};
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>',
     trash: '<path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15"/><path d="M10 10v7M14 10v7" opacity=".6"/>',
     reroll: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 3v5h-5"/>',
-    trophy: '<path d="M7 3h10v6a5 5 0 0 1-10 0z"/><path d="M7 5H3v2a4 4 0 0 0 4 4M17 5h4v2a4 4 0 0 1-4 4M12 14v4M8 21h8M9 18h6"/>',
     radar: '<path d="M12 2l9.5 7-3.6 11H6.1L2.5 9z"/><path d="M12 7l4.8 3.5-1.8 5.5H9l-1.8-5.5z" opacity=".6"/>',
     exit: '<path d="M14 3h7v18h-7M10 17l5-5-5-5M15 12H3"/>',
     download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',

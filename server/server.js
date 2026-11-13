@@ -1,6 +1,6 @@
 /* ==============================================================================
    PROJECT: ARISE — THE SYSTEM // DEDICATED BACKEND SERVER
-   Zero-dependency Node.js REST API with authentication, real hunter leaderboards,
+   Zero-dependency Node.js REST API with authentication,
    and persistent JSON/relational database storage.
    ============================================================================== */
 const http = require('http');
@@ -22,10 +22,10 @@ if (!fs.existsSync(DATA_DIR)) {
 // In-Memory Database State with Disk Persistence
 let db = {
   users: [],       // { id, email, hunterName, passwordHash, salt, createdAt }
-  profiles: {},    // { [userId]: { hunterName, email, level, xp, ap, str, agi, vit, int, per, gold, essence, rankTierIndex, rankCode, streakDays, maxStreak, hrsScore, combatPower, totalFocusMins, penaltyMode, inPenaltyZone, activeTitle, activeSkinId, activeBorderId, activeShadowId, equippedRelicIds, updatedAt } }
+  profiles: {},    // { [userId]: { hunterName, email, level, xp, ap, str, agi, vit, int, per, gold, essence, rankTierIndex, rankCode, streakDays, maxStreak, combatPower, totalFocusMins, penaltyMode, inPenaltyZone, activeTitle, activeSkinId, activeBorderId, activeShadowId, equippedRelicIds, updatedAt } }
   quests: {},      // { [userId]: [ { id, title, category, unit, targetProgress, currentProgress, isCompleted, preset, isPenaltyQuest, isExam, isBonus, createdDate } ] }
   inventories: {}, // { [userId]: { ownedItems, boxes, unlockedSkins, unlockedTitles, unlockedBorders, shadows } }
-  logs: {}         // { [userId]: { [date]: { xp, hrsXp, verifiedMins, focusMins, quests, failed, resolved } } }
+  logs: {}         // { [userId]: { [date]: { xp, verifiedMins, focusMins, quests, failed, resolved } } }
 };
 
 // Load database from disk if present
@@ -229,7 +229,6 @@ const server = http.createServer(async (req, res) => {
         rankCode: 'E-IV',
         streakDays: 0,
         maxStreak: 0,
-        hrsScore: 0,
         combatPower: 120,
         totalFocusMinutes: 0,
         penaltyMode: mode,
@@ -317,52 +316,7 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
-    // 5. Global Leaderboard (Query Real Registered People)
-    if (pathname === '/api/leaderboard' && method === 'GET') {
-      const view = (parsedUrl.query.view || 'VANGUARD').toUpperCase();
-      const targetTier = parseInt(parsedUrl.query.tier, 10);
-
-      // Collect all registered hunter profiles
-      const allProfiles = Object.values(db.profiles);
-
-      let sorted = [];
-      if (view === 'DIVISION') {
-        const divisionProfiles = isNaN(targetTier) ? allProfiles : allProfiles.filter(p => p.rankTierIndex === targetTier);
-        sorted = divisionProfiles.sort((a, b) => (b.hrsScore || 0) - (a.hrsScore || 0));
-      } else if (view === 'HALL') {
-        sorted = allProfiles.sort((a, b) => {
-          if ((b.combatPower || 0) !== (a.combatPower || 0)) {
-            return (b.combatPower || 0) - (a.combatPower || 0);
-          }
-          return (b.level || 1) - (a.level || 1);
-        });
-      } else {
-        // Seasonal Vanguard (Overall HRS)
-        sorted = allProfiles.sort((a, b) => (b.hrsScore || 0) - (a.hrsScore || 0));
-      }
-
-      const formatted = sorted.slice(0, 50).map((p, idx) => ({
-        pos: idx + 1,
-        id: p.id,
-        name: p.hunterName.toUpperCase(),
-        tier: p.rankCode || 'E-IV',
-        tierIndex: p.rankTierIndex || 0,
-        level: p.level || 1,
-        streak: p.streakDays || 0,
-        score: view === 'HALL' ? (p.combatPower || 120) : (p.hrsScore || 0),
-        combatPower: p.combatPower || 120,
-        focusMins: p.totalFocusMinutes || 0
-      }));
-
-      return sendJson(res, 200, {
-        view,
-        totalRegisteredHunters: allProfiles.length,
-        leaderboard: formatted,
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    // 6. Data Synchronization: Sync Up (Save Client State to Database)
+    // 5. Data Synchronization: Sync Up (Save Client State to Database)
     if (pathname === '/api/sync/up' && method === 'POST') {
       const token = extractBearer(req);
       const payload = verifyToken(token);
@@ -392,7 +346,6 @@ const server = http.createServer(async (req, res) => {
           rankCode: data.profile.rankCode || existing.rankCode,
           streakDays: data.profile.streakDays !== undefined ? data.profile.streakDays : existing.streakDays,
           maxStreak: data.profile.maxStreak !== undefined ? data.profile.maxStreak : existing.maxStreak,
-          hrsScore: data.profile.hrsScore !== undefined ? data.profile.hrsScore : existing.hrsScore,
           combatPower: data.profile.combatPower !== undefined ? data.profile.combatPower : existing.combatPower,
           totalFocusMinutes: data.profile.totalFocusMinutes !== undefined ? data.profile.totalFocusMinutes : existing.totalFocusMinutes,
           inPenaltyZone: !!data.profile.inPenaltyZone,

@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- PROJECT: ARISE — THE SYSTEM // SUPABASE POSTGRESQL DATABASE SCHEMA
--- Full relational schema, Row Level Security (RLS), and real-time leaderboard
+-- Full relational schema and Row Level Security (RLS) policies
 -- ==============================================================================
 
 -- 1. Enable Required Extensions
@@ -29,7 +29,6 @@ CREATE TABLE IF NOT EXISTS public.hunter_profiles (
   rank_code TEXT DEFAULT 'E-IV' NOT NULL,
   streak_days INTEGER DEFAULT 0 NOT NULL,
   max_streak INTEGER DEFAULT 0 NOT NULL,
-  hrs_score INTEGER DEFAULT 0 NOT NULL,
   combat_power INTEGER DEFAULT 120 NOT NULL,
   total_focus_minutes INTEGER DEFAULT 0 NOT NULL,
   in_penalty_zone BOOLEAN DEFAULT FALSE NOT NULL,
@@ -82,13 +81,12 @@ CREATE TABLE IF NOT EXISTS public.hunter_inventory (
 
 -- ==============================================================================
 -- TABLE: public.hunter_logs
--- Stores daily verification history and penalty records for HRS calculation
+-- Stores daily verification history and penalty records
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.hunter_logs (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   date TEXT NOT NULL,
   xp INTEGER DEFAULT 0 NOT NULL,
-  hrs_xp INTEGER DEFAULT 0 NOT NULL,
   verified_mins INTEGER DEFAULT 0 NOT NULL,
   focus_mins INTEGER DEFAULT 0 NOT NULL,
   quests INTEGER DEFAULT 0 NOT NULL,
@@ -99,28 +97,21 @@ CREATE TABLE IF NOT EXISTS public.hunter_logs (
 );
 
 -- ==============================================================================
--- PERFORMANCE INDEXES (Optimized for Real-Time Global Leaderboards)
+-- PERFORMANCE INDEXES
 -- ==============================================================================
-CREATE INDEX IF NOT EXISTS idx_hunter_profiles_hrs ON public.hunter_profiles(hrs_score DESC);
-CREATE INDEX IF NOT EXISTS idx_hunter_profiles_division ON public.hunter_profiles(rank_tier_index, hrs_score DESC);
 CREATE INDEX IF NOT EXISTS idx_hunter_profiles_power ON public.hunter_profiles(combat_power DESC, level DESC);
 CREATE INDEX IF NOT EXISTS idx_hunter_quests_user ON public.hunter_quests(user_id, is_completed);
 
 -- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
--- Ensures data security while keeping global leaderboards publicly accessible
+-- Ensures user data privacy and authenticated write access
 -- ==============================================================================
 
 -- 1. Hunter Profiles RLS
 ALTER TABLE public.hunter_profiles ENABLE ROW LEVEL SECURITY;
 
--- Allow ANYONE (authenticated or anonymous) to view hunter profiles for global leaderboards
+-- Allow hunters to manage only their own profile
 DROP POLICY IF EXISTS "Public Leaderboard Access" ON public.hunter_profiles;
-CREATE POLICY "Public Leaderboard Access"
-  ON public.hunter_profiles FOR SELECT
-  USING (true);
-
--- Allow hunters to insert/update only their own profile
 DROP POLICY IF EXISTS "Users can manage own profile" ON public.hunter_profiles;
 CREATE POLICY "Users can manage own profile"
   ON public.hunter_profiles FOR ALL

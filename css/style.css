@@ -1192,36 +1192,6 @@ body.grace-countdown-active .grace-warning-banner {
   box-shadow: 0 0 12px rgba(255, 183, 3, 0.25);
 }
 
-/* --- Leaderboard Table --- */
-.leaderboard-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: var(--font-mono);
-  font-size: 12px;
-}
-.leaderboard-table th {
-  padding: 8px;
-  text-align: left;
-  font-family: var(--font-display);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  text-transform: uppercase;
-}
-.leaderboard-table td {
-  padding: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-.leaderboard-table tr.user-row {
-  background: rgba(0, 229, 255, 0.12);
-  border-left: 3px solid var(--accent-core);
-}
-.leaderboard-table tr.user-row td {
-  color: var(--accent-core);
-  font-weight: 700;
-}
-
 /* --- Modal Overlay & Dialog --- */
 .modal-overlay {
   position: fixed;
@@ -1528,20 +1498,6 @@ body.grace-countdown-active .grace-warning-banner {
 }
 .db-status-dot.pulsing {
   animation: pulse-aura 1.5s infinite ease-in-out;
-}
-
-.verified-hunter-badge {
-  display: inline-block;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  padding: 1px 5px;
-  border: 1px solid rgba(0, 229, 255, 0.4);
-  color: var(--accent-core);
-  background: rgba(0, 229, 255, 0.08);
-  clip-path: var(--clip-chamfer-sm);
-  margin-left: 6px;
-  vertical-align: middle;
-  letter-spacing: 0.05em;
 }
 
 /* ==============================================================================

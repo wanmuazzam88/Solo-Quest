@@ -40,28 +40,24 @@ A dark-futuristic, tactical manhwa-styled web application modeled directly after
    - 45 Hunter Weapons & Relics with passive buffs (equip up to 2).
    - 30 Consumables, Keys, and Skill Runes.
    - 25 System UI Hologram Skins with live dynamic theme switching.
-   - 40 Hunter Titles displayed on global leaderboards.
+   - 40 Hunter Titles unlocked via feats and milestones.
    - 25 Shadow Army summons & holographic avatar borders unlocked via `[ARISE]` at Level 40.
    - Gacha Loot Box opening sequence (Blessed & Cursed boxes).
    - Hunter Association Commissary (Gold & Essence store).
 
-6. **Global Leaderboards & Anti-Cheat HRS:**
-   - Seasonal Vanguard, Division Brackets, and All-Time Hall of Monarchs.
-   - Anti-cheat Hunter Rating Score ($\text{HRS}$) weighting verified focus minutes and streak consistency while capping daily quest spam.
 
-7. **Zero-Emoji Mandate & Manhwa Aesthetics:**
+6. **Zero-Emoji Mandate & Manhwa Aesthetics:**
    - 100% bespoke SVG geometric glyphs with glowing neon drop-shadows.
    - Native **Web Audio API** procedural synthesizer (no external audio files required).
 
-8. **Progressive Web App (PWA) & Offline Ready:**
+7. **Progressive Web App (PWA) & Offline Ready:**
    - **Standalone Installable:** Complete Web App Manifest (`manifest.json`) with bespoke 192px/512px tactical Shadow Monarch Sovereign Sword crest icons, maskable formats, theme color `#04060A`, and 3 app shortcuts (`Quests`, `Gate`, `Status`).
    - **Offline-First Service Worker (`sw.js`):** Pre-caches core shell assets, scripts, styles, and fonts with a Stale-While-Revalidate caching strategy and offline fallback.
    - **Native Install Prompt:** Top-bar holographic `INSTALL APP` button dynamically unhides upon `beforeinstallprompt` event and registers standalone launch upon installation.
 
-9. **Full Authentication System & Cloud Database Sync:**
+8. **Full Authentication System & Cloud Database Sync:**
     - **Universal Database Adapter (`js/api.js`):** Dual architecture supporting **Supabase Cloud (PostgreSQL REST API)** and **Self-Hosted Node.js / SQLite Server (`server/server.js`)**, with seamless offline local fallback.
     - **Hunter Awakening & Authentication:** System registration, encrypted login, secure token management, and session recovery across devices.
-    - **Real Global Leaderboards (Zero Hardcoded Rivals):** The seasonal Vanguard, division brackets, and Monarch Hall rankings query live registered hunters directly from the database, displaying verified badges, current HRS scores, and active user placement.
     - **Automatic Bidirectional Progression Sync:** All player points (XP, AP), attributes (STR, AGI, VIT, INT, PER, Gold, Essence), daily & custom forged quests, and inventory relics synchronize directly to PostgreSQL.
     - **Database Health & Ping Diagnostics:** Real-time ping latency monitor in the HUD to measure and verify cloud database connectivity.
     - **Complete Setup Documentation:** Read [`DATABASE_SETUP_GUIDE.md`](DATABASE_SETUP_GUIDE.md) for 3-minute step-by-step instructions with the complete SQL schema.
@@ -74,10 +70,10 @@ A dark-futuristic, tactical manhwa-styled web application modeled directly after
    - Simply open `index.html` in any modern web browser (Chrome, Edge, Firefox, Brave, Safari, Opera).
    - No build tools or compilers required.
 
-2. **Connect Cloud Database & Compete Live:**
+2. **Connect Cloud Database & Sync:**
    - Click **SYSTEM LINK** in the top navigation bar.
    - Follow the simple instructions in [`DATABASE_SETUP_GUIDE.md`](DATABASE_SETUP_GUIDE.md) to link a free Supabase PostgreSQL cloud database or start the local Node.js server.
-   - Awaken your Hunter profile and compete against real players on the global leaderboard.
+   - Awaken your Hunter profile to back up and synchronize progression across devices.
 
 3. **Install as Progressive Web App (PWA):**
    - **Desktop (Chrome/Edge):** Click the `INSTALL APP` button in the top navigation bar, or click the install icon in your browser's address bar.
