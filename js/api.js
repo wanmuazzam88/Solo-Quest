@@ -1106,7 +1106,7 @@ window.SYS = window.SYS || {};
           filterParam = '&rank_tier_index=eq.' + targetTierIndex;
         }
 
-        var endpoint = url + '/rest/v1/hunter_profiles?select=id,hunter_name,level,rank_code,rank_tier_index,streak_days,hrs_score,combat_power,total_focus_minutes,total_km_run&order=' + orderParam + filterParam + '&limit=50';
+        var endpoint = url + '/rest/v1/hunter_profiles?select=id,hunter_name,level,rank_code,rank_tier_index,streak_days,hrs_score,combat_power,total_focus_minutes&order=' + orderParam + filterParam + '&limit=50';
 
         try {
           var res = await fetch(endpoint, {
@@ -1136,7 +1136,6 @@ window.SYS = window.SYS || {};
               streak: r.streak_days || 0,
               score: view === 'HALL' ? (r.combat_power || 120) : (r.hrs_score || 0),
               combatPower: r.combat_power || 120,
-              totalKmRun: r.total_km_run || 0,
               focusMins: r.total_focus_minutes || 0,
               you: isYou
             };
@@ -1166,9 +1165,9 @@ window.SYS = window.SYS || {};
     },
 
     // ==========================================================================
-    // Cloud Synchronization: Sync Up (Save Points, Stats, Quests, Runs, Vault)
+    // Cloud Synchronization: Sync Up (Save Points, Stats, Quests, Vault)
     // ==========================================================================
-    syncUp: async function (state, trackerHistory) {
+    syncUp: async function (state) {
       if (!api.user || !api.token) return { success: false, reason: 'unauthenticated' };
 
       var p = state.profile;
@@ -1212,7 +1211,6 @@ window.SYS = window.SYS || {};
         hrsScore: S.seasonHrs().total,
         combatPower: S.combatPower(),
         totalFocusMinutes: p.totalFocusMinutes || 0,
-        totalKmRun: p.totalKmRun || 0,
         penaltyMode: p.penaltyMode,
         inPenaltyZone: p.inPenaltyZone,
         activeTitle: p.activeTitle || '',
@@ -1255,7 +1253,6 @@ window.SYS = window.SYS || {};
           hrs_score: S.seasonHrs().total,
           combat_power: S.combatPower(),
           total_focus_minutes: p.totalFocusMinutes || 0,
-          total_km_run: p.totalKmRun || 0,
           penalty_mode: p.penaltyMode,
           in_penalty_zone: p.inPenaltyZone,
           active_title: p.activeTitle || '',
@@ -1358,7 +1355,6 @@ window.SYS = window.SYS || {};
           body: JSON.stringify({
             profile: profilePayload,
             quests: state.quests,
-            runs: trackerHistory || [],
             inventory: {
               owned: state.inventory.owned,
               boxes: state.inventory.boxes,
@@ -1570,16 +1566,7 @@ window.SYS = window.SYS || {};
             }
           }
 
-          // 2. Delete all running logs
-          await fetch(url + '/rest/v1/hunter_runs?user_id=eq.' + api.user.id, {
-            method: 'DELETE',
-            headers: {
-              'apikey': key,
-              'Authorization': 'Bearer ' + api.token
-            }
-          });
-
-          // 3. Delete all daily verification logs
+          // 2. Delete all daily verification logs
           await fetch(url + '/rest/v1/hunter_logs?user_id=eq.' + api.user.id, {
             method: 'DELETE',
             headers: {
@@ -1607,7 +1594,6 @@ window.SYS = window.SYS || {};
             hrs_score: 0,
             combat_power: 120,
             total_focus_minutes: 0,
-            total_km_run: 0.00,
             penalty_mode: (freshState.profile && freshState.profile.penaltyMode) || 'OPTIONAL',
             in_penalty_zone: false,
             active_title: 't_weakest',

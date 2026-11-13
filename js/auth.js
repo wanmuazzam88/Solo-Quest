@@ -45,9 +45,6 @@ window.SYS = window.SYS || {};
       S.on('boxOpened', function () {
         auth.debouncedSync();
       });
-      S.on('trackerFinished', function () {
-        auth.syncWithCloud(true);
-      });
 
       // 4. Listen to auth changes
       S.on('authChange', function (e) {
@@ -256,10 +253,8 @@ window.SYS = window.SYS || {};
 
           try {
             localStorage.removeItem('solo_quest_runs_v1');
-            if (S.tracker) {
-              S.tracker.history = [];
-              S.tracker.activeRun = null;
-            }
+            localStorage.removeItem('solo_quest_location_authorized');
+            localStorage.removeItem('solo_quest_calibrated_location');
           } catch (e) {}
 
           S.state = (typeof S.defaultState === 'function') ? S.defaultState() : { profile: {}, quests: [], inventory: {} };
@@ -430,6 +425,20 @@ window.SYS = window.SYS || {};
             var staleRemoteQuests = [];
 
             remote.quests.forEach(function (rq) {
+              var isLegacyRemoved = (
+                rq.preset === 'running' ||
+                rq.preset === 'steps10k' ||
+                rq.unit === 'KM' ||
+                rq.unit === 'STEPS' ||
+                rq.category === 'RUNNING'
+              );
+              if (isLegacyRemoved) {
+                if (S.api && typeof S.api.deleteQuest === 'function') {
+                  S.api.deleteQuest(rq.id);
+                }
+                return;
+              }
+
               var isTombstoned = !!(
                 deletedQuests[rq.id] ||
                 (rq.preset && deletedQuests['preset_' + rq.preset]) ||
@@ -683,6 +692,13 @@ window.SYS = window.SYS || {};
               var rPlan = rInv.shadows._weekly_plan;
               var lPlan = S.state.weeklyPlan;
               if (rPlan && rPlan.days) {
+                (S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']).forEach(function (d) {
+                  if (Array.isArray(rPlan.days[d])) {
+                    rPlan.days[d] = rPlan.days[d].filter(function (p) {
+                      return p.preset !== 'running' && p.preset !== 'steps10k' && p.unit !== 'KM' && p.unit !== 'STEPS' && p.category !== 'RUNNING';
+                    });
+                  }
+                });
                 var rTime = Number(rPlan.updatedAt || 0);
                 var lTime = Number((lPlan && lPlan.updatedAt) || 0);
                 var remoteIsNewer = rTime > lTime || (!lPlan && rPlan) || (lPlan && lPlan.activePreset === 'canonical' && rPlan.activePreset !== 'canonical');
@@ -714,8 +730,7 @@ window.SYS = window.SYS || {};
         if (S.ui) S.ui.render();
 
         if (needsPush) {
-          var runs = S.tracker ? S.tracker.history : [];
-          await S.api.syncUp(S.state, runs);
+          await S.api.syncUp(S.state);
         }
 
         auth.syncStatus = 'SYNCED';

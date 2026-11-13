@@ -32,7 +32,6 @@ CREATE TABLE IF NOT EXISTS public.hunter_profiles (
   hrs_score INTEGER DEFAULT 0 NOT NULL,
   combat_power INTEGER DEFAULT 120 NOT NULL,
   total_focus_minutes INTEGER DEFAULT 0 NOT NULL,
-  total_km_run NUMERIC(10, 2) DEFAULT 0.00 NOT NULL,
   in_penalty_zone BOOLEAN DEFAULT FALSE NOT NULL,
   penalty_mode TEXT DEFAULT 'OPTIONAL' NOT NULL,
   active_title TEXT DEFAULT '',
@@ -63,30 +62,6 @@ CREATE TABLE IF NOT EXISTS public.hunter_quests (
   is_bonus BOOLEAN DEFAULT FALSE NOT NULL,
   created_date TEXT NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  PRIMARY KEY (user_id, id)
-);
-
--- ==============================================================================
--- TABLE: public.hunter_runs
--- Stores tactical GPS running telemetry, routes, splits, and paces
--- ==============================================================================
-CREATE TABLE IF NOT EXISTS public.hunter_runs (
-  id TEXT NOT NULL,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  date TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  distance_km NUMERIC(10, 2) NOT NULL,
-  distance_meters INTEGER NOT NULL,
-  duration_sec INTEGER NOT NULL,
-  moving_sec INTEGER NOT NULL,
-  avg_pace_str TEXT NOT NULL,
-  max_speed_kmh NUMERIC(6, 2) DEFAULT 0 NOT NULL,
-  total_steps INTEGER DEFAULT 0 NOT NULL,
-  avg_cadence_spm INTEGER DEFAULT 0 NOT NULL,
-  calories INTEGER DEFAULT 0 NOT NULL,
-  elevation_gain_meters INTEGER DEFAULT 0 NOT NULL,
-  splits JSONB DEFAULT '[]'::jsonb NOT NULL,
-  route_sample JSONB DEFAULT '[]'::jsonb NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   PRIMARY KEY (user_id, id)
 );
 
@@ -129,7 +104,6 @@ CREATE TABLE IF NOT EXISTS public.hunter_logs (
 CREATE INDEX IF NOT EXISTS idx_hunter_profiles_hrs ON public.hunter_profiles(hrs_score DESC);
 CREATE INDEX IF NOT EXISTS idx_hunter_profiles_division ON public.hunter_profiles(rank_tier_index, hrs_score DESC);
 CREATE INDEX IF NOT EXISTS idx_hunter_profiles_power ON public.hunter_profiles(combat_power DESC, level DESC);
-CREATE INDEX IF NOT EXISTS idx_hunter_runs_user ON public.hunter_runs(user_id, date DESC);
 CREATE INDEX IF NOT EXISTS idx_hunter_quests_user ON public.hunter_quests(user_id, is_completed);
 
 -- ==============================================================================
@@ -161,15 +135,7 @@ CREATE POLICY "Users can manage own quests"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
--- 3. Hunter Runs RLS
-ALTER TABLE public.hunter_runs ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Users can manage own runs" ON public.hunter_runs;
-CREATE POLICY "Users can manage own runs"
-  ON public.hunter_runs FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-
--- 4. Hunter Inventory RLS
+-- 3. Hunter Inventory RLS
 ALTER TABLE public.hunter_inventory ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can manage own inventory" ON public.hunter_inventory;
 CREATE POLICY "Users can manage own inventory"

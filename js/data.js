@@ -67,14 +67,13 @@ window.SYS = window.SYS || {};
   S.CATS = {
     CALISTHENICS: { stat: 'STR', icon: 'gauntlet', physical: true, label: 'Calisthenics' },
     GYM: { stat: 'STR', icon: 'barbell', physical: true, label: 'Gym' },
-    RUNNING: { stat: 'AGI', icon: 'boot', physical: true, label: 'Running' },
     STUDY: { stat: 'INT', icon: 'tome', physical: false, label: 'Study' },
     FOCUS: { stat: 'PER', icon: 'gate', physical: false, label: 'Focus' },
     HABIT: { stat: 'VIT', icon: 'vit', physical: false, label: 'Habit' },
     PENALTY: { stat: 'VIT', icon: 'skull', physical: true, label: 'Penalty' }
   };
 
-  S.UNITS = { REPS: 'reps', KM: 'km', MINS: 'min', SETS: 'sets', CHECK: '' };
+  S.UNITS = { REPS: 'reps', MINS: 'min', SETS: 'sets', CHECK: '' };
 
   /* ---------- Dungeon Gates (plan 5.1) ---------- */
   S.GATES = [
@@ -92,7 +91,7 @@ window.SYS = window.SYS || {};
   S.DUP_ESSENCE = { COMMON: 2, RARE: 5, HEROIC: 10, LEGENDARY: 25, MYTHIC: 60 };
 
   /* ---------- Buff text helper ---------- */
-  var TARGET_LABEL = { ALL: 'All Quest', FOCUS: 'Focus Gate', STUDY: 'Study', GYM: 'Gym', CALISTHENICS: 'Calisthenics', RUNNING: 'Running', HABIT: 'Habit', STR: 'STR', AGI: 'AGI', VIT: 'VIT', INT: 'INT', PER: 'PER' };
+  var TARGET_LABEL = { ALL: 'All Quest', FOCUS: 'Focus Gate', STUDY: 'Study', GYM: 'Gym', CALISTHENICS: 'Calisthenics', HABIT: 'Habit', STR: 'STR', AGI: 'AGI', VIT: 'VIT', INT: 'INT', PER: 'PER' };
   S.buffText = function (b) {
     if (!b || !b.length) return '';
     return b.map(function (x) {
@@ -126,7 +125,7 @@ window.SYS = window.SYS || {};
   R('goblin_staff', 'Goblin Shaman Staff', 'COMMON', 'spear', [{ k: 'xp', t: 'INT', v: 0.02 }], 'Crude totem humming with primitive arcane formulas.');
   R('subway_gauntlets', 'Iron Gauntlets of the Subway', 'COMMON', 'gauntlet', [{ k: 'xp', t: 'CALISTHENICS', v: 0.02 }], 'Dented knuckles from the first gate you ever survived.');
   R('lizard_bracer', "Lizardman's Scale Bracer", 'COMMON', 'shield', [{ k: 'fatigue', v: 0.05 }], 'Cold-blooded resilience bound in leather straps.');
-  R('wolf_pelt', 'Steel-Fanged Wolf Pelt', 'RARE', 'cloak', [{ k: 'xp', t: 'RUNNING', v: 0.03 }], 'The pack ran all night. So can you.');
+  R('wolf_pelt', 'Steel-Fanged Wolf Pelt', 'RARE', 'cloak', [{ k: 'xp', t: 'AGI', v: 0.03 }], 'The pack hunted all night. So can you.');
   R('cerberus_collar', 'Cerberus Collar Shard', 'HEROIC', 'necklace', [{ k: 'loot', v: 0.02 }, { k: 'xp', t: 'PER', v: 0.02 }], 'A link from the chain of the Gatekeeper of Hell.');
   R('red_knight_helm', "Red Knight's Helm Fragment", 'RARE', 'shield', [{ k: 'xp', t: 'STR', v: 0.02 }], 'Crimson plate shaved from a loyal knight of the Demon Castle gate.');
   R('hob_drum', 'Hobgoblin War Drum', 'COMMON', 'core', [{ k: 'gold', v: 0.05 }], 'Its rhythm attracts coin and courage alike.');
@@ -169,12 +168,12 @@ window.SYS = window.SYS || {};
   }
   // Dungeon Keys (8)
   C('key_subway', 'E-Rank Subway Key', 'COMMON', 'key', { type: 'dungeon', q: { title: 'Instant Dungeon: Subway — 50 Squats', category: 'CALISTHENICS', target: 50, unit: 'REPS', difficulty: 'E', mode: 'COUNTER' } }, 'Opens the gate that started it all.', 'Spawns an E-Rank Instant Dungeon quest. Clear for a Blessed Box.');
-  C('key_lizard', 'C-Rank Lizardmen Den Key', 'RARE', 'key', { type: 'dungeon', q: { title: 'Instant Dungeon: Lizardmen Den — 3 km Run', category: 'RUNNING', target: 3, unit: 'KM', difficulty: 'C', mode: 'COUNTER' } }, 'Smells of swamp and scales.', 'Spawns a C-Rank running dungeon.');
+  C('key_lizard', 'C-Rank Lizardmen Den Key', 'RARE', 'key', { type: 'dungeon', q: { title: 'Instant Dungeon: Lizardmen Den — 100 Burpees', category: 'CALISTHENICS', target: 100, unit: 'REPS', difficulty: 'C', mode: 'COUNTER' } }, 'Smells of swamp and scales.', 'Spawns a C-Rank conditioning dungeon.');
   C('key_castle', 'A-Rank Demon Castle Key', 'HEROIC', 'key', { type: 'dungeon', q: { title: 'Instant Dungeon: Demon Castle — 60 min Deep Study', category: 'STUDY', target: 60, unit: 'MINS', difficulty: 'A', mode: 'DURATION' } }, 'One hundred floors of knowledge await.', 'Spawns an A-Rank study dungeon.');
   C('key_jeju', 'S-Rank Jeju Island Raid Key', 'LEGENDARY', 'key', { type: 'dungeon', q: { title: 'Raid: Jeju Island — 200 Push-ups', category: 'CALISTHENICS', target: 200, unit: 'REPS', difficulty: 'S', mode: 'COUNTER' } }, 'Many S-Ranks never returned.', 'Spawns an S-Rank raid quest.');
   C('key_red', 'Red Gate Key', 'LEGENDARY', 'key', { type: 'dungeon', q: { title: 'Red Gate: Frozen Tundra — 90 min Focus Raid', category: 'FOCUS', target: 90, unit: 'MINS', difficulty: 'S', mode: 'DURATION' } }, 'Once inside, the exit closes.', 'Spawns an S-Rank focus raid.');
   C('key_cartenon', 'Double Dungeon Cartenon Key', 'HEROIC', 'key', { type: 'dungeon', q: { title: 'Double Dungeon: Cartenon Temple — 100 Burpees', category: 'CALISTHENICS', target: 100, unit: 'REPS', difficulty: 'B', mode: 'COUNTER' } }, 'Rule one: worship the god. Rule two: praise the god.', 'Spawns a B-Rank dungeon.');
-  C('key_architect', "Architect's Trial Key", 'MYTHIC', 'key', { type: 'dungeon', q: { title: "Architect's Trial — 10 km Run", category: 'RUNNING', target: 10, unit: 'KM', difficulty: 'A', mode: 'COUNTER' } }, 'The designer of the System is watching.', 'Spawns an A-Rank endurance trial.');
+  C('key_architect', "Architect's Trial Key", 'MYTHIC', 'key', { type: 'dungeon', q: { title: "Architect's Trial — 300 Burpees", category: 'CALISTHENICS', target: 300, unit: 'REPS', difficulty: 'A', mode: 'COUNTER' } }, 'The designer of the System is watching.', 'Spawns an A-Rank endurance trial.');
   C('key_reset', 'Instant Dungeon Reset Key', 'RARE', 'key', { type: 'dungeon', random: true }, 'The dungeon reshapes itself every time.', 'Spawns a random dungeon scaled to your Rank.');
   // Potions & Elixirs (10)
   C('pot_low', 'Low-Grade Healing Potion', 'COMMON', 'potion', { type: 'fatigue', v: 25 }, 'Tastes like copper and mint.', 'Clears 25% Fatigue.');
@@ -190,7 +189,7 @@ window.SYS = window.SYS || {};
   // Skill Runes (12)
   C('rune_stealth', 'Rune: Stealth', 'RARE', 'rune', { type: 'buff', k: 'xp', t: 'FOCUS', v: 0.10, hours: 24 }, 'Vanish from all distraction.', '+10% Focus Gate XP for 24h.');
   C('rune_bloodlust', 'Rune: Bloodlust', 'HEROIC', 'rune', { type: 'buff', k: 'xp', t: 'STR', v: 0.15, hours: 24 }, 'Enemies freeze. Muscles burn.', '+15% STR XP for 24h.');
-  C('rune_sprint', 'Rune: Sprint', 'RARE', 'rune', { type: 'buff', k: 'xp', t: 'RUNNING', v: 0.15, hours: 24 }, 'Speed beyond the limit.', '+15% Running XP for 24h.');
+  C('rune_sprint', 'Rune: Agility', 'RARE', 'rune', { type: 'buff', k: 'xp', t: 'AGI', v: 0.15, hours: 24 }, 'Speed beyond the limit.', '+15% AGI Quest XP for 24h.');
   C('rune_dagger', 'Rune: Dagger Throw', 'RARE', 'rune', { type: 'buff', k: 'xp', t: 'CALISTHENICS', v: 0.15, hours: 24 }, 'Precision in every motion.', '+15% Calisthenics XP for 24h.');
   C('rune_mutilation', 'Rune: Mutilation', 'HEROIC', 'rune', { type: 'buff', k: 'xp', t: 'GYM', v: 0.15, hours: 24 }, 'Every set, a critical strike.', '+15% Gym XP for 24h.');
   C('rune_ruler', "Rune: Ruler's Touch", 'LEGENDARY', 'rune', { type: 'buff', k: 'xp', t: 'ALL', v: 0.10, hours: 24 }, 'The invisible hand of authority.', '+10% All Quest XP for 24h.');
@@ -256,7 +255,7 @@ window.SYS = window.SYS || {};
   T('double', 'Double Dungeon Survivor', 'COMBAT', 'HEROIC', 'Clear 100 quests', function (s) { return r(s).questsCompleted >= 100; });
   T('subway', 'Hunter of the Subway', 'COMBAT', 'COMMON', 'Clear an Instant Dungeon', function (s) { return r(s).dungeonsCleared >= 1; });
   T('ice_bear', 'Ice Bear Hunter', 'COMBAT', 'RARE', 'Log 1,000 total reps', function (s) { return r(s).repsLogged >= 1000; });
-  T('orc_bane', 'Orc Chieftain Slayer', 'COMBAT', 'HEROIC', 'Log 50 km total distance', function (s) { return r(s).kmLogged >= 50; });
+  T('orc_bane', 'Orc Chieftain Slayer', 'COMBAT', 'HEROIC', 'Log 10,000 total reps', function (s) { return r(s).repsLogged >= 10000; });
   T('shadow_monarch', 'Shadow Monarch', 'COMBAT', 'MYTHIC', 'Reach Lv. 100', function (s) { return p(s).level >= 100; });
   // Consistency & Focus (20)
   T('streak7', '7-Day Awakening', 'CONSISTENCY', 'COMMON', '7-day streak', function (s) { return p(s).maxStreak >= 7; });
@@ -291,7 +290,7 @@ window.SYS = window.SYS || {};
   Sh('fang', 'Fang (High Orc Shaman)', 'RARE', 60, 0, [{ k: 'xp', t: 'FOCUS', v: 0.03 }], 'Still chants, but now in your name.');
   Sh('iron', 'Iron', 'HEROIC', 80, 4, [{ k: 'xp', t: 'GYM', v: 0.04 }], 'A loud, proud shield-bearer from a failed raid.');
   Sh('tank', 'Tank', 'HEROIC', 90, 4, [{ k: 'fatigue', v: 0.08 }], 'The ice bear alpha. Absorbs everything.');
-  Sh('kaisel', 'Kaisel (Wyvern)', 'HEROIC', 120, 8, [{ k: 'xp', t: 'RUNNING', v: 0.05 }], 'Your mount across the skies of every city.');
+  Sh('kaisel', 'Kaisel (Wyvern)', 'HEROIC', 120, 8, [{ k: 'xp', t: 'AGI', v: 0.05 }], 'Your mount across the skies of every city.');
   Sh('jima', 'Jima', 'LEGENDARY', 150, 8, [{ k: 'xp', t: 'STUDY', v: 0.05 }], 'A naga general who commands the deep.');
   Sh('greed', 'Greed', 'LEGENDARY', 160, 12, [{ k: 'gold', v: 0.10 }], 'Once an S-Rank criminal. Now he serves.');
   Sh('igris', 'Igris the Bloodred', 'LEGENDARY', 220, 12, [{ k: 'xp', t: 'STR', v: 0.06 }], 'The commander knight. Your first true shadow.');
@@ -346,8 +345,8 @@ window.SYS = window.SYS || {};
     { title: 'Deadlift', category: 'GYM', difficulty: 'C', mode: 'COUNTER', target: 5, unit: 'SETS' },
     { title: 'Pull-ups', category: 'CALISTHENICS', difficulty: 'D', mode: 'COUNTER', target: 50, unit: 'REPS' },
     { title: 'Burpees', category: 'CALISTHENICS', difficulty: 'C', mode: 'COUNTER', target: 100, unit: 'REPS' },
-    { title: '5 km Run', category: 'RUNNING', difficulty: 'C', mode: 'COUNTER', target: 5, unit: 'KM' },
-    { title: 'Interval Sprints', category: 'RUNNING', difficulty: 'B', mode: 'COUNTER', target: 10, unit: 'SETS' },
+    { title: 'Burpees', category: 'CALISTHENICS', difficulty: 'C', mode: 'COUNTER', target: 50, unit: 'REPS' },
+    { title: 'Jump Squats', category: 'CALISTHENICS', difficulty: 'B', mode: 'COUNTER', target: 10, unit: 'SETS' },
     { title: 'Deep Study Gate', category: 'STUDY', difficulty: 'C', mode: 'DURATION', target: 50, unit: 'MINS' },
     { title: 'Read 30 Pages', category: 'STUDY', difficulty: 'D', mode: 'COUNTER', target: 30, unit: 'REPS' },
     { title: 'Code for 60 Minutes', category: 'STUDY', difficulty: 'B', mode: 'DURATION', target: 60, unit: 'MINS' },
@@ -377,21 +376,21 @@ window.SYS = window.SYS || {};
       id: 'canonical',
       name: 'Canonical Monarch Protocol',
       badge: 'DAILY UNIFORM',
-      desc: 'The classic Solo Leveling daily conditioning mandate across all 7 days (Push-ups, Sit-ups, Squats, Running) scaled to your Rank.',
+      desc: 'The classic Solo Leveling daily conditioning mandate across all 7 days (Push-ups, Sit-ups, Squats, Burpees) scaled to your Rank.',
       icon: 'arise'
     },
     {
       id: 'ppl_split',
       name: 'Hunter Push / Pull / Legs + Focus',
       badge: '7-DAY SPLIT',
-      desc: 'Structured tactical split: Push & Study (Mon/Thu), Pull & Run (Tue/Fri), Legs & Core (Wed/Sat), and Active Recovery (Sun).',
+      desc: 'Structured tactical split: Push & Study (Mon/Thu), Pull & Conditioning (Tue/Fri), Legs & Core (Wed/Sat), and Active Recovery (Sun).',
       icon: 'barbell',
       dayTags: {
         MON: 'PUSH & DEEP STUDY',
         TUE: 'PULL & ENDURANCE',
         WED: 'LEGS & CONDITIONING',
         THU: 'UPPER HYPERTROPHY',
-        FRI: 'PULL & TEMPO RUN',
+        FRI: 'PULL & CONDITIONING',
         SAT: 'LOWER & FOCUS GATE',
         SUN: 'ACTIVE RECOVERY'
       },
@@ -403,7 +402,7 @@ window.SYS = window.SYS || {};
         ],
         TUE: [
           { title: 'Pull-ups', category: 'CALISTHENICS', difficulty: 'D', target: 35, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
-          { title: '3 km Tempo Run', category: 'RUNNING', difficulty: 'C', target: 3, unit: 'KM', mode: 'COUNTER', isMandatory: true },
+          { title: 'Burpees', category: 'CALISTHENICS', difficulty: 'C', target: 50, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
           { title: 'Read 25 Pages', category: 'STUDY', difficulty: 'D', target: 25, unit: 'REPS', mode: 'COUNTER', isMandatory: false }
         ],
         WED: [
@@ -418,7 +417,7 @@ window.SYS = window.SYS || {};
         ],
         FRI: [
           { title: 'Pull-ups / Rows', category: 'CALISTHENICS', difficulty: 'C', target: 40, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
-          { title: '5 km Endurance Run', category: 'RUNNING', difficulty: 'C', target: 5, unit: 'KM', mode: 'COUNTER', isMandatory: true },
+          { title: 'Conditioning Circuit', category: 'CALISTHENICS', difficulty: 'C', target: 60, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
           { title: 'Hydration (8 Glasses)', category: 'HABIT', difficulty: 'E', target: 8, unit: 'REPS', mode: 'COUNTER', isMandatory: false }
         ],
         SAT: [
@@ -455,7 +454,7 @@ window.SYS = window.SYS || {};
           { title: 'Sit-ups / Core', category: 'CALISTHENICS', difficulty: 'D', target: 50, unit: 'REPS', mode: 'COUNTER', isMandatory: true }
         ],
         TUE: [
-          { title: '3 km Morning Run', category: 'RUNNING', difficulty: 'C', target: 3, unit: 'KM', mode: 'COUNTER', isMandatory: true },
+          { title: 'Morning Burpees', category: 'CALISTHENICS', difficulty: 'C', target: 40, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
           { title: 'Read 30 Pages', category: 'STUDY', difficulty: 'D', target: 30, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
           { title: 'Meditation', category: 'FOCUS', difficulty: 'D', target: 15, unit: 'MINS', mode: 'DURATION', isMandatory: false }
         ],
@@ -465,7 +464,7 @@ window.SYS = window.SYS || {};
           { title: 'Squats', category: 'CALISTHENICS', difficulty: 'D', target: 60, unit: 'REPS', mode: 'COUNTER', isMandatory: true }
         ],
         THU: [
-          { title: '4 km Run', category: 'RUNNING', difficulty: 'C', target: 4, unit: 'KM', mode: 'COUNTER', isMandatory: true },
+          { title: 'Jump Squats', category: 'CALISTHENICS', difficulty: 'C', target: 60, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
           { title: 'Read 30 Pages', category: 'STUDY', difficulty: 'D', target: 30, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
           { title: 'Journal Entry', category: 'FOCUS', difficulty: 'E', target: 1, unit: 'CHECK', mode: 'CHECK', isMandatory: false }
         ],
@@ -475,7 +474,7 @@ window.SYS = window.SYS || {};
           { title: 'Sleep Before 23:00', category: 'HABIT', difficulty: 'D', target: 1, unit: 'CHECK', mode: 'CHECK', isMandatory: true }
         ],
         SAT: [
-          { title: '5 km Weekend Run', category: 'RUNNING', difficulty: 'C', target: 5, unit: 'KM', mode: 'COUNTER', isMandatory: true },
+          { title: 'Weekend Endurance Circuit', category: 'CALISTHENICS', difficulty: 'C', target: 80, unit: 'REPS', mode: 'COUNTER', isMandatory: true },
           { title: 'Skill Practice / Coding', category: 'STUDY', difficulty: 'C', target: 45, unit: 'MINS', mode: 'DURATION', isMandatory: true }
         ],
         SUN: [
@@ -497,7 +496,7 @@ window.SYS = window.SYS || {};
     { title: 'Bonus: 50 Burpees', category: 'CALISTHENICS', target: 50, unit: 'REPS', mode: 'COUNTER' },
     { title: 'Bonus: 3-Minute Plank', category: 'CALISTHENICS', target: 3, unit: 'MINS', mode: 'COUNTER' },
     { title: 'Bonus: 5 Sets of Squats', category: 'GYM', target: 5, unit: 'SETS', mode: 'COUNTER' },
-    { title: 'Bonus: 3 km Tempo Run', category: 'RUNNING', target: 3, unit: 'KM', mode: 'COUNTER' },
+    { title: 'Bonus: 50 Burpees', category: 'CALISTHENICS', target: 50, unit: 'REPS', mode: 'COUNTER' },
     { title: 'Bonus: 30 min Focused Reading', category: 'STUDY', target: 30, unit: 'MINS', mode: 'DURATION' },
     { title: 'Bonus: 20 min Meditation', category: 'FOCUS', target: 20, unit: 'MINS', mode: 'DURATION' },
     { title: 'Bonus: Cold Shower', category: 'HABIT', target: 1, unit: 'CHECK', mode: 'CHECK' },
@@ -507,7 +506,7 @@ window.SYS = window.SYS || {};
   S.PENALTY_PHYSICAL = [
     { title: 'Penalty: 150 Burpees', target: 150, unit: 'REPS' },
     { title: 'Penalty: 5-Minute Cumulative Plank', target: 5, unit: 'MINS' },
-    { title: 'Penalty: 3 km Penalty Run', target: 3, unit: 'KM' }
+    { title: 'Penalty: 80 Jump Squats', target: 80, unit: 'REPS' }
   ];
 
   S.RIVAL_NAMES = ['HUNTER_CHA', 'BAEK_YOON', 'HWANG_DONG', 'CHOI_JONGIN', 'GO_GUNHEE', 'CHA_HAEIN', 'YOO_JINHO', 'LEE_JOOHEE', 'PARK_HEEJIN', 'KIM_CHUL', 'MA_DONGWOOK', 'WOO_JINCHUL', 'THOMAS_A', 'LIU_ZHIGANG', 'CHRIS_REED', 'SIDDHARTH_B', 'MIN_BYUNGGU', 'AHN_SANGMIN', 'NAM_JOONHO', 'JUNG_YERIM', 'SONG_CHIYUL', 'YOON_KIHOON', 'LIM_TAEGYU', 'KANG_TAESHIK', 'HAN_SONGYI', 'JIN_HO', 'SEO_YUNA', 'BAEK_MIRAE', 'OH_DAEJUN', 'KOO_SEOJIN', 'RYU_HAJIN', 'SHIN_DONGWOO', 'JANG_MINSEO', 'CHO_YEJIN', 'DEMON_SLAYER_K', 'IRONGRIP_77', 'NIGHT_RAIDER', 'GATE_BREAKER_9', 'SHADOW_STEP', 'AZURE_FANG', 'VOID_WALKER_X', 'FROST_HUNTER', 'CRIMSON_EDGE', 'SILENT_BLADE', 'ARC_LANCER', 'GOLEM_CRUSHER', 'DAWN_GRINDER', 'RUNE_SEEKER', 'STEEL_WILL', 'HYDRA_HUNTER', 'TITAN_LIFT', 'KASAKA_BANE', 'WOLFSBANE_21', 'ORC_REAPER', 'MANA_SURGE', 'HIGH_ORC_CHIEF', 'OBSIDIAN_EYE', 'STORM_RUNNER', 'ECHO_PRIME', 'NOVA_KNIGHT'];

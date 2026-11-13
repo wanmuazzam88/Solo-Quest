@@ -17,34 +17,26 @@ A dark-futuristic, tactical manhwa-styled web application modeled directly after
    - `+5 AP` awarded per level up for custom attribute allocation.
 
 2. **Daily Quests & Fast 1-Tap Logging:**
-   - Canonical System Preset: Push-ups, Sit-ups, Squats, and 10 km Run.
+   - Canonical System Preset: Push-ups, Sit-ups, and Squats.
    - Fast rep log buttons (`+1`, `+5`, `+10`, `+25`, `MAX`) designed for mid-workout logging in under 1.5 seconds.
    - Hold-to-confirm holographic seal interaction for binary habit checks.
-   - Modular Custom Quest Forge (Calisthenics, Gym, Running, Study, Focus, Habit).
+   - Modular Custom Quest Forge (Calisthenics, Gym, Study, Focus, Habit).
    - Bonus Quest re-roll system (cooldown reduced by your `AGI` stat).
 
-3. **Tactical GPS & Step Run Tracker (OpenStreetMap):**
-   - **Real-Time Geolocation & Device Permissions:** Proactive satellite authorization HUD with browser permission query lifecycle, high-accuracy GPS fix locking, iOS motion sensor authorization, and in-app permission troubleshooting directives.
-   - **Haversine Distance Telemetry:** High-precision distance accumulator displayed in kilometers with live sub-counters.
-   - **OpenStreetMap & Leaflet Integration:** Official standard free OpenStreetMap tile API (`tile.openstreetmap.org`) with glowing neon cyan route polylines and a pulsing radar hunter beacon.
-   - **Live Pace & Velocity HUD:** Instantaneous rolling pace and overall average pace (`MM'SS"/KM`), current speed (`KM/H`), and maximum speed.
-   - **Motion Sensor Step Counter & Cadence:** Dynamic accelerometer peak-detection algorithm using `DeviceMotionEvent` with rolling Steps-Per-Minute (`SPM`) cadence calculation and stride-length fallback.
-   - **1 KM Split Breakdowns:** Automatic split time and pace recording at every kilometer mark accompanied by procedural audio announcements.
-   - **Quest Sync & History:** Direct integration with running quests (auto-increments progress upon run completion) and persistent local run dossier.
 
-4. **Midnight Evaluation & The Dreaded Penalty Zone:**
+3. **Midnight Evaluation & The Dreaded Penalty Zone:**
    - Real-time countdown timer to `00:00:00` local time.
    - **Hardcore Manhwa Mode:** Uncompleted daily quests trigger a full application override into **Blood Crimson (`#FF003C`)**, freezing the Vault and normal XP gains until surviving a mandatory Penalty Quest or 45-minute Dark Lock session.
    - **Standard Mode:** Optional redemption quests and streak preservation.
 
-5. **Focus Gate & "Dark Lock" Distraction Shield:**
+4. **Focus Gate & "Dark Lock" Distraction Shield:**
    - Four dungeon tiers: E-Rank (15m), C-Rank (25m), A-Rank (50m), and the brutal S-Rank Red Gate (90m unbroken).
    - Fullscreen API and Screen WakeLock integration.
    - Tab visibility & window blur telemetry with a **15-second grace countdown**.
    - Failing to return in time triggers a **Gate Breach (`[FOCUS BROKEN]`)**, corrupting bonus loot and cutting XP yield by 50%.
    - Companion Chrome/Edge Manifest V3 extension in `extension/` using `declarativeNetRequest`.
 
-6. **Hunter's Vault & Rewards (165 Items):**
+5. **Hunter's Vault & Rewards (165 Items):**
    - 45 Hunter Weapons & Relics with passive buffs (equip up to 2).
    - 30 Consumables, Keys, and Skill Runes.
    - 25 System UI Hologram Skins with live dynamic theme switching.
@@ -53,24 +45,24 @@ A dark-futuristic, tactical manhwa-styled web application modeled directly after
    - Gacha Loot Box opening sequence (Blessed & Cursed boxes).
    - Hunter Association Commissary (Gold & Essence store).
 
-7. **Global Leaderboards & Anti-Cheat HRS:**
+6. **Global Leaderboards & Anti-Cheat HRS:**
    - Seasonal Vanguard, Division Brackets, and All-Time Hall of Monarchs.
    - Anti-cheat Hunter Rating Score ($\text{HRS}$) weighting verified focus minutes and streak consistency while capping daily quest spam.
 
-8. **Zero-Emoji Mandate & Manhwa Aesthetics:**
+7. **Zero-Emoji Mandate & Manhwa Aesthetics:**
    - 100% bespoke SVG geometric glyphs with glowing neon drop-shadows.
    - Native **Web Audio API** procedural synthesizer (no external audio files required).
 
-9. **Progressive Web App (PWA) & Offline Ready:**
-   - **Standalone Installable:** Complete Web App Manifest (`manifest.json`) with bespoke 192px/512px tactical Shadow Monarch Sovereign Sword crest icons, maskable formats, theme color `#04060A`, and 4 app shortcuts (`Quests`, `Run`, `Gate`, `Status`).
-   - **Offline-First Service Worker (`sw.js`):** Pre-caches 21 core shell assets, scripts, styles, and fonts with a Stale-While-Revalidate caching strategy, dynamic OpenStreetMap tile caching, and offline fallback.
+8. **Progressive Web App (PWA) & Offline Ready:**
+   - **Standalone Installable:** Complete Web App Manifest (`manifest.json`) with bespoke 192px/512px tactical Shadow Monarch Sovereign Sword crest icons, maskable formats, theme color `#04060A`, and 3 app shortcuts (`Quests`, `Gate`, `Status`).
+   - **Offline-First Service Worker (`sw.js`):** Pre-caches core shell assets, scripts, styles, and fonts with a Stale-While-Revalidate caching strategy and offline fallback.
    - **Native Install Prompt:** Top-bar holographic `INSTALL APP` button dynamically unhides upon `beforeinstallprompt` event and registers standalone launch upon installation.
 
-10. **Full Authentication System & Cloud Database Sync:**
+9. **Full Authentication System & Cloud Database Sync:**
     - **Universal Database Adapter (`js/api.js`):** Dual architecture supporting **Supabase Cloud (PostgreSQL REST API)** and **Self-Hosted Node.js / SQLite Server (`server/server.js`)**, with seamless offline local fallback.
     - **Hunter Awakening & Authentication:** System registration, encrypted login, secure token management, and session recovery across devices.
     - **Real Global Leaderboards (Zero Hardcoded Rivals):** The seasonal Vanguard, division brackets, and Monarch Hall rankings query live registered hunters directly from the database, displaying verified badges, current HRS scores, and active user placement.
-    - **Automatic Bidirectional Progression Sync:** All player points (XP, AP), attributes (STR, AGI, VIT, INT, PER, Gold, Essence), daily & custom forged quests, GPS run telemetry routes and splits, and inventory relics synchronize directly to PostgreSQL.
+    - **Automatic Bidirectional Progression Sync:** All player points (XP, AP), attributes (STR, AGI, VIT, INT, PER, Gold, Essence), daily & custom forged quests, and inventory relics synchronize directly to PostgreSQL.
     - **Database Health & Ping Diagnostics:** Real-time ping latency monitor in the HUD to measure and verify cloud database connectivity.
     - **Complete Setup Documentation:** Read [`DATABASE_SETUP_GUIDE.md`](DATABASE_SETUP_GUIDE.md) for 3-minute step-by-step instructions with the complete SQL schema.
 
@@ -104,5 +96,5 @@ A dark-futuristic, tactical manhwa-styled web application modeled directly after
    - Click **Save & Deploy**. Cloudflare Pages automatically configures Supabase for all hunters!
 
 5. **Data Persistence & Portability:**
-   - All progress, runs, items, and settings synchronize automatically with your connected database and persist offline in local storage.
+   - All progress, items, and settings synchronize automatically with your connected database and persist offline in local storage.
    - Full backup JSON import/export is available in the **Config** tab.

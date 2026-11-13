@@ -156,9 +156,6 @@ window.SYS = window.SYS || {};
           case 'gate':
             UI.renderGateView(container);
             break;
-          case 'run':
-            UI.renderRunView(container);
-            break;
           case 'vault':
             UI.renderVaultView(container);
             break;
@@ -644,17 +641,13 @@ window.SYS = window.SYS || {};
             '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="MAX">MAX</button>' +
           '</div>';
         } else {
-          // Reps / KM Counter mode fast logging buttons
-          var isKm = q.unit === 'KM' || q.category === 'RUNNING';
-          var runGpsBtn = isKm ? '<button class="sys-btn sm primary btn-start-run" data-quest-id="' + q.id + '" style="margin-bottom:6px; width:100%;">' + I('gps', 14) + ' OPEN TACTICAL RUN TRACKER</button>' : '';
-
+          // Reps Counter mode fast logging buttons
           progressControls = '<div style="display:flex; flex-direction:column; width:100%;">' +
-            runGpsBtn +
             '<div class="fast-log-row">' +
-              (!isKm ? '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="1">+1</button>' : '') +
-              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="' + (isKm ? '1' : '5') + '">+' + (isKm ? '1' : '5') + '</button>' +
-              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="' + (isKm ? '2' : '10') + '">+' + (isKm ? '2' : '10') + '</button>' +
-              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="' + (isKm ? '5' : '25') + '">+' + (isKm ? '5' : '25') + '</button>' +
+              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="1">+1</button>' +
+              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="5">+5</button>' +
+              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="10">+10</button>' +
+              '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="25">+25</button>' +
               '<button class="log-inc-btn" data-quest-id="' + q.id + '" data-inc="MAX">MAX</button>' +
             '</div>' +
           '</div>';
@@ -722,17 +715,6 @@ window.SYS = window.SYS || {};
             UI.pendingLinkedQuestId = id;
           }
           UI.setView('gate');
-        });
-      });
-
-      // Start GPS Run
-      col.querySelectorAll('.btn-start-run').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var id = btn.getAttribute('data-quest-id');
-          if (S.tracker) {
-            S.tracker.linkedQuestId = id;
-          }
-          UI.setView('run');
         });
       });
 
@@ -1468,385 +1450,6 @@ window.SYS = window.SYS || {};
       });
     },
 
-    /* ======================================================================
-       VIEW: TACTICAL GPS & STEP RUN TRACKER
-       ====================================================================== */
-    renderRunView: function (container) {
-      var tr = S.tracker;
-      var st = tr ? tr.getState() : {
-        isActive: false, isPaused: false, distanceKm: 0, movingSeconds: 0,
-        currentPaceStr: "--'--\"", avgPaceStr: "--'--\"", currentSpeedKmh: 0,
-        maxSpeedKmh: 0, totalSteps: 0, cadenceSpm: 0, caloriesBurned: 0,
-        elevationGain: 0, gpsStatus: 'STANDBY', splits: []
-      };
-
-      var quests = S.state.quests;
-      var activeQuest = st.linkedQuestId ? S.getQuest(st.linkedQuestId) : null;
-      var runningQuests = quests.filter(function (q) {
-        return (q.category === 'RUNNING' || q.unit === 'KM' || q.preset === 'running') && !q.isCompleted;
-      });
-
-      var targetKm = activeQuest ? activeQuest.targetProgress : 10;
-      var currentKm = activeQuest ? activeQuest.currentProgress : 0;
-      var runPct = activeQuest ? Math.min(100, Math.floor(((currentKm + st.distanceKm) / targetKm) * 100)) : 0;
-
-      var questOptions = '<option value="">-- FREERUN SATELLITE (UNLINKED) --</option>' +
-        runningQuests.map(function (q) {
-          return '<option value="' + q.id + '" ' + (st.linkedQuestId === q.id ? 'selected' : '') + '>' +
-            U.esc(q.title) + ' (' + q.currentProgress + ' / ' + q.targetProgress + ' KM)' +
-          '</option>';
-        }).join('');
-
-      var splitsHtml = '';
-      if (st.splits && st.splits.length) {
-        splitsHtml = '<div style="margin-top:16px;">' +
-          '<div class="panel-header" style="margin-bottom:8px;">' +
-            '<div class="panel-title" style="font-size:12px;">' + I('pace', 14) + ' KILOMETER SPLITS</div>' +
-            '<div class="font-mono text-muted" style="font-size:11px;">' + st.splits.length + ' SPLITS CLEARED</div>' +
-          '</div>' +
-          '<div class="splits-table-wrap">' +
-            '<table class="splits-table font-mono">' +
-              '<thead><tr><th>KM</th><th>SPLIT TIME</th><th>PACE /KM</th><th>TOTAL TIME</th></tr></thead>' +
-              '<tbody>' +
-                st.splits.map(function (sp) {
-                  return '<tr>' +
-                    '<td class="text-accent font-bold">' + sp.km + '</td>' +
-                    '<td>' + U.hms(sp.splitTimeSec * 1000) + '</td>' +
-                    '<td class="text-gold">' + sp.paceStr + '</td>' +
-                    '<td>' + U.hms(sp.totalTimeSec * 1000) + '</td>' +
-                  '</tr>';
-                }).join('') +
-              '</tbody>' +
-            '</table>' +
-          '</div>' +
-        '</div>';
-      }
-
-      var historyHtml = '';
-      if (tr && tr.history && tr.history.length) {
-        historyHtml = '<div style="margin-top:20px;">' +
-          '<div class="panel-header" style="margin-bottom:8px;">' +
-            '<div class="panel-title" style="font-size:12px;">' + I('status', 14) + ' HUNTER SERVICE RECORD // PAST RUNS</div>' +
-            '<div class="font-mono text-muted" style="font-size:11px;">' + tr.history.length + ' LOGGED</div>' +
-          '</div>' +
-          '<div class="run-history-list">' +
-            tr.history.slice(0, 8).map(function (h) {
-              var d = new Date(h.date);
-              var dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-              return '<div class="run-history-card">' +
-                '<div class="flex-between">' +
-                  '<div class="font-mono text-accent" style="font-weight:700; font-size:14px;">' + h.distanceKm.toFixed(2) + ' KM</div>' +
-                  '<div class="font-mono text-muted" style="font-size:11px;">' + dateStr + '</div>' +
-                '</div>' +
-                '<div class="run-history-metrics">' +
-                  '<div><span>TIME</span><strong>' + U.hms(h.movingSec * 1000) + '</strong></div>' +
-                  '<div><span>AVG PACE</span><strong class="text-gold">' + h.avgPaceStr + '</strong></div>' +
-                  '<div><span>STEPS</span><strong>' + U.fmt(h.totalSteps) + '</strong></div>' +
-                  '<div><span>CALORIES</span><strong>' + h.calories + ' KCAL</strong></div>' +
-                '</div>' +
-              '</div>';
-            }).join('') +
-          '</div>' +
-        '</div>';
-      }
-
-      var actionControls = '';
-      if (!st.isActive) {
-        actionControls = '<div class="run-controls-row">' +
-          '<button class="sys-btn lg primary" id="btn-run-start" style="flex:1;">' + I('play', 20) + ' START GPS RUN</button>' +
-        '</div>';
-      } else if (!st.isPaused) {
-        actionControls = '<div class="run-controls-row">' +
-          '<button class="sys-btn lg warning" id="btn-run-pause" style="flex:1;">' + I('pause', 18) + ' PAUSE</button>' +
-          '<button class="sys-btn lg primary" id="btn-run-finish" style="flex:2;">' + I('check', 18) + ' FINISH & LOG QUEST</button>' +
-        '</div>';
-      } else {
-        actionControls = '<div class="run-controls-row">' +
-          '<button class="sys-btn lg primary" id="btn-run-resume" style="flex:2;">' + I('play', 18) + ' RESUME RUN</button>' +
-          '<button class="sys-btn lg primary" id="btn-run-finish" style="flex:2;">' + I('check', 18) + ' FINISH & LOG QUEST</button>' +
-          '<button class="sys-btn lg danger" id="btn-run-discard" style="flex:1;">' + I('trash', 16) + ' DISCARD</button>' +
-        '</div>';
-      }
-
-      var permissionBannerHtml = '';
-      if (!st.isActive) {
-        if (st.permissionStatus === 'denied') {
-          permissionBannerHtml = '<div class="run-permission-banner denied">' +
-            '<div class="permission-icon-wrap">' + I('alert', 20) + '</div>' +
-            '<div class="permission-info">' +
-              '<div class="permission-title">[DEVICE LOCATION PERMISSION BLOCKED]</div>' +
-              '<div class="permission-desc">Location access was denied. Enable location in your browser site permissions to use live GPS tracking.</div>' +
-            '</div>' +
-            '<div class="permission-actions">' +
-              '<button class="sys-btn sm warning" id="btn-request-location">' + I('gps', 14) + ' RETRY ACCESS</button>' +
-              '<button class="sys-btn sm" id="btn-location-help">' + I('info', 14) + ' HOW TO ALLOW</button>' +
-            '</div>' +
-          '</div>';
-        } else if (st.permissionStatus === 'granted') {
-          if (st.isCalibrated) {
-            permissionBannerHtml = '<div class="run-permission-banner granted">' +
-              '<div class="permission-icon-wrap">' + I('crosshair', 20) + '</div>' +
-              '<div class="permission-info">' +
-                '<div class="permission-title">[HUNTER PINPOINT CALIBRATED]</div>' +
-                '<div class="permission-desc">Doorstep location locked (±5m). Tap Adjust Pin or drag marker on map anytime to reposition.</div>' +
-              '</div>' +
-              '<div class="permission-actions" style="display:flex; gap:8px;">' +
-                '<button class="sys-btn sm ' + (st.isCalibratingPin ? 'primary' : '') + '" id="btn-adjust-pin">' + I('crosshair', 14) + ' ' + (st.isCalibratingPin ? 'LOCK PIN' : 'ADJUST PIN') + '</button>' +
-                '<button class="sys-btn sm" id="btn-map-locate-header">' + I('compass', 14) + ' SATELLITE</button>' +
-              '</div>' +
-            '</div>';
-          } else if (st.rawAccuracyMeters && st.rawAccuracyMeters > 80) {
-            permissionBannerHtml = '<div class="run-permission-banner warning">' +
-              '<div class="permission-icon-wrap">' + I('alert', 20) + '</div>' +
-              '<div class="permission-info">' +
-                '<div class="permission-title">[INDOOR / WI-FI LOCATION DETECTED]</div>' +
-                '<div class="permission-desc">Device estimated location via router (~' + st.rawAccuracyMeters + 'm). Tap Adjust Pin to set marker to your exact doorstep.</div>' +
-              '</div>' +
-              '<div class="permission-actions" style="display:flex; gap:8px;">' +
-                '<button class="sys-btn sm primary" id="btn-adjust-pin">' + I('crosshair', 14) + ' ' + (st.isCalibratingPin ? 'LOCK PIN' : 'ADJUST PIN') + '</button>' +
-                '<button class="sys-btn sm" id="btn-map-locate-header">' + I('compass', 14) + ' REFRESH</button>' +
-              '</div>' +
-            '</div>';
-          } else {
-            permissionBannerHtml = '<div class="run-permission-banner granted">' +
-              '<div class="permission-icon-wrap">' + I('check', 20) + '</div>' +
-              '<div class="permission-info">' +
-                '<div class="permission-title">[GPS SATELLITE LINK ESTABLISHED]</div>' +
-                '<div class="permission-desc">Device location permission active. Map locked to hunter position' + (st.accuracyMeters ? ' (±' + st.accuracyMeters + 'm precision)' : '') + '.</div>' +
-              '</div>' +
-              '<div class="permission-actions" style="display:flex; gap:8px;">' +
-                '<button class="sys-btn sm ' + (st.isCalibratingPin ? 'primary' : '') + '" id="btn-adjust-pin">' + I('crosshair', 14) + ' ' + (st.isCalibratingPin ? 'LOCK PIN' : 'ADJUST PIN') + '</button>' +
-                '<button class="sys-btn sm" id="btn-map-locate-header">' + I('compass', 14) + ' REFRESH GPS</button>' +
-              '</div>' +
-            '</div>';
-          }
-        } else {
-          // 'prompt' or 'unknown'
-          permissionBannerHtml = '<div class="run-permission-banner prompt">' +
-            '<div class="permission-icon-wrap">' + I('gps', 20) + '</div>' +
-            '<div class="permission-info">' +
-              '<div class="permission-title">[DEVICE LOCATION ACCESS REQUIRED]</div>' +
-              '<div class="permission-desc">Allow device location permission to calculate real-time distance, speed, pace, and route coordinates.</div>' +
-            '</div>' +
-            '<button class="sys-btn primary" id="btn-request-location">' + I('gps', 16) + ' ALLOW LOCATION ACCESS</button>' +
-          '</div>';
-        }
-      }
-
-      container.innerHTML = '<div class="run-view-layout">' +
-        '<div class="system-panel">' +
-          '<div class="panel-header">' +
-            '<div class="panel-title">' + I('gps', 18) + ' [TACTICAL RUN TRACKER]</div>' +
-            '<div class="gps-badge ' + st.gpsStatus.toLowerCase() + '" id="run-stat-gps-status">' +
-              st.gpsStatus + (st.accuracyMeters ? ' (±' + st.accuracyMeters + 'M)' : '') +
-            '</div>' +
-          '</div>' +
-
-          // Device Location Permission Status Banner
-          permissionBannerHtml +
-
-          // Quest Association Selector
-          '<div class="run-quest-link-row">' +
-            '<div class="font-mono" style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">' +
-              I('boot', 14) + ' LINK TO RUNNING QUEST:' +
-            '</div>' +
-            '<select class="sys-select" id="select-linked-quest" ' + (st.isActive ? 'disabled' : '') + '>' +
-              questOptions +
-            '</select>' +
-          '</div>' +
-
-          (activeQuest ?
-            '<div style="margin-bottom:14px;">' +
-              '<div class="flex-between font-mono" style="font-size:11px; margin-bottom:4px; color:var(--text-muted);">' +
-                '<span>QUEST TARGET PROGRESS</span>' +
-                '<span class="text-accent">' + (currentKm + st.distanceKm).toFixed(2) + ' / ' + targetKm + ' KM (' + runPct + '%)</span>' +
-              '</div>' +
-              '<div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:' + runPct + '%"></div></div>' +
-            '</div>' : '') +
-
-          // Big 4 Primary Run Metrics Grid
-          '<div class="run-metrics-grid">' +
-            // Distance
-            '<div class="run-metric-card primary">' +
-              '<div class="run-metric-label">' + I('boot', 14) + ' DISTANCE</div>' +
-              '<div class="run-metric-value-wrap">' +
-                '<span class="run-metric-huge text-accent" id="run-stat-distance">' + st.distanceKm.toFixed(2) + '</span>' +
-                '<span class="run-metric-unit">KM</span>' +
-              '</div>' +
-              '<div class="run-metric-subtext">TOTAL DISPLACEMENT</div>' +
-            '</div>' +
-
-            // Pace
-            '<div class="run-metric-card">' +
-              '<div class="run-metric-label">' + I('pace', 14) + ' CURRENT PACE</div>' +
-              '<div class="run-metric-value-wrap">' +
-                '<span class="run-metric-huge" id="run-stat-pace">' + st.currentPaceStr + '</span>' +
-                '<span class="run-metric-unit">/KM</span>' +
-              '</div>' +
-              '<div class="run-metric-subtext">AVG: <strong class="text-gold" id="run-stat-avg-pace">' + st.avgPaceStr + '</strong></div>' +
-            '</div>' +
-
-            // Moving Time
-            '<div class="run-metric-card">' +
-              '<div class="run-metric-label">' + I('clock', 14) + ' TIME</div>' +
-              '<div class="run-metric-value-wrap">' +
-                '<span class="run-metric-huge font-mono" id="run-stat-time">' + U.hms(st.movingSeconds * 1000) + '</span>' +
-              '</div>' +
-              '<div class="run-metric-subtext">MOVING DURATION</div>' +
-            '</div>' +
-
-            // Steps & Cadence
-            '<div class="run-metric-card">' +
-              '<div class="run-metric-label">' + I('steps', 14) + ' STEPS</div>' +
-              '<div class="run-metric-value-wrap">' +
-                '<span class="run-metric-huge text-gold" id="run-stat-steps">' + U.fmt(st.totalSteps) + '</span>' +
-                '<span class="run-metric-unit">STEPS</span>' +
-              '</div>' +
-              '<div class="run-metric-subtext">CADENCE: <strong id="run-stat-cadence">' + st.cadenceSpm + '</strong> SPM</div>' +
-            '</div>' +
-          '</div>' +
-
-          // Secondary Telemetry Bar
-          '<div class="run-secondary-bar font-mono">' +
-            '<div><span>SPEED:</span> <strong id="run-stat-speed">' + st.currentSpeedKmh.toFixed(1) + '</strong> KM/H</div>' +
-            '<div><span>ENERGY:</span> <strong id="run-stat-calories">' + Math.round(st.caloriesBurned) + '</strong> KCAL</div>' +
-            '<div><span>ELEVATION:</span> <strong>+' + Math.round(st.elevationGain) + '</strong> M</div>' +
-            '<div><span>SPLITS:</span> <strong>' + st.splits.length + '</strong> KM</div>' +
-          '</div>' +
-
-          // Tactical OpenStreetMap Leaflet Map
-          '<div class="run-map-wrapper">' +
-            '<div id="run-map-canvas" class="run-map-canvas"></div>' +
-            (st.isCalibratingPin ? '<div class="pinpoint-calibrating-toast">[CALIBRATION ACTIVE] TAP MAP OR DRAG MARKER TO YOUR DOORSTEP</div>' : '') +
-            '<div class="run-map-overlay-controls">' +
-              (!st.isActive ? '<button class="map-ctrl-btn ' + (st.isCalibratingPin ? 'active' : '') + '" id="btn-map-pinpoint" title="Adjust pin on map">' + I('crosshair', 14) + ' ' + (st.isCalibratingPin ? 'LOCK PIN' : 'ADJUST PIN') + '</button>' : '') +
-              '<button class="map-ctrl-btn" id="btn-map-locate" title="Acquire device location">' + I('gps', 14) + ' LOCATE ME</button>' +
-              '<button class="map-ctrl-btn" id="btn-map-recenter" title="Center map on track">' + I('compass', 14) + ' RECENTER</button>' +
-            '</div>' +
-          '</div>' +
-
-          // Action Controls Bar
-          actionControls +
-
-          // Splits Breakdown
-          splitsHtml +
-
-          // Past Run History
-          historyHtml +
-        '</div>' +
-      '</div>';
-
-      // Mount Map Canvas with Leaflet
-      setTimeout(function () {
-        var mapEl = document.getElementById('run-map-canvas');
-        if (mapEl && tr) tr.mountMap(mapEl);
-      }, 50);
-
-      // Bind Run View Events
-      UI.bindRunEvents(container);
-    },
-
-    bindRunEvents: function (container) {
-      var tr = S.tracker;
-      if (!tr) return;
-
-      var selQuest = container.querySelector('#select-linked-quest');
-      if (selQuest) {
-        selQuest.addEventListener('change', function () {
-          tr.linkedQuestId = selQuest.value || null;
-        });
-      }
-
-      var btnReqLoc = container.querySelector('#btn-request-location');
-      if (btnReqLoc) {
-        btnReqLoc.addEventListener('click', function () {
-          tr.requestLocationPermission(true);
-        });
-      }
-
-      var btnLocHeader = container.querySelector('#btn-map-locate-header');
-      if (btnLocHeader) {
-        btnLocHeader.addEventListener('click', function () {
-          tr.requestLocationPermission(true);
-        });
-      }
-
-      var btnLocHelp = container.querySelector('#btn-location-help');
-      if (btnLocHelp) {
-        btnLocHelp.addEventListener('click', function () {
-          UI.showLocationPermissionHelp();
-        });
-      }
-
-      var btnStart = container.querySelector('#btn-run-start');
-      if (btnStart) {
-        btnStart.addEventListener('click', function () {
-          var qId = selQuest ? selQuest.value : null;
-          tr.start(qId);
-        });
-      }
-
-      var btnPause = container.querySelector('#btn-run-pause');
-      if (btnPause) {
-        btnPause.addEventListener('click', function () {
-          tr.pause();
-        });
-      }
-
-      var btnResume = container.querySelector('#btn-run-resume');
-      if (btnResume) {
-        btnResume.addEventListener('click', function () {
-          tr.resume();
-        });
-      }
-
-      var btnFinish = container.querySelector('#btn-run-finish');
-      if (btnFinish) {
-        btnFinish.addEventListener('click', function () {
-          var rec = tr.finish();
-          if (rec) {
-            UI.showToast('[RUN RECORD SECURED]', rec.distanceKm + ' KM logged // ' + rec.avgPaceStr + ' pace // ' + rec.totalSteps + ' steps.', 'cyan');
-          }
-        });
-      }
-
-      var btnDiscard = container.querySelector('#btn-run-discard');
-      if (btnDiscard) {
-        btnDiscard.addEventListener('click', function () {
-          if (confirm('Discard current run telemetry without logging?')) {
-            tr.discard();
-          }
-        });
-      }
-
-      var btnAdjustPin = container.querySelector('#btn-adjust-pin');
-      if (btnAdjustPin) {
-        btnAdjustPin.addEventListener('click', function () {
-          tr.togglePinpointCalibration();
-        });
-      }
-
-      var btnMapPinpoint = container.querySelector('#btn-map-pinpoint');
-      if (btnMapPinpoint) {
-        btnMapPinpoint.addEventListener('click', function () {
-          tr.togglePinpointCalibration();
-        });
-      }
-
-      var btnLocate = container.querySelector('#btn-map-locate');
-      if (btnLocate) {
-        btnLocate.addEventListener('click', function () {
-          tr.requestLocationPermission(true);
-        });
-      }
-
-      var btnRecenter = container.querySelector('#btn-map-recenter');
-      if (btnRecenter) {
-        btnRecenter.addEventListener('click', function () {
-          tr.recenterMap();
-        });
-      }
-    },
 
     /* ======================================================================
        VIEW: SETTINGS & TOOLS
@@ -1884,7 +1487,7 @@ window.SYS = window.SYS || {};
           '</div>' +
           '<div style="font-size:12px; color:var(--text-secondary); margin-bottom:12px; line-height:1.5;">' +
             (isAuth ?
-              ('Authenticated as <strong>' + U.esc(S.api.user.hunterName) + '</strong> (' + U.esc(S.api.user.email) + '). All progression (points, stats, quests, GPS runs, and inventory) synchronizes directly to Cloudflare & Supabase.') :
+              ('Authenticated as <strong>' + U.esc(S.api.user.hunterName) + '</strong> (' + U.esc(S.api.user.email) + '). All progression (points, stats, quests, and inventory) synchronizes directly to Cloudflare & Supabase.') :
               'Database credentials are bound automatically to Cloudflare Pages. Awaken or Link your Hunter account to compete on the real global leaderboard.') +
           '</div>' +
           '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
@@ -2146,7 +1749,7 @@ window.SYS = window.SYS || {};
             '<div class="sys-badge font-display text-danger" style="font-size:22px; letter-spacing:0.18em; margin-bottom:8px;">[SYSTEM WARNING: PENALTY ZONE]</div>' +
             '<p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px;">Mandatory Daily Quests were not fulfilled before 00:00:00. Normal progression is suspended.</p>' +
             '<div style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">' +
-              '<button class="sys-btn danger btn-penalty-choice" data-type="PHYSICAL">' + I('gauntlet', 16) + ' PHYSICAL PENALTY (BURPEES / PLANK / RUN)</button>' +
+              '<button class="sys-btn danger btn-penalty-choice" data-type="PHYSICAL">' + I('gauntlet', 16) + ' PHYSICAL PENALTY (BURPEES / PLANK / SQUATS)</button>' +
               '<button class="sys-btn danger btn-penalty-choice" data-type="FOCUS">' + I('gate', 16) + ' 45-MIN DARK LOCK FOCUS SURVIVAL</button>' +
             '</div>' +
             (S.qty('c_purify') > 0 ? '<button class="sys-btn gold" id="btn-purify-penalty">' + I('essence', 16) + ' USE PURIFICATION STONE</button>' : '') +
@@ -2222,7 +1825,7 @@ window.SYS = window.SYS || {};
           '<form id="form-forge" style="display:flex; flex-direction:column; gap:12px;">' +
             '<div>' +
               '<label class="font-mono" style="font-size:10.5px; color:var(--text-muted); letter-spacing:0.05em;">QUEST DIRECTIVE TITLE</label>' +
-              '<input type="text" class="sys-input" id="forge-title" required maxlength="60" value="' + U.esc(initTitle) + '" placeholder="e.g., Incline Dumbbell Press, 5km Run, Deep Study">' +
+              '<input type="text" class="sys-input" id="forge-title" required maxlength="60" value="' + U.esc(initTitle) + '" placeholder="e.g., Incline Dumbbell Press, Burpees, Deep Study">' +
             '</div>' +
 
             '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">' +
@@ -2254,7 +1857,6 @@ window.SYS = window.SYS || {};
                 '<select class="sys-select" id="forge-unit">' +
                   '<option value="REPS" ' + (initUnit === 'REPS' ? 'selected' : '') + '>Reps (Counter)</option>' +
                   '<option value="SETS" ' + (initUnit === 'SETS' ? 'selected' : '') + '>Sets (Counter)</option>' +
-                  '<option value="KM" ' + (initUnit === 'KM' ? 'selected' : '') + '>Kilometers (GPS / Run)</option>' +
                   '<option value="MINS" ' + (initUnit === 'MINS' ? 'selected' : '') + '>Minutes (Focus Gate)</option>' +
                   '<option value="CHECK" ' + (initUnit === 'CHECK' ? 'selected' : '') + '>Single Check (Hold to Seal)</option>' +
                 '</select>' +
@@ -2797,7 +2399,7 @@ window.SYS = window.SYS || {};
                 '</div>' +
                 '<label class="font-mono" style="font-size:9.5px; line-height:1.2; display:flex; align-items:flex-start; gap:6px; color:var(--text-secondary); cursor:pointer; padding:1px 0;">' +
                   '<input type="checkbox" id="awaken-preset" checked style="accent-color:var(--accent-core); width:13px; height:13px; margin-top:1px; flex-shrink:0;">' +
-                  '<span>Install Canonical Quests (100 Push-ups, 100 Sit-ups, 100 Squats, 10km Run)</span>' +
+                  '<span>Install Canonical Quests (100 Push-ups, 100 Sit-ups, 100 Squats)</span>' +
                 '</label>' +
                 '<button type="button" class="sys-btn lg primary" id="btn-awaken-accept" style="width:100%; height:38px; font-size:12.5px; font-weight:700; letter-spacing:0.08em; margin-top:2px;">' +
                   'INITIALIZE SYSTEM &amp; ARISE' +
@@ -3054,51 +2656,6 @@ window.SYS = window.SYS || {};
       showStep();
     },
 
-    /* --- Location Permission Guidance Modal --- */
-    showLocationPermissionHelp: function (err) {
-      var isFileProtocol = window.location.protocol === 'file:';
-      var noteSecure = isFileProtocol ?
-        '<div style="margin-top:12px; padding:10px; background:rgba(255,183,3,0.1); border:1px solid rgba(255,183,3,0.4); clip-path:var(--clip-chamfer-sm); font-size:11px; color:#FFB703;">' +
-          '<strong>[SECURITY RESTRICTION: SECURE ORIGIN MANDATE]</strong><br>' +
-          'Web browsers strictly restrict live GPS hardware access on <code>file:///</code> URLs. ' +
-          'To use live GPS on desktop, serve via localhost (e.g. <code>npx serve</code> or VS Code Live Server) or install as PWA.' +
-        '</div>' : '';
-
-      UI.openModal(
-        '<div class="system-panel" style="max-width:560px; margin:0 auto;">' +
-          '<div class="panel-header">' +
-            '<div class="panel-title text-danger">' + I('alert', 18) + ' [SYSTEM DIRECTIVE // DEVICE LOCATION ACCESS]</div>' +
-            '<button class="modal-close btn-close-modal">' + I('close', 16) + '</button>' +
-          '</div>' +
-          '<div style="font-size:13px; color:var(--text-secondary); line-height:1.6; margin-bottom:14px;">' +
-            'The System requires device location authorization to track route coordinates, velocity, and distance telemetry.' +
-          '</div>' +
-          '<div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); padding:12px; clip-path:var(--clip-chamfer-sm); margin-bottom:14px; font-family:var(--font-mono); font-size:11px;">' +
-            '<div class="text-accent font-bold" style="margin-bottom:8px;">HOW TO AUTHORIZE LOCATION ACCESS:</div>' +
-            '<ul style="padding-left:18px; display:flex; flex-direction:column; gap:6px; color:var(--text-primary);">' +
-              '<li><strong>Desktop (Chrome / Edge / Brave):</strong> Click the padlock / tune icon on the left of the URL address bar &rarr; switch <em>Location</em> to <em>Allow</em>.</li>' +
-              '<li><strong>Mobile (iOS Safari):</strong> Open iPhone Settings &rarr; Safari &rarr; Location &rarr; set to <em>Allow</em> or <em>Ask</em>.</li>' +
-              '<li><strong>Mobile (Android Chrome):</strong> Tap three dots &rarr; Settings &rarr; Site settings &rarr; Location &rarr; Allow.</li>' +
-              '<li><strong>System GPS:</strong> Ensure device Location / GPS toggle is turned ON in system quick settings.</li>' +
-            '</ul>' +
-          '</div>' +
-          noteSecure +
-          '<div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">' +
-            '<button class="sys-btn primary" id="btn-modal-retry-perm" style="flex:1;">' + I('gps', 16) + ' RETRY AUTHORIZATION</button>' +
-            '<button class="sys-btn btn-close-modal">DISMISS</button>' +
-          '</div>' +
-        '</div>'
-      );
-
-      var btnRetry = document.getElementById('btn-modal-retry-perm');
-      if (btnRetry) {
-        btnRetry.addEventListener('click', function () {
-          UI.closeModal();
-          if (S.tracker) S.tracker.requestLocationPermission(true);
-        });
-      }
-    },
-
     /* --- Hunter Network & Database Auth Terminal Modal --- */
     showAuthModal: function (initialTab) {
       var isAuth = S.api && !!S.api.user;
@@ -3260,7 +2817,7 @@ window.SYS = window.SYS || {};
             '</div>' +
             '<label class="font-mono" style="font-size:11px; display:flex; align-items:center; gap:8px; margin-bottom:14px;">' +
               '<input type="checkbox" id="reg-preset" checked style="accent-color:var(--accent-core);">' +
-              'INSTALL CANONICAL SYSTEM PRESET (100 PUSH-UPS, 100 SIT-UPS, 100 SQUATS, 10KM)' +
+              'INSTALL CANONICAL SYSTEM PRESET (100 PUSH-UPS, 100 SIT-UPS, 100 SQUATS)' +
             '</label>' +
             '<div style="display:flex; justify-content:space-between; align-items:center;">' +
               '<button type="button" class="sys-btn sm" id="btn-switch-to-login">LINK EXISTING</button>' +

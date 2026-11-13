@@ -69,7 +69,7 @@ window.SYS = window.SYS || {};
       inventory: { owned: {}, seen: {}, shadows: {}, boxes: { BLESSED: 1, CURSED: 0 } },
       unlockedTitles: ['t_weakest'], unlockedSkins: ['skin_classic'], unlockedBorders: ['br_e'],
       buffs: [],
-      records: { questsCompleted: 0, totalXp: 0, goldEarned: 0, focusMins: 0, verifiedMins: 0, gatesCleared: 0, redGates: 0, cleanDarkLocks: 0, penaltiesSurvived: 0, dawnClears: 0, midnightClears: 0, boxesOpened: 0, repsLogged: 0, kmLogged: 0, examsPassed: 0, highRankQuests: 0, dungeonsCleared: 0, perfectDays: 0, shadowsExtracted: 0, breaches: 0 },
+      records: { questsCompleted: 0, totalXp: 0, goldEarned: 0, focusMins: 0, verifiedMins: 0, gatesCleared: 0, redGates: 0, cleanDarkLocks: 0, penaltiesSurvived: 0, dawnClears: 0, midnightClears: 0, boxesOpened: 0, repsLogged: 0, examsPassed: 0, highRankQuests: 0, dungeonsCleared: 0, perfectDays: 0, shadowsExtracted: 0, breaches: 0 },
       log: {},
       lootHistory: [],
       penalty: null,
@@ -269,12 +269,12 @@ window.SYS = window.SYS || {};
   S.examQuestSpecs = function (tierIndex) {
     var r = S.RANKS[tierIndex], d = r.letter, f = Math.min(1, tierIndex / 19);
     var reps = Math.round((25 + 75 * f) * 1.5 / 5) * 5;
-    var km = Math.round((2 + 8 * f) * 1.5 * 2) / 2;
+    var burpees = Math.max(15, Math.round(reps * 0.6 / 5) * 5);
     var mins = tierIndex < 8 ? 25 : tierIndex < 16 ? 50 : 90;
     return [
       { title: 'Exam: Push-ups', category: 'CALISTHENICS', primaryStat: 'STR', target: reps, unit: 'REPS', mode: 'COUNTER', difficulty: d },
       { title: 'Exam: Squats', category: 'CALISTHENICS', primaryStat: 'VIT', target: reps, unit: 'REPS', mode: 'COUNTER', difficulty: d },
-      { title: 'Exam: Endurance Run', category: 'RUNNING', primaryStat: 'AGI', target: km, unit: 'KM', mode: 'COUNTER', difficulty: d },
+      { title: 'Exam: Burpees', category: 'CALISTHENICS', primaryStat: 'AGI', target: burpees, unit: 'REPS', mode: 'COUNTER', difficulty: d },
       { title: 'Exam: Focus Trial', category: 'FOCUS', primaryStat: 'PER', target: mins, unit: 'MINS', mode: 'DURATION', difficulty: d }
     ];
   };
@@ -310,12 +310,10 @@ window.SYS = window.SYS || {};
   S.presetSpecs = function (tier) {
     var f = Math.min(1, tier / 19);
     var reps = tier > 19 ? 100 + (tier - 19) * 25 : Math.round((25 + 75 * f) / 5) * 5;
-    var km = tier > 19 ? 10 + (tier - 19) : Math.round((2 + 8 * f) * 2) / 2;
     return [
       { preset: 'pushups', title: 'Push-ups', category: 'CALISTHENICS', primaryStat: 'STR', target: reps, unit: 'REPS' },
       { preset: 'situps', title: 'Sit-ups / Core', category: 'CALISTHENICS', primaryStat: 'STR', target: reps, unit: 'REPS' },
-      { preset: 'squats', title: 'Squats', category: 'CALISTHENICS', primaryStat: 'VIT', target: reps, unit: 'REPS' },
-      { preset: 'running', title: 'Running', category: 'RUNNING', primaryStat: 'AGI', target: km, unit: 'KM' }
+      { preset: 'squats', title: 'Squats', category: 'CALISTHENICS', primaryStat: 'VIT', target: reps, unit: 'REPS' }
     ];
   };
   S.dayCode = function (dateStr) {
@@ -327,7 +325,7 @@ window.SYS = window.SYS || {};
     var cat = S.CATS[o.category] || S.CATS.HABIT;
     var unit = o.unit || 'REPS';
     var mode = o.mode || (unit === 'CHECK' ? 'CHECK' : unit === 'MINS' ? 'DURATION' : 'COUNTER');
-    var target = mode === 'CHECK' ? 1 : Math.max(unit === 'KM' ? 0.5 : 1, Number(o.target != null ? o.target : o.targetProgress) || 1);
+    var target = mode === 'CHECK' ? 1 : Math.max(1, Number(o.target != null ? o.target : o.targetProgress) || 1);
     return {
       title: String(o.title || 'Untitled Quest').trim().slice(0, 60) || 'Untitled Quest',
       category: o.category || 'HABIT',
@@ -687,7 +685,7 @@ window.SYS = window.SYS || {};
       wp.activePreset = 'canonical';
       // Untombstone canonical presets
       if (s.deletedQuests) {
-        ['pushups', 'situps', 'squats', 'running'].forEach(function (p) {
+        ['pushups', 'situps', 'squats'].forEach(function (p) {
           delete s.deletedQuests['preset_' + p];
         });
       }
@@ -781,7 +779,7 @@ window.SYS = window.SYS || {};
     var cat = S.CATS[o.category] || S.CATS.HABIT;
     var unit = o.unit || 'REPS';
     var mode = o.mode || (unit === 'CHECK' ? 'CHECK' : 'COUNTER');
-    var target = mode === 'CHECK' ? 1 : Math.max(unit === 'KM' ? 0.5 : 1, Number(o.target) || 1);
+    var target = mode === 'CHECK' ? 1 : Math.max(1, Number(o.target) || 1);
     var q = {
       id: U.uid(), title: String(o.title || 'Untitled Quest').slice(0, 60), category: o.category || 'HABIT',
       difficulty: o.difficulty || 'E', primaryStat: o.primaryStat || cat.stat,
@@ -803,7 +801,7 @@ window.SYS = window.SYS || {};
     S.installPreset();
   }
 
-  // Cleanup any lingering Apple Health and steps counter artifacts from previous migration
+  // Cleanup any lingering Apple Health, steps counter, and running/GPS artifacts from previous migrations
   (function cleanupStepsAndAppleHealth() {
     var s = S.state;
     if (s) {
@@ -811,9 +809,25 @@ window.SYS = window.SYS || {};
       if (s.quests && s.quests.length > 0) {
         var beforeLen = s.quests.length;
         s.quests = s.quests.filter(function (q) {
-          return q.preset !== 'steps10k' && q.unit !== 'STEPS';
+          return q.preset !== 'steps10k' && q.unit !== 'STEPS' && q.preset !== 'running' && q.unit !== 'KM' && q.category !== 'RUNNING';
         });
         if (s.quests.length !== beforeLen) changed = true;
+      }
+      if (s.weeklyPlan && s.weeklyPlan.days) {
+        (S.DAYS || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']).forEach(function (d) {
+          var arr = s.weeklyPlan.days[d];
+          if (Array.isArray(arr)) {
+            var bLen = arr.length;
+            s.weeklyPlan.days[d] = arr.filter(function (p) {
+              return p.preset !== 'running' && p.unit !== 'KM' && p.category !== 'RUNNING';
+            });
+            if (s.weeklyPlan.days[d].length !== bLen) changed = true;
+          }
+        });
+      }
+      if (s.deletedQuests && 'preset_running' in s.deletedQuests) {
+        delete s.deletedQuests.preset_running;
+        changed = true;
       }
       if (s.appleHealth) {
         delete s.appleHealth;
@@ -823,8 +837,17 @@ window.SYS = window.SYS || {};
         delete s.records.stepsLogged;
         changed = true;
       }
+      if (s.records && 'kmLogged' in s.records) {
+        delete s.records.kmLogged;
+        changed = true;
+      }
       if (changed) S.save();
     }
+    try {
+      localStorage.removeItem('solo_quest_runs_v1');
+      localStorage.removeItem('solo_quest_location_authorized');
+      localStorage.removeItem('solo_quest_calibrated_location');
+    } catch (e) {}
   })();
   S.ensureWeeklyPlan();
   S.deleteQuest = function (id) {
@@ -874,7 +897,6 @@ window.SYS = window.SYS || {};
     var diff = q.currentProgress - before;
     if (diff > 0) {
       if (q.unit === 'REPS') S.state.records.repsLogged += diff;
-      if (q.unit === 'KM') S.state.records.kmLogged += diff;
     }
     if (q.currentProgress >= q.targetProgress) completeQuest(q);
     S.commit();
@@ -1065,7 +1087,7 @@ window.SYS = window.SYS || {};
     s.penalty.choice = type;
     if (type === 'PHYSICAL') {
       var sp = U.pick(S.PENALTY_PHYSICAL);
-      var target = sp.unit === 'REPS' ? Math.round(sp.target * penaltySoftener()) : Math.max(1, Math.round(sp.target * penaltySoftener() * 2) / 2);
+      var target = Math.max(1, Math.round(sp.target * penaltySoftener()));
       S.addQuest({ title: sp.title, category: 'PENALTY', primaryStat: 'VIT', difficulty: 'C', target: target, unit: sp.unit, mode: 'COUNTER', isPenaltyQuest: true, isMandatory: false, recurring: false }, true);
     } else {
       S.addQuest({ title: 'Penalty: 45-Minute Dark Lock Gate', category: 'PENALTY', primaryStat: 'PER', difficulty: 'E', target: 45, unit: 'MINS', mode: 'DURATION', isPenaltyQuest: true, recurring: false }, true);
@@ -1519,14 +1541,7 @@ window.SYS = window.SYS || {};
       S.auth.isPurging = true;
     }
 
-    // 2. Wipe tracker run history
-    try {
-      localStorage.removeItem('solo_quest_runs_v1');
-      if (S.tracker) {
-        S.tracker.history = [];
-        S.tracker.activeRun = null;
-      }
-    } catch (e) {}
+    // 2. Wipe local storage keys
 
     // 3. Clear local storage save & re-instantiate clean default state
     try {
@@ -1539,7 +1554,7 @@ window.SYS = window.SYS || {};
     S.awaken(pName, pMode, true, pEmail);
     S.state.purgeEpoch = purgeEpoch;
 
-    // 5. Purge remote cloud database (deletes remote quests/runs/logs and resets remote profile/inventory)
+    // 5. Purge remote cloud database (deletes remote quests/logs and resets remote profile/inventory)
     if (S.api && typeof S.api.purgeRemoteData === 'function') {
       try {
         await S.api.purgeRemoteData(S.state, purgeEpoch);

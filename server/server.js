@@ -22,9 +22,8 @@ if (!fs.existsSync(DATA_DIR)) {
 // In-Memory Database State with Disk Persistence
 let db = {
   users: [],       // { id, email, hunterName, passwordHash, salt, createdAt }
-  profiles: {},    // { [userId]: { hunterName, email, level, xp, ap, str, agi, vit, int, per, gold, essence, rankTierIndex, rankCode, streakDays, maxStreak, hrsScore, combatPower, totalFocusMins, totalKmRun, penaltyMode, inPenaltyZone, activeTitle, activeSkinId, activeBorderId, activeShadowId, equippedRelicIds, updatedAt } }
+  profiles: {},    // { [userId]: { hunterName, email, level, xp, ap, str, agi, vit, int, per, gold, essence, rankTierIndex, rankCode, streakDays, maxStreak, hrsScore, combatPower, totalFocusMins, penaltyMode, inPenaltyZone, activeTitle, activeSkinId, activeBorderId, activeShadowId, equippedRelicIds, updatedAt } }
   quests: {},      // { [userId]: [ { id, title, category, unit, targetProgress, currentProgress, isCompleted, preset, isPenaltyQuest, isExam, isBonus, createdDate } ] }
-  runs: {},        // { [userId]: [ { id, date, distanceKm, distanceMeters, durationSec, movingSec, avgPaceStr, maxSpeedKmh, totalSteps, avgCadenceSpm, calories, elevationGainMeters, splits, routeSample } ] }
   inventories: {}, // { [userId]: { ownedItems, boxes, unlockedSkins, unlockedTitles, unlockedBorders, shadows } }
   logs: {}         // { [userId]: { [date]: { xp, hrsXp, verifiedMins, focusMins, quests, failed, resolved } } }
 };
@@ -233,7 +232,6 @@ const server = http.createServer(async (req, res) => {
         hrsScore: 0,
         combatPower: 120,
         totalFocusMinutes: 0,
-        totalKmRun: 0,
         penaltyMode: mode,
         inPenaltyZone: false,
         activeTitle: '',
@@ -247,7 +245,6 @@ const server = http.createServer(async (req, res) => {
       db.users.push(newUser);
       db.profiles[userId] = initialProfile;
       db.quests[userId] = [];
-      db.runs[userId] = [];
       db.inventories[userId] = {
         ownedItems: { c_pot_low: 1, c_key_subway: 1 },
         boxes: { BLESSED: 0, CURSED: 0 },
@@ -354,7 +351,6 @@ const server = http.createServer(async (req, res) => {
         streak: p.streakDays || 0,
         score: view === 'HALL' ? (p.combatPower || 120) : (p.hrsScore || 0),
         combatPower: p.combatPower || 120,
-        totalKmRun: p.totalKmRun || 0,
         focusMins: p.totalFocusMinutes || 0
       }));
 
@@ -399,7 +395,6 @@ const server = http.createServer(async (req, res) => {
           hrsScore: data.profile.hrsScore !== undefined ? data.profile.hrsScore : existing.hrsScore,
           combatPower: data.profile.combatPower !== undefined ? data.profile.combatPower : existing.combatPower,
           totalFocusMinutes: data.profile.totalFocusMinutes !== undefined ? data.profile.totalFocusMinutes : existing.totalFocusMinutes,
-          totalKmRun: data.profile.totalKmRun !== undefined ? data.profile.totalKmRun : existing.totalKmRun,
           inPenaltyZone: !!data.profile.inPenaltyZone,
           penaltyMode: data.profile.penaltyMode || existing.penaltyMode,
           activeTitle: data.profile.activeTitle || existing.activeTitle,
@@ -416,17 +411,12 @@ const server = http.createServer(async (req, res) => {
         db.quests[userId] = data.quests;
       }
 
-      // 3. Update Runs
-      if (Array.isArray(data.runs)) {
-        db.runs[userId] = data.runs;
-      }
-
-      // 4. Update Inventory & Vault
+      // 3. Update Inventory & Vault
       if (data.inventory) {
         db.inventories[userId] = data.inventory;
       }
 
-      // 5. Update Day Logs
+      // 4. Update Day Logs
       if (data.log) {
         db.logs[userId] = data.log;
       }
@@ -451,7 +441,6 @@ const server = http.createServer(async (req, res) => {
       const userId = payload.id;
       const profile = db.profiles[userId] || null;
       const quests = db.quests[userId] || [];
-      const runs = db.runs[userId] || [];
       const inventory = db.inventories[userId] || null;
       const log = db.logs[userId] || {};
 
@@ -460,7 +449,6 @@ const server = http.createServer(async (req, res) => {
         data: {
           profile,
           quests,
-          runs,
           inventory,
           log
         },

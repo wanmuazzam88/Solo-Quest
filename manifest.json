@@ -52,13 +52,6 @@
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "GPS Run Tracker",
-      "short_name": "Run",
-      "description": "Start live GPS run telemetry with OpenStreetMap",
-      "url": "./index.html?view=run",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
-    },
-    {
       "name": "Dungeon Focus Gate",
       "short_name": "Gate",
       "description": "Enter deep work focus gate with distraction shield",

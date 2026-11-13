@@ -1,16 +1,15 @@
 /* ==========================================================================
    THE SYSTEM // PROJECT: ARISE — Progressive Web App Service Worker
-   Offline-first caching, static shell pre-caching, dynamic tile caching,
-   and instant service worker lifecycle management.
+   Offline-first caching, static shell pre-caching, and instant service
+   worker lifecycle management.
    ========================================================================== */
-var CACHE_NAME = 'solo-quest-v3.31';
+var CACHE_NAME = 'solo-quest-v3.32';
 
 var STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './css/style.css',
-  './css/leaflet.css',
   './js/icons.js',
   './js/data.js',
   './js/engine.js',
@@ -18,8 +17,6 @@ var STATIC_ASSETS = [
   './js/auth.js',
   './js/audio.js',
   './js/intro.js',
-  './js/leaflet.js',
-  './js/tracker.js',
   './js/gate.js',
   './js/ui.js',
   './js/app.js',
@@ -58,7 +55,7 @@ self.addEventListener('activate', function (event) {
   );
 });
 
-// Fetch: Stale-While-Revalidate / Cache-First for static, Network-First for tiles
+// Fetch: Stale-While-Revalidate / Cache-First for static assets
 self.addEventListener('fetch', function (event) {
   var request = event.request;
 
@@ -85,28 +82,7 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
-  // 2. OpenStreetMap Tiles: Cache dynamically on the fly
-  if (url.hostname.indexOf('tile.openstreetmap.org') !== -1 || url.hostname.indexOf('basemaps.cartocdn.com') !== -1) {
-    event.respondWith(
-      caches.match(request).then(function (cached) {
-        if (cached) return cached;
-        return fetch(request).then(function (networkResponse) {
-          if (networkResponse && networkResponse.status === 200) {
-            var copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then(function (cache) {
-              cache.put(request, copy);
-            });
-          }
-          return networkResponse;
-        }).catch(function () {
-          return new Response('', { status: 408, statusText: 'Tile Offline' });
-        });
-      })
-    );
-    return;
-  }
-
-  // 3. API, Cloud Database & Range-Streamed Media (.mp4): Direct network
+  // 2. API, Cloud Database & Range-Streamed Media (.mp4): Direct network
   if (url.pathname.startsWith('/api/') || url.hostname.indexOf('supabase.co') !== -1 || url.pathname.endsWith('.mp4')) {
     return;
   }

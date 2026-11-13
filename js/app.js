@@ -101,12 +101,22 @@ window.SYS = window.SYS || {};
   var deferredInstallPrompt = null;
 
   function initPWA() {
-    // 1. Register Service Worker
+    // 1. Register Service Worker & auto-refresh when an updated worker takes control
     if ('serviceWorker' in navigator) {
+      var hadController = !!navigator.serviceWorker.controller;
+      var reloadingForSw = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (hadController && !reloadingForSw) {
+          reloadingForSw = true;
+          window.location.reload();
+        }
+      });
+
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('./sw.js')
+        navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
           .then(function (reg) {
             console.log('[PWA] Service Worker registered:', reg.scope);
+            if (typeof reg.update === 'function') reg.update().catch(function () {});
           })
           .catch(function (err) {
             console.warn('[PWA] Service Worker registration failed:', err);
@@ -217,7 +227,6 @@ window.SYS = window.SYS || {};
     if (S.checkRollover) { S.checkRollover(); }
     if (S.audio) S.audio.init();
     if (S.gateMgr) S.gateMgr.init();
-    if (S.tracker) S.tracker.init();
     if (S.ui) S.ui.init();
 
     initParticles();
