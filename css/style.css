@@ -2493,17 +2493,14 @@ div[data-netlify-badge-wrapper] {
 }
 .bs-loading-overlay.hidden { display: none; }
 
-/* Floating Translucent System Window */
+/* Muscle Telemetry System Window (below 3D viewport so nothing covers the model) */
 .bs-floating-hud {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: min(272px, calc(100% - 24px));
-  z-index: 6;
-  background: rgba(7, 11, 20, 0.78);
-  backdrop-filter: blur(10px);
+  position: relative;
+  width: 100%;
+  margin-top: 10px;
+  background: rgba(7, 11, 20, 0.92);
   border: 1px solid rgba(0, 229, 255, 0.55);
-  box-shadow: 0 0 22px rgba(0, 229, 255, 0.22), inset 0 0 14px rgba(0, 229, 255, 0.08);
+  box-shadow: 0 0 22px rgba(0, 229, 255, 0.16), inset 0 0 14px rgba(0, 229, 255, 0.08);
   padding: 11px 12px;
   clip-path: var(--clip-chamfer-sm);
 }
@@ -2812,9 +2809,7 @@ div[data-netlify-badge-wrapper] {
     height: clamp(390px, 58dvh, 540px);
   }
   .bs-floating-hud {
-    top: 8px;
-    right: 8px;
-    width: min(230px, calc(100% - 16px));
+    margin-top: 8px;
     padding: 8px 10px;
   }
   .bs-cam-bar {
@@ -2841,11 +2836,8 @@ div[data-netlify-badge-wrapper] {
     height: clamp(380px, 60dvh, 500px);
   }
   .bs-floating-hud {
-    top: 6px;
-    left: 6px;
-    right: 6px;
-    width: auto;
-    padding: 7px 9px;
+    margin-top: 8px;
+    padding: 8px 10px;
   }
   .bs-hud-header {
     margin-bottom: 4px;

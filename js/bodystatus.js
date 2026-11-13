@@ -996,8 +996,6 @@ window.SYS = window.SYS || {};
               '<div class="font-mono" style="color:#00E5FF; font-size:12px; letter-spacing:0.1em;">[INITIALIZING HUNTER ANATOMY MESH...]</div>' +
             '</div>' +
 
-            '<div id="bodystatus-floating-hud" class="bs-floating-hud"></div>' +
-
             '<div class="bs-cam-bar" role="group" aria-label="Camera Snap Controls">' +
               '<button type="button" class="bs-snap-btn" data-cam-snap="FRONT">FRONT</button>' +
               '<button type="button" class="bs-snap-btn" data-cam-snap="BACK">BACK</button>' +
@@ -1008,6 +1006,8 @@ window.SYS = window.SYS || {};
 
             '<div class="bs-drag-hint font-mono">DRAG TO ORBIT 360° · PINCH / SCROLL TO ZOOM · TAP MUSCLE</div>' +
           '</div>' +
+
+          '<div id="bodystatus-floating-hud" class="bs-floating-hud"></div>' +
         '</div>' +
 
         '<div class="bodystatus-side-col">' +
