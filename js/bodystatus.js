@@ -156,7 +156,7 @@ window.SYS = window.SYS || {};
         muscles: createEmptyMuscles(),
         workoutHistory: [],
         questCredits: {},
-        selectedMuscle: 'Chest_Mid',
+        selectedMuscle: null,
         updatedAt: Date.now()
       };
     }
@@ -168,7 +168,7 @@ window.SYS = window.SYS || {};
     });
     if (!Array.isArray(t.workoutHistory)) t.workoutHistory = [];
     if (!t.questCredits || typeof t.questCredits !== 'object') t.questCredits = {};
-    if (!t.selectedMuscle || !MUSCLE_MAP[t.selectedMuscle]) t.selectedMuscle = 'Chest_Mid';
+    if (t.selectedMuscle && !MUSCLE_MAP[t.selectedMuscle]) t.selectedMuscle = null;
     return t;
   };
 
@@ -875,13 +875,25 @@ window.SYS = window.SYS || {};
   function updateHudWindowDOM(forceShow) {
     var hud = document.getElementById('bodystatus-floating-hud');
     if (!hud) return;
+    var t = S.ensureAnatomyTracker();
+    if (!t.selectedMuscle || !MUSCLE_MAP[t.selectedMuscle]) {
+      hud.classList.add('hidden');
+      hud.innerHTML = '';
+      return;
+    }
     if (forceShow) hud.classList.remove('hidden');
     hud.innerHTML = renderFloatingHudHtml();
 
     var closeBtn = document.getElementById('btn-hud-close');
     if (closeBtn) {
       closeBtn.addEventListener('click', function () {
+        t.selectedMuscle = null;
         hud.classList.add('hidden');
+        hud.innerHTML = '';
+        updateSelectionRim();
+        S.applyMuscleColorsTo3D();
+        updateSidePanelsDOM();
+        if (S.saveState) S.saveState();
       });
     }
   }
@@ -974,6 +986,9 @@ window.SYS = window.SYS || {};
       return;
     }
 
+    // Start with no muscle pre-selected when opening the Body view
+    S.ensureAnatomyTracker().selectedMuscle = null;
+
     container.innerHTML =
       '<div class="bodystatus-shell" id="bodystatus-shell">' +
         '<div class="bodystatus-stage-panel">' +
@@ -1007,7 +1022,7 @@ window.SYS = window.SYS || {};
             '<div class="bs-drag-hint font-mono">DRAG TO ORBIT 360° · PINCH / SCROLL TO ZOOM · TAP MUSCLE</div>' +
           '</div>' +
 
-          '<div id="bodystatus-floating-hud" class="bs-floating-hud"></div>' +
+          '<div id="bodystatus-floating-hud" class="bs-floating-hud hidden"></div>' +
         '</div>' +
 
         '<div class="bodystatus-side-col">' +
