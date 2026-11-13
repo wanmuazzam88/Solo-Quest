@@ -3,7 +3,7 @@
    Offline-first caching, static shell pre-caching, and instant service
    worker lifecycle management.
    ========================================================================== */
-var CACHE_NAME = 'solo-quest-v3.43';
+var CACHE_NAME = 'solo-quest-v3.44';
 
 var STATIC_ASSETS = [
   './',
@@ -68,10 +68,10 @@ self.addEventListener('fetch', function (event) {
 
   var url = new URL(request.url);
 
-  // 1. Navigation requests (HTML shell): Network-First with Cache fallback
+  // 1. Navigation requests (HTML shell): Network-First (bypass HTTP cache) with Cache fallback
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).then(function (networkResponse) {
+      fetch(request, { cache: 'no-store' }).then(function (networkResponse) {
         if (networkResponse && networkResponse.status === 200) {
           var copy = networkResponse.clone();
           caches.open(CACHE_NAME).then(function (cache) {
@@ -91,10 +91,10 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
-  // 4. Code & Stylesheets (.js, .css, ?v=): Network-First with Cache Fallback for instant updates
+  // 4. Code & Stylesheets (.js, .css, ?v=): Network-First (bypass HTTP cache) with Cache Fallback for instant updates
   if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.search.indexOf('v=') !== -1) {
     event.respondWith(
-      fetch(request).then(function (networkResponse) {
+      fetch(request, { cache: 'no-store' }).then(function (networkResponse) {
         if (networkResponse && networkResponse.status === 200) {
           var copy = networkResponse.clone();
           caches.open(CACHE_NAME).then(function (cache) {
