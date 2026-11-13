@@ -399,24 +399,28 @@ window.SYS = window.SYS || {};
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
 
-    // Solo Leveling System Studio Lighting
-    var hemi = new THREE.HemisphereLight(0x8bb8ff, 0x09111f, 0.95);
+    // Solo Leveling System Studio Lighting (sculptural contrast for muscle tone)
+    var hemi = new THREE.HemisphereLight(0x9bc4ff, 0x050811, 0.68);
     scene.add(hemi);
 
-    var keyLight = new THREE.DirectionalLight(0xffffff, 1.35);
-    keyLight.position.set(1.8, 3.2, 2.8);
+    var topSculpt = new THREE.DirectionalLight(0xffffff, 1.45);
+    topSculpt.position.set(0.35, 4.4, 1.6);
+    scene.add(topSculpt);
+
+    var keyLight = new THREE.DirectionalLight(0xeef6ff, 1.25);
+    keyLight.position.set(2.2, 2.8, 2.5);
     scene.add(keyLight);
 
-    var backKey = new THREE.DirectionalLight(0xdbeafe, 0.9);
-    backKey.position.set(-1.5, 2.6, -2.8);
+    var backKey = new THREE.DirectionalLight(0xdbeafe, 1.15);
+    backKey.position.set(-1.6, 3.0, -2.6);
     scene.add(backKey);
 
-    var cyanRimL = new THREE.DirectionalLight(0x00e5ff, 0.85);
-    cyanRimL.position.set(-2.8, 1.5, -0.5);
+    var cyanRimL = new THREE.DirectionalLight(0x00e5ff, 1.05);
+    cyanRimL.position.set(-3.0, 1.6, 0.4);
     scene.add(cyanRimL);
 
-    var cobaltRimR = new THREE.DirectionalLight(0x2979ff, 0.65);
-    cobaltRimR.position.set(2.8, 1.3, -0.8);
+    var cobaltRimR = new THREE.DirectionalLight(0x2979ff, 0.85);
+    cobaltRimR.position.set(3.0, 1.4, -0.4);
     scene.add(cobaltRimR);
 
     // Subtle Holographic Floor Grid & Scanner Rings at Y=0
@@ -475,7 +479,7 @@ window.SYS = window.SYS || {};
     threeCtx.loading = true;
     var loader = new THREE.GLTFLoader();
     loader.load(
-      'assets/models/hunter_anatomy.glb?v=3.38',
+      'assets/models/hunter_anatomy.glb?v=3.40',
       function (gltf) {
         threeCtx.loading = false;
         threeCtx.loaded = true;
@@ -526,9 +530,9 @@ window.SYS = window.SYS || {};
           } else if (name === 'Body_Core') {
             obj.material = new THREE.MeshStandardMaterial({
               name: 'Mat_Body_Shell',
-              color: new THREE.Color(0x080c14),
-              roughness: 0.2,
-              metalness: 0.45
+              color: new THREE.Color(0x04060b),
+              roughness: 0.45,
+              metalness: 0.25
             });
           }
         });
@@ -566,9 +570,9 @@ window.SYS = window.SYS || {};
       mesh.material.color.set(r.color);
       mesh.material.emissive.set(r.emissive);
       mesh.material.emissiveIntensity = r.emissiveIntensity;
-      // Slightly brighter specular finish when active
-      mesh.material.roughness = st.sets > 0 ? 0.22 : 0.28;
-      mesh.material.metalness = st.sets > 0 ? 0.45 : 0.65;
+      // Slightly brighter specular finish when active, crisp metallic edge on dormant
+      mesh.material.roughness = st.sets > 0 ? 0.22 : 0.22;
+      mesh.material.metalness = st.sets > 0 ? 0.45 : 0.68;
       if (t.selectedMuscle === def.id && r.key === 'DORMANT') {
         mesh.material.emissive.set('#00E5FF');
         mesh.material.emissiveIntensity = 0.22;
