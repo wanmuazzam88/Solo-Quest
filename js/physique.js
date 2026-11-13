@@ -1,8 +1,7 @@
-/* ==============================================================================
-   THE SYSTEM // PROJECT: ARISE — Player Vessel & Muscle Anatomy Matrix
-   Interactive Solo Leveling anatomical muscle tracker with multi-tier color &
-   brightness progression, automatic quest integration, and front/back SVG HUD.
-   ============================================================================== */
+/* ============================================================================
+   THE SYSTEM // PROJECT: ARISE — PLAYER VESSEL & 3D MUSCLE ACTIVATION MATRIX
+   Three.js 3D Interactive Anatomical Muscle Scanner & Luminescence Overdrive
+   ============================================================================ */
 window.SYS = window.SYS || {};
 (function (S) {
   'use strict';
@@ -10,397 +9,385 @@ window.SYS = window.SYS || {};
   var U = S.util;
   var I = S.icon;
 
-  // 15 Anatomical Muscle Groups
-  var MUSCLES = [
+  /* ============================================================================
+      15 ANATOMICAL MUSCLE GROUPS (ANTERIOR, LATERAL & POSTERIOR 3D MAPPING)
+     ============================================================================ */
+  var MUSCLES = S.MUSCLES = [
     {
       id: 'chest',
-      name: 'Chest (Pectorals)',
+      name: 'Pectoralis (Chest)',
       short: 'CHEST',
-      subgroups: 'Upper Clavicular · Mid Sternal · Lower Costal',
       side: 'FRONT',
-      stat: 'STR',
-      exercises: ['Push-ups', 'Barbell Bench Press', 'Incline Dumbbell Press', 'Weighted Chest Dips', 'Cable Flyes']
+      preferredYaw: 0,
+      focusPos: [0, 0.88, 0.28],
+      subgroups: 'Upper Chest • Mid Chest • Lower Chest',
+      primaryStat: 'STR',
+      exercises: ['Push-Ups', 'Bench Press', 'Incline Press', 'Chest Dips']
     },
     {
       id: 'shoulders',
-      name: 'Shoulders (Deltoids)',
+      name: 'Deltoids (Shoulders)',
       short: 'DELTS',
-      subgroups: 'Front Delt · Lateral Delt · Rear Delt',
       side: 'BOTH',
-      stat: 'STR',
-      exercises: ['Overhead Press', 'Lateral Raises', 'Pike Push-ups', 'Face Pulls', 'Arnold Press']
+      preferredYaw: 0.45,
+      focusPos: [0.58, 1.06, 0.05],
+      subgroups: 'Front Delt • Lateral Delt • Rear Delt',
+      primaryStat: 'STR',
+      exercises: ['Overhead Press', 'Lateral Raises', 'Pike Push-Ups', 'Face Pulls']
     },
     {
       id: 'traps',
-      name: 'Trapezius (Upper / Mid)',
+      name: 'Trapezius (Yoke)',
       short: 'TRAPS',
-      subgroups: 'Upper Collar Traps · Mid Scapular Traps',
-      side: 'BOTH',
-      stat: 'STR',
-      exercises: ['Barbell Shrugs', 'Farmer Walks', 'Upright Rows', 'Rack Pulls']
+      side: 'BACK',
+      preferredYaw: 2.75,
+      focusPos: [0, 1.15, -0.18],
+      subgroups: 'Upper Traps • Mid Traps • Lower Traps',
+      primaryStat: 'VIT',
+      exercises: ['Barbell Shrugs', 'Farmer Carries', 'Rack Pulls', 'Upright Rows']
     },
     {
       id: 'biceps',
       name: 'Biceps Brachii',
       short: 'BICEPS',
-      subgroups: 'Long Head · Short Head · Brachialis',
       side: 'FRONT',
-      stat: 'STR',
-      exercises: ['Barbell Curls', 'Hammer Curls', 'Chin-ups', 'Incline Dumbbell Curls', 'Preacher Curls']
+      preferredYaw: 0.35,
+      focusPos: [0.68, 0.66, 0.14],
+      subgroups: 'Long Head • Short Head • Brachialis',
+      primaryStat: 'STR',
+      exercises: ['Barbell Curls', 'Hammer Curls', 'Chin-Ups', 'Incline Curls']
     },
     {
       id: 'triceps',
       name: 'Triceps Brachii',
       short: 'TRICEPS',
-      subgroups: 'Lateral Head · Long Head · Medial Head',
-      side: 'BOTH',
-      stat: 'STR',
-      exercises: ['Diamond Push-ups', 'Tricep Rope Pushdowns', 'Skullcrushers', 'Overhead Extensions', 'Bench Dips']
+      side: 'BACK',
+      preferredYaw: 2.55,
+      focusPos: [0.70, 0.66, -0.14],
+      subgroups: 'Lateral Head • Long Head • Medial Head',
+      primaryStat: 'STR',
+      exercises: ['Diamond Push-Ups', 'Tricep Dips', 'Skullcrushers', 'Rope Pushdowns']
     },
     {
       id: 'forearms',
       name: 'Forearms & Grip',
       short: 'FOREARMS',
-      subgroups: 'Brachioradialis · Wrist Flexors · Extensors',
       side: 'BOTH',
-      stat: 'STR',
-      exercises: ['Dead Hangs', 'Reverse Curls', 'Wrist Curls', 'Farmer Carries']
+      preferredYaw: 0.55,
+      focusPos: [0.80, 0.18, 0.08],
+      subgroups: 'Brachioradialis • Wrist Flexors • Extensors',
+      primaryStat: 'STR',
+      exercises: ['Dead Hangs', 'Wrist Curls', 'Reverse Curls', 'Farmer Hold']
     },
     {
       id: 'abs',
-      name: 'Abdominals (6-Pack)',
+      name: 'Rectus Abdominis (Core)',
       short: 'ABS',
-      subgroups: 'Upper Abs · Mid Rectus · Lower V-Core',
       side: 'FRONT',
-      stat: 'VIT',
-      exercises: ['Sit-ups', 'Hanging Leg Raises', 'Ab Wheel Rollouts', 'Hollow Body Hold', 'Cable Crunches']
+      preferredYaw: 0,
+      focusPos: [0, 0.32, 0.26],
+      subgroups: 'Upper Abs • Mid 6-Pack • Lower Core',
+      primaryStat: 'VIT',
+      exercises: ['Sit-Ups', 'Hanging Leg Raises', 'Ab Wheel Rollouts', 'Crunches']
     },
     {
       id: 'obliques',
       name: 'Obliques & Serratus',
       short: 'OBLIQUES',
-      subgroups: 'Serratus Anterior · External Obliques',
       side: 'FRONT',
-      stat: 'VIT',
+      preferredYaw: 0.78,
+      focusPos: [0.34, 0.34, 0.16],
+      subgroups: 'External Obliques • Serratus Anterior • Transverse',
+      primaryStat: 'AGI',
       exercises: ['Russian Twists', 'Side Planks', 'Woodchoppers', 'Bicycle Crunches']
     },
     {
       id: 'lats',
       name: 'Lats (V-Taper Wings)',
       short: 'LATS',
-      subgroups: 'Latissimus Dorsi · Teres Major Sweep',
-      side: 'BOTH',
-      stat: 'STR',
-      exercises: ['Pull-ups', 'Wide-Grip Lat Pulldowns', 'Single-Arm Dumbbell Rows', 'Straight-Arm Pulldowns']
+      side: 'BACK',
+      preferredYaw: 2.85,
+      focusPos: [0.38, 0.64, -0.22],
+      subgroups: 'Latissimus Dorsi • Teres Major',
+      primaryStat: 'STR',
+      exercises: ['Pull-Ups', 'Lat Pulldowns', 'Barbell Rows', 'Single-Arm Rows']
     },
     {
       id: 'upper_back',
       name: 'Upper Back (Rhomboids)',
       short: 'UPPER BACK',
-      subgroups: 'Rhomboids · Infraspinatus · Mid Back',
       side: 'BACK',
-      stat: 'STR',
-      exercises: ['Barbell Bent-Over Rows', 'Seated Cable Rows', 'Chest-Supported Rows', 'Inverted Rows']
+      preferredYaw: 3.14,
+      focusPos: [0, 0.88, -0.25],
+      subgroups: 'Rhomboids • Infraspinatus • Rear Scapula',
+      primaryStat: 'VIT',
+      exercises: ['Chest-Supported Rows', 'Seated Cable Rows', 'Pull-Aparts', 'Inverted Rows']
     },
     {
       id: 'lower_back',
       name: 'Lower Back (Erectors)',
       short: 'LOWER BACK',
-      subgroups: 'Erector Spinae · Lumbar Core',
       side: 'BACK',
-      stat: 'VIT',
+      preferredYaw: 3.14,
+      focusPos: [0, 0.25, -0.22],
+      subgroups: 'Erector Spinae • Lumbar Posterior Chain',
+      primaryStat: 'VIT',
       exercises: ['Deadlifts', 'Back Extensions', 'Good Mornings', 'Superman Holds']
     },
     {
       id: 'quads',
       name: 'Quadriceps (Front Legs)',
       short: 'QUADS',
-      subgroups: 'Rectus Femoris · Vastus Lateralis · Vastus Medialis',
       side: 'FRONT',
-      stat: 'VIT',
-      exercises: ['Squats', 'Bulgarian Split Squats', 'Leg Press', 'Lunges', 'Leg Extensions']
+      preferredYaw: 0.15,
+      focusPos: [0.26, -0.62, 0.20],
+      subgroups: 'Rectus Femoris • Vastus Lateralis • Vastus Medialis',
+      primaryStat: 'STR',
+      exercises: ['Squats', 'Bulgarian Split Squats', 'Leg Press', 'Lunges']
     },
     {
       id: 'hamstrings',
       name: 'Hamstrings (Rear Thighs)',
       short: 'HAMSTRINGS',
-      subgroups: 'Biceps Femoris · Semitendinosus',
       side: 'BACK',
-      stat: 'AGI',
-      exercises: ['Romanian Deadlifts', 'Lying Leg Curls', 'Nordic Hamstring Curls', 'Glute-Ham Raises']
+      preferredYaw: 3.14,
+      focusPos: [0.26, -0.68, -0.20],
+      subgroups: 'Biceps Femoris • Semitendinosus • Semimembranosus',
+      primaryStat: 'AGI',
+      exercises: ['Romanian Deadlifts', 'Hamstring Curls', 'Nordic Curls', 'Glute-Ham Raise']
     },
     {
       id: 'glutes',
       name: 'Glutes (Posterior Chain)',
       short: 'GLUTES',
-      subgroups: 'Gluteus Maximus · Gluteus Medius',
       side: 'BACK',
-      stat: 'VIT',
-      exercises: ['Hip Thrusts', 'Deep Squats', 'Step-ups', 'Walking Lunges']
+      preferredYaw: 3.0,
+      focusPos: [0.22, -0.14, -0.25],
+      subgroups: 'Gluteus Maximus • Gluteus Medius',
+      primaryStat: 'STR',
+      exercises: ['Hip Thrusts', 'Deep Squats', 'Step-Ups', 'Kettlebell Swings']
     },
     {
       id: 'calves',
       name: 'Calves (Lower Legs)',
       short: 'CALVES',
-      subgroups: 'Gastrocnemius · Soleus',
       side: 'BOTH',
-      stat: 'AGI',
-      exercises: ['Standing Calf Raises', 'Seated Calf Raises', 'Jump Squats', 'Plyo Hops']
+      preferredYaw: 2.75,
+      focusPos: [0.28, -1.42, -0.16],
+      subgroups: 'Gastrocnemius • Soleus • Tibialis',
+      primaryStat: 'AGI',
+      exercises: ['Standing Calf Raises', 'Seated Calf Raises', 'Jump Rope', 'Plyo Jumps']
     }
   ];
 
-  var MUSCLE_MAP = {};
+  var MUSCLE_MAP = S.MUSCLE_MAP = {};
   MUSCLES.forEach(function (m) { MUSCLE_MAP[m.id] = m; });
 
-  S.MUSCLES = MUSCLES;
-  S.MUSCLE_MAP = MUSCLE_MAP;
-
-  // 6 Progression Tiers (Color + Brightness Scaling)
-  var TIERS = [
+  /* ============================================================================
+      SOLO LEVELING MUSCLE OVERDRIVE TIERS (COLOR + BRIGHTNESS + GLOW)
+     ============================================================================ */
+  var TIERS = S.OVERDRIVE_TIERS = [
     {
       rank: 'DORMANT',
       code: 'UNAWAKENED',
       minSets: 0,
       maxSets: 0,
-      spectrum: { base: '#2D3545', hi: '#3B4559', glow: 'rgba(148,163,184,0)', text: '#94A3B8' },
-      neon:     { base: '#1E293B', hi: '#334155', glow: 'rgba(0,229,255,0)',   text: '#64748B' },
-      crimson:  { base: '#27272A', hi: '#3F3F46', glow: 'rgba(255,0,60,0)',    text: '#71717A' }
+      spectrum: { base: '#2D3545', hi: '#3B4559', stroke: '#4A5568', text: '#94A3B8', glow: 'rgba(148,163,184,0)' },
+      neon:     { base: '#252F3F', hi: '#334155', stroke: '#475569', text: '#94A3B8', glow: 'rgba(0,229,255,0)' },
+      crimson:  { base: '#2A2633', hi: '#3B3345', stroke: '#524763', text: '#94A3B8', glow: 'rgba(255,42,75,0)' }
     },
     {
       rank: 'E-RANK',
       code: 'AWAKENED',
       minSets: 1,
       maxSets: 3,
-      // Tactical Blue (like Biceps/Forearms in reference)
-      spectrum: { base: '#1D4ED8', hi: '#3B82F6', glow: 'rgba(59,130,246,0.45)', text: '#60A5FA' },
-      neon:     { base: '#0E4F70', hi: '#0284C7', glow: 'rgba(2,132,199,0.35)',  text: '#38BDF8' },
-      crimson:  { base: '#4C1D95', hi: '#7C3AED', glow: 'rgba(124,58,237,0.4)',  text: '#A78BFA' }
+      spectrum: { base: '#1D4ED8', hi: '#3B82F6', stroke: '#60A5FA', text: '#60A5FA', glow: 'rgba(59,130,246,0.45)' },
+      neon:     { base: '#0369A1', hi: '#0284C7', stroke: '#38BDF8', text: '#38BDF8', glow: 'rgba(56,189,248,0.45)' },
+      crimson:  { base: '#6D28D9', hi: '#8B5CF6', stroke: '#A78BFA', text: '#A78BFA', glow: 'rgba(139,92,246,0.45)' }
     },
     {
       rank: 'C-RANK',
-      code: 'TEMPERED',
+      code: 'CHARGED',
       minSets: 4,
       maxSets: 7,
-      // Bio-Emerald Green (like Abs/Obliques in reference)
-      spectrum: { base: '#059669', hi: '#22C55E', glow: 'rgba(34,197,94,0.55)',  text: '#4ADE80' },
-      neon:     { base: '#0077B6', hi: '#00B4D8', glow: 'rgba(0,180,216,0.55)',  text: '#00E5FF' },
-      crimson:  { base: '#9D174D', hi: '#E11D48', glow: 'rgba(225,29,72,0.5)',   text: '#FB7185' }
+      spectrum: { base: '#15803D', hi: '#22C55E', stroke: '#4ADE80', text: '#4ADE80', glow: 'rgba(34,197,94,0.55)' },
+      neon:     { base: '#0E7490', hi: '#06B6D4', stroke: '#22D3EE', text: '#22D3EE', glow: 'rgba(6,182,212,0.58)' },
+      crimson:  { base: '#BE185D', hi: '#EC4899', stroke: '#F472B6', text: '#F472B6', glow: 'rgba(236,72,153,0.55)' }
     },
     {
       rank: 'B-RANK',
-      code: 'FORGED',
+      code: 'SURGING',
       minSets: 8,
       maxSets: 12,
-      // Electric System Cyan (like Delts/Traps in reference)
-      spectrum: { base: '#00B4D8', hi: '#22D3EE', glow: 'rgba(0,229,255,0.7)',   text: '#00E5FF' },
-      neon:     { base: '#00B4D8', hi: '#00E5FF', glow: 'rgba(0,229,255,0.75)',  text: '#67E8F9' },
-      crimson:  { base: '#BE123C', hi: '#F43F5E', glow: 'rgba(244,63,94,0.65)',  text: '#FDA4AF' }
+      spectrum: { base: '#00B4D8', hi: '#22D3EE', stroke: '#67E8F9', text: '#00E5FF', glow: 'rgba(0,229,255,0.70)' },
+      neon:     { base: '#00B4D8', hi: '#00F0FF', stroke: '#A5F3FC', text: '#00F0FF', glow: 'rgba(0,240,255,0.78)' },
+      crimson:  { base: '#B91C1C', hi: '#EF4444', stroke: '#F87171', text: '#F87171', glow: 'rgba(239,68,68,0.68)' }
     },
     {
       rank: 'A-RANK',
       code: 'OVERDRIVE',
       minSets: 13,
       maxSets: 19,
-      // Blood Blaze Crimson Red (like Chest/Triceps in reference)
-      spectrum: { base: '#DC2626', hi: '#FF2A4B', glow: 'rgba(255,30,66,0.82)',  text: '#FF4D6D' },
-      neon:     { base: '#7C3AED', hi: '#C084FC', glow: 'rgba(168,85,247,0.85)', text: '#D8B4FE' },
-      crimson:  { base: '#E11D48', hi: '#FF003C', glow: 'rgba(255,0,60,0.85)',   text: '#FF4D6D' }
+      spectrum: { base: '#DC2626', hi: '#FF2A4B', stroke: '#FDA4AF', text: '#FF4D6D', glow: 'rgba(255,30,66,0.82)' },
+      neon:     { base: '#7C3AED', hi: '#A855F7', stroke: '#E9D5FF', text: '#C084FC', glow: 'rgba(168,85,247,0.85)' },
+      crimson:  { base: '#E11D48', hi: '#FF1E42', stroke: '#FECDD3', text: '#FF4D6D', glow: 'rgba(255,30,66,0.85)' }
     },
     {
       rank: 'S-RANK',
-      code: 'MONARCH VESSEL',
+      code: 'MONARCH',
       minSets: 20,
       maxSets: 999,
-      // Sovereign Gold / Mythic Radiance
-      spectrum: { base: '#F59E0B', hi: '#FFD166', glow: 'rgba(255,183,3,0.95)',  text: '#FFB703' },
-      neon:     { base: '#00E5FF', hi: '#E0F2FE', glow: 'rgba(0,229,255,1)',     text: '#FFFFFF' },
-      crimson:  { base: '#FF003C', hi: '#FFB703', glow: 'rgba(255,183,3,0.95)',  text: '#FFB703' }
+      spectrum: { base: '#F59E0B', hi: '#FFD166', stroke: '#FEF08A', text: '#FFB703', glow: 'rgba(255,183,3,0.95)' },
+      neon:     { base: '#00F0FF', hi: '#E0F2FE', stroke: '#FFFFFF', text: '#00F0FF', glow: 'rgba(0,240,255,0.98)' },
+      crimson:  { base: '#F97316', hi: '#FACC15', stroke: '#FEF08A', text: '#FBBF24', glow: 'rgba(250,204,21,0.95)' }
     }
   ];
 
-  // Interpolate two hex colors by factor t in [0, 1]
-  function lerpColor(hexA, hexB, t) {
-    t = Math.max(0, Math.min(1, t));
-    var a = parseInt(hexA.slice(1), 16);
-    var b = parseInt(hexB.slice(1), 16);
-    var r1 = (a >> 16) & 255, g1 = (a >> 8) & 255, b1 = a & 255;
-    var r2 = (b >> 16) & 255, g2 = (b >> 8) & 255, b2 = b & 255;
-    var r = Math.round(r1 + (r2 - r1) * t);
-    var g = Math.round(g1 + (g2 - g1) * t);
-    var bl = Math.round(b1 + (b2 - b1) * t);
-    return '#' + ((1 << 24) + (r << 16) + (g << 8) + bl).toString(16).slice(1);
+  function hexToRgb(hex) {
+    var clean = String(hex || '#2D3545').replace('#', '');
+    if (clean.length === 3) {
+      clean = clean[0] + clean[0] + clean[1] + clean[1] + clean[2] + clean[2];
+    }
+    var num = parseInt(clean, 16) || 0;
+    return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
   }
 
-  // Compute exact color, brightness, opacity, and tier info for a given set count
+  function lerpColor(hexA, hexB, t) {
+    t = Math.max(0, Math.min(1, Number(t) || 0));
+    var a = hexToRgb(hexA);
+    var b = hexToRgb(hexB);
+    var r = Math.round(a.r + (b.r - a.r) * t);
+    var g = Math.round(a.g + (b.g - a.g) * t);
+    var bl = Math.round(a.b + (b.b - a.b) * t);
+    return '#' + ((1 << 24) + (r << 16) + (g << 8) + bl).toString(16).slice(1).toUpperCase();
+  }
+
   S.getMuscleVisuals = function (sets, paletteMode) {
-    sets = Math.max(0, Math.round((Number(sets) || 0) * 10) / 10);
-    paletteMode = paletteMode || (S.state && S.state.muscleLog && S.state.muscleLog.palette) || 'spectrum';
+    var s = Math.max(0, Math.round((Number(sets) || 0) * 10) / 10);
+    var mode = paletteMode || (S.state && S.state.muscleLog && S.state.muscleLog.palette) || 'spectrum';
+    if (!TIERS[0][mode]) mode = 'spectrum';
 
     var tierIdx = 0;
     for (var i = TIERS.length - 1; i >= 1; i--) {
-      if (sets >= TIERS[i].minSets) {
+      if (s >= TIERS[i].minSets) {
         tierIdx = i;
         break;
       }
     }
     var tier = TIERS[tierIdx];
-    var pal = tier[paletteMode] || tier.spectrum;
+    var pal = tier[mode];
 
-    if (tierIdx === 0) {
-      return {
-        tierIdx: 0,
-        rank: tier.rank,
-        code: tier.code,
-        sets: 0,
-        fill: pal.base,
-        stroke: '#475569',
-        textColor: pal.text,
-        glow: 'none',
-        brightness: 0.78,
-        opacity: 0.52,
-        pctWithinTier: 0,
-        overallPct: 0,
-        nextTierSets: 1
-      };
+    var subRatio = 0;
+    if (tierIdx > 0) {
+      var span = Math.max(1, (tierIdx === TIERS.length - 1 ? 10 : (tier.maxSets - tier.minSets + 1)));
+      subRatio = Math.min(1, (s - tier.minSets) / span);
     }
 
-    var span = Math.max(1, tier.maxSets - tier.minSets + 1);
-    var within = Math.min(1, (sets - tier.minSets) / span);
-    var fill = lerpColor(pal.base, pal.hi, 0.25 + within * 0.75);
-    var brightness = +(0.92 + tierIdx * 0.06 + within * 0.18).toFixed(2);
-    var opacity = +(0.78 + Math.min(0.22, tierIdx * 0.04 + within * 0.08)).toFixed(2);
-    var blurPx = Math.round(4 + tierIdx * 2.5 + within * 4);
-    var nextTier = TIERS[Math.min(TIERS.length - 1, tierIdx + 1)];
+    var fill = tierIdx === 0 ? pal.base : lerpColor(pal.base, pal.hi, 0.35 + subRatio * 0.65);
+    var brightness = tierIdx === 0 ? 0.78 : (0.96 + tierIdx * 0.055 + subRatio * 0.06);
+    var glowRadius = tierIdx === 0 ? 0 : Math.round(4 + tierIdx * 3 + subRatio * 4);
+    var opacity = tierIdx === 0 ? 0.72 : Math.min(1, 0.86 + tierIdx * 0.025 + subRatio * 0.02);
+    var emissiveIntensity = tierIdx === 0 ? 0.05 : Math.min(0.92, 0.18 + tierIdx * 0.12 + subRatio * 0.14);
 
     return {
+      sets: s,
       tierIdx: tierIdx,
       rank: tier.rank,
       code: tier.code,
-      sets: sets,
       fill: fill,
-      stroke: lerpColor(fill, '#FFFFFF', 0.35),
+      baseColor: pal.base,
+      hiColor: pal.hi,
+      stroke: pal.stroke,
       textColor: pal.text,
-      glow: 'drop-shadow(0 0 ' + blurPx + 'px ' + pal.glow + ')',
-      brightness: brightness,
-      opacity: opacity,
-      pctWithinTier: Math.round(within * 100),
-      overallPct: Math.min(100, Math.round((sets / 20) * 100)),
-      nextTierSets: tierIdx < TIERS.length - 1 ? nextTier.minSets : null
+      glowColor: pal.glow,
+      glow: glowRadius > 0 ? ('drop-shadow(0 0 ' + glowRadius + 'px ' + pal.glow + ')') : 'none',
+      brightness: Math.round(brightness * 100) / 100,
+      opacity: Math.round(opacity * 100) / 100,
+      emissiveIntensity: Math.round(emissiveIntensity * 100) / 100,
+      subRatio: subRatio,
+      nextTierSets: tierIdx < TIERS.length - 1 ? TIERS[tierIdx + 1].minSets : null,
+      overallPct: Math.min(100, Math.round((s / 20) * 100))
     };
   };
 
-  // Smart inference of primary & secondary muscles from any quest or exercise title
+  /* ============================================================================
+      AUTOMATIC QUEST -> MUSCLE INFERENCE & STATE LOGGING ENGINE
+     ============================================================================ */
+  var KEYWORD_RULES = [
+    { rx: /push[\s-]*up|bench|chest|pec|fly|dip/i, muscles: ['chest', 'triceps', 'shoulders'] },
+    { rx: /incline\s*(press|bench|push)/i, muscles: ['chest', 'shoulders', 'triceps'] },
+    { rx: /pull[\s-]*up|chin[\s-]*up|lat|pulldown|muscle[\s-]*up/i, muscles: ['lats', 'biceps', 'upper_back', 'forearms'] },
+    { rx: /row|rhomboid|rear\s*delt|face\s*pull/i, muscles: ['upper_back', 'lats', 'biceps', 'traps'] },
+    { rx: /shoulder|overhead|military|ohp|deltoid|lateral\s*raise|pike|handstand/i, muscles: ['shoulders', 'traps', 'triceps'] },
+    { rx: /shrug|trap|yoke|farmer/i, muscles: ['traps', 'forearms'] },
+    { rx: /curl|bicep/i, muscles: ['biceps', 'forearms'] },
+    { rx: /tricep|skullcrusher|pushdown|extension|diamond\s*push/i, muscles: ['triceps', 'chest'] },
+    { rx: /forearm|grip|hang|wrist/i, muscles: ['forearms', 'biceps'] },
+    { rx: /sit[\s-]*up|crunch|ab|core|plank|leg\s*raise|hollow|l[\s-]*sit|v[\s-]*up/i, muscles: ['abs', 'obliques'] },
+    { rx: /oblique|twist|side\s*plank|woodchop/i, muscles: ['obliques', 'abs'] },
+    { rx: /squat|lunge|split\s*squat|leg\s*press|step[\s-]*up|wall\s*sit|pistol/i, muscles: ['quads', 'glutes', 'hamstrings', 'calves'] },
+    { rx: /deadlift|rdl|romanian|good\s*morning|back\s*extension|hinge/i, muscles: ['hamstrings', 'glutes', 'lower_back', 'traps', 'forearms'] },
+    { rx: /hip\s*thrust|glute|bridge|kickback/i, muscles: ['glutes', 'hamstrings'] },
+    { rx: /hamstring|leg\s*curl|nordic/i, muscles: ['hamstrings', 'glutes', 'calves'] },
+    { rx: /calf|calves|jump\s*rope|skip|box\s*jump|plyo/i, muscles: ['calves', 'quads'] },
+    { rx: /burpee|full\s*body|hiit|thruster|clean|snatch|kettlebell|circuit/i, muscles: ['chest', 'shoulders', 'abs', 'quads', 'glutes', 'calves'] }
+  ];
+
   S.inferMusclesFromQuest = function (q) {
     if (!q) return [];
     if (Array.isArray(q.muscles) && q.muscles.length) {
-      return q.muscles.filter(function (m) { return !!MUSCLE_MAP[m]; });
+      return q.muscles.filter(function (id) { return !!MUSCLE_MAP[id]; });
     }
-    var cat = q.category || 'HABIT';
-    if (cat === 'STUDY' || cat === 'FOCUS' || cat === 'HABIT') {
-      // still check if title explicitly names a physical exercise
-      var checkT = String(q.title || '').toLowerCase();
-      if (!/push.?up|sit.?up|squat|plank|pull.?up|dip|curl|bench|deadlift|lunge|burpee|crunch|row|press|calf|glute|ab\b|abs\b/.test(checkT)) {
-        return [];
-      }
-    }
-
-    var t = String(q.title || '').toLowerCase();
     var preset = String(q.preset || '').toLowerCase();
-    var out = [];
-    function add(id) {
-      if (MUSCLE_MAP[id] && out.indexOf(id) === -1) out.push(id);
-    }
+    if (preset === 'pushups') return ['chest', 'triceps', 'shoulders'];
+    if (preset === 'situps') return ['abs', 'obliques'];
+    if (preset === 'squats') return ['quads', 'glutes', 'hamstrings', 'calves'];
 
-    if (preset === 'pushups' || /push.?up|bench|chest|pec|fly|flies|svend/.test(t)) {
-      add('chest'); add('triceps'); add('shoulders');
-    }
-    if (/dip/.test(t)) {
-      add('chest'); add('triceps'); add('shoulders');
-    }
-    if (preset === 'situps' || /sit.?up|crunch|plank|hollow|ab\b|abs\b|core|leg raise|v.?up|flutter|rollout/.test(t)) {
-      add('abs'); add('obliques');
-    }
-    if (/oblique|twist|side plank|woodchop/.test(t)) {
-      add('obliques'); add('abs');
-    }
-    if (preset === 'squats' || /squat|leg press|lunge|split squat|wall sit|step.?up|quad|hack/.test(t)) {
-      add('quads'); add('glutes'); add('calves');
-    }
-    if (/jump squat|plyo|box jump/.test(t)) {
-      add('quads'); add('calves'); add('glutes');
-    }
-    if (/pull.?up|chin.?up|pulldown|lat\b|lats\b|muscle.?up/.test(t)) {
-      add('lats'); add('upper_back'); add('biceps'); add('forearms');
-    }
-    if (/row|rhomboid|rear delt|face pull|inverted/.test(t)) {
-      add('upper_back'); add('lats'); add('biceps'); add('shoulders');
-    }
-    if (/deadlift|rdl|romanian|good morning|hyperextension|back extension|superman/.test(t)) {
-      add('lower_back'); add('hamstrings'); add('glutes'); add('traps'); add('forearms');
-    }
-    if (/hamstring|leg curl|nordic/.test(t)) {
-      add('hamstrings'); add('glutes');
-    }
-    if (/glute|hip thrust|bridge/.test(t)) {
-      add('glutes'); add('hamstrings');
-    }
-    if (/shoulder|overhead|ohp|military|lateral raise|front raise|pike|handstand|arnold|delt/.test(t)) {
-      add('shoulders'); add('triceps'); add('traps');
-    }
-    if (/shrug|trap|farmer|rack pull/.test(t)) {
-      add('traps'); add('forearms');
-    }
-    if (/bicep|curl|chin/.test(t)) {
-      add('biceps'); add('forearms');
-    }
-    if (/tricep|skullcrusher|pushdown|kickback|close.?grip/.test(t)) {
-      add('triceps');
-    }
-    if (/forearm|grip|dead hang|wrist/.test(t)) {
-      add('forearms');
-    }
-    if (/calf|calves|jump rope|skip/.test(t)) {
-      add('calves');
-    }
-    if (/burpee|circuit|full.?body|conditioning|sprawl|bear crawl|mountain climber/.test(t)) {
-      add('chest'); add('quads'); add('abs'); add('shoulders'); add('calves'); add('triceps');
-    }
+    var title = String(q.title || '');
+    var found = [];
+    KEYWORD_RULES.forEach(function (rule) {
+      if (rule.rx.test(title)) {
+        rule.muscles.forEach(function (mId) {
+          if (found.indexOf(mId) === -1) found.push(mId);
+        });
+      }
+    });
+    if (found.length) return found;
 
-    // Fallback for generic GYM / CALISTHENICS quests with custom names
-    if (out.length === 0 && (cat === 'CALISTHENICS' || cat === 'GYM' || cat === 'PENALTY')) {
-      if (/upper|push/.test(t)) { add('chest'); add('shoulders'); add('triceps'); }
-      else if (/pull|back/.test(t)) { add('lats'); add('upper_back'); add('biceps'); }
-      else if (/leg|lower/.test(t)) { add('quads'); add('hamstrings'); add('glutes'); add('calves'); }
-      else if (/arm/.test(t)) { add('biceps'); add('triceps'); add('forearms'); }
-      else { add('chest'); add('abs'); add('quads'); }
+    var cat = String(q.category || '').toUpperCase();
+    if (cat === 'STRENGTH' || cat === 'GYM') {
+      return ['chest', 'shoulders', 'lats', 'biceps', 'triceps'];
     }
-
-    return out;
+    if (cat === 'CALISTHENICS') {
+      return ['chest', 'abs', 'shoulders', 'triceps', 'lats'];
+    }
+    if (cat === 'MOBILITY') {
+      return ['lower_back', 'hamstrings', 'glutes', 'shoulders'];
+    }
+    return [];
   };
 
-  // Ensure S.state.muscleLog exists and seed from completed quests if brand new
   S.ensureMuscleLog = function () {
+    if (!S.state) return null;
     var s = S.state;
-    if (!s) return null;
     if (!s.muscleLog || typeof s.muscleLog !== 'object') {
       s.muscleLog = {
-        updatedAt: Date.now(),
+        days: {},
+        allTime: {},
+        lastTrained: {},
+        questCredited: {},
         palette: 'spectrum',
         timeframe: '7D',
-        days: {},      // { 'YYYY-MM-DD': { chest: 3, abs: 2, ... } }
-        allTime: {},   // { chest: 12, ... }
-        lastTrained: {}, // { chest: 'YYYY-MM-DD', ... }
-        questCredited: {} // { 'questId_YYYY-MM-DD': { chest: 3, ... } }
+        updatedAt: Date.now()
       };
     }
-    s.muscleLog.days = s.muscleLog.days || {};
-    s.muscleLog.allTime = s.muscleLog.allTime || {};
-    s.muscleLog.lastTrained = s.muscleLog.lastTrained || {};
-    s.muscleLog.questCredited = s.muscleLog.questCredited || {};
+    if (!s.muscleLog.days) s.muscleLog.days = {};
+    if (!s.muscleLog.allTime) s.muscleLog.allTime = {};
+    if (!s.muscleLog.lastTrained) s.muscleLog.lastTrained = {};
+    if (!s.muscleLog.questCredited) s.muscleLog.questCredited = {};
     if (!s.muscleLog.palette) s.muscleLog.palette = 'spectrum';
     if (!s.muscleLog.timeframe) s.muscleLog.timeframe = '7D';
 
-    // Retroactively credit any already-progressed quests today that haven't been credited yet
     if (Array.isArray(s.quests)) {
       var changed = false;
       s.quests.forEach(function (q) {
@@ -413,7 +400,6 @@ window.SYS = window.SYS || {};
     return s.muscleLog;
   };
 
-  // Convert quest progress into effective muscle sets (1 to 4 sets per completed quest)
   function computeQuestEffectiveSets(q) {
     if (!q) return 0;
     var prog = Number(q.currentProgress) || 0;
@@ -425,7 +411,6 @@ window.SYS = window.SYS || {};
     if (q.unit === 'SETS') {
       fullSets = Math.max(1, Math.min(10, targ));
     } else if (q.unit === 'REPS') {
-      // e.g. 25 reps = 2 sets, 50 reps = 3 sets, 100 reps = 4 sets
       fullSets = Math.max(2, Math.min(6, Math.round(targ / 25) + 1));
     } else if (q.unit === 'MINS') {
       fullSets = Math.max(2, Math.min(5, Math.round(targ / 15) + 1));
@@ -435,7 +420,6 @@ window.SYS = window.SYS || {};
     return Math.round(fullSets * ratio * 10) / 10;
   }
 
-  // Synchronize a quest's current progress with S.state.muscleLog (idempotent delta update)
   S.syncQuestMuscleCredit = function (q, silent) {
     if (!q || !S.state) return false;
     var muscles = S.inferMusclesFromQuest(q);
@@ -451,7 +435,6 @@ window.SYS = window.SYS || {};
     var anyDiff = false;
 
     muscles.forEach(function (mId, idx) {
-      // Primary muscle gets 100% of sets, secondary gets ~70%
       var weight = idx === 0 ? 1 : (idx === 1 ? 0.85 : 0.65);
       var newVal = Math.round(totalSets * weight * 10) / 10;
       var oldVal = Number(prevCredited[mId]) || 0;
@@ -473,7 +456,6 @@ window.SYS = window.SYS || {};
     return anyDiff;
   };
 
-  // Manual / Direct Muscle Set Logging from the Physique HUD
   S.logMuscleSets = function (muscleId, deltaSets, exerciseName) {
     if (!MUSCLE_MAP[muscleId]) return false;
     var ml = S.ensureMuscleLog();
@@ -484,7 +466,6 @@ window.SYS = window.SYS || {};
     var after = Math.max(0, Math.round((before + deltaSets) * 10) / 10);
     var actualDelta = Math.round((after - before) * 10) / 10;
     if (actualDelta === 0 && deltaSets < 0) {
-      // Allow reducing allTime if today is already 0
       var allBefore = Number(ml.allTime[muscleId]) || 0;
       ml.allTime[muscleId] = Math.max(0, Math.round((allBefore + deltaSets) * 10) / 10);
       ml.updatedAt = Date.now();
@@ -496,7 +477,6 @@ window.SYS = window.SYS || {};
     ml.allTime[muscleId] = Math.max(0, Math.round(((Number(ml.allTime[muscleId]) || 0) + actualDelta) * 10) / 10);
     if (actualDelta > 0) {
       ml.lastTrained[muscleId] = dateKey;
-      // Award small Hunter XP & rep record for manual workout logging
       if (S.state && S.state.profile && !S.isFrozen()) {
         var xpGain = Math.round(actualDelta * 12);
         S.state.profile.currentXp = (S.state.profile.currentXp || 0) + xpGain;
@@ -508,7 +488,6 @@ window.SYS = window.SYS || {};
     return true;
   };
 
-  // Reset a single muscle or all muscles
   S.resetMuscleProgress = function (muscleId) {
     var ml = S.ensureMuscleLog();
     if (!ml) return;
@@ -531,7 +510,6 @@ window.SYS = window.SYS || {};
     S.commit();
   };
 
-  // Compute aggregated sets per muscle for a given timeframe ('TODAY' | '7D' | '30D' | 'ALL')
   S.getMuscleScores = function (timeframe) {
     var ml = S.ensureMuscleLog();
     timeframe = timeframe || (ml && ml.timeframe) || '7D';
@@ -565,264 +543,932 @@ window.SYS = window.SYS || {};
   };
 
   /* ============================================================================
-     HIGH-PRECISION ANATOMICAL SVG BODY DIAGRAM (SOLO LEVELING HUNTER SILHOUETTE)
+      THREE.JS 3D INTERACTIVE ANATOMICAL HUNTER ENGINE
+      Full 360° rotatable 3D muscular body with raycast selection, dynamic
+      emissive overdrive lighting, anatomical fiber wireframes & HUD callout
      ============================================================================ */
-  function buildMuscleGroupAttrs(mId, visualsMap, selectedMuscle) {
-    var v = visualsMap[mId] || S.getMuscleVisuals(0);
-    var isSel = selectedMuscle === mId;
-    var cls = ' vessel-muscle-group' + (isSel ? ' selected' : '') + (v.tierIdx > 0 ? ' active-tier-' + v.tierIdx : '');
-    var style = 'fill:' + v.fill + ';fill-opacity:' + v.opacity + ';stroke:' + (isSel ? '#FFFFFF' : v.stroke) + ';stroke-width:' + (isSel ? '1.8' : '1.05') + ';filter:brightness(' + v.brightness + ')' + (v.glow !== 'none' ? ' ' + v.glow : '') + ';';
-    return 'class="' + cls.trim() + '" data-muscle="' + mId + '" style="' + style + '"';
-  }
+  var selectedMuscleId = 'chest';
+  var threeCtx = null; // Persistent singleton 3D context
 
-  S.renderAnatomySvg = function (side, visualsMap, selectedMuscle) {
-    side = (side || 'FRONT').toUpperCase();
-    var g = function (mId) { return buildMuscleGroupAttrs(mId, visualsMap, selectedMuscle); };
-
-    // Shared Head, Spiky Manhwa Hair, Neck, Hands & Feet Silhouette
-    var headAndHair =
-      // Tactical Ground Grid Halo
-      '<ellipse cx="150" cy="614" rx="88" ry="14" fill="rgba(0,229,255,0.06)" stroke="rgba(0,229,255,0.32)" stroke-width="1" stroke-dasharray="4 3"/>' +
-      '<ellipse cx="150" cy="614" rx="52" ry="7" fill="rgba(0,229,255,0.1)" stroke="rgba(0,229,255,0.5)" stroke-width="0.8"/>' +
-      // Base Inert Body Silhouette (Head, Neck, Hands, Knees, Ankles, Feet)
-      '<g class="vessel-base-silhouette" fill="#363E4D" stroke="#526077" stroke-width="1.1">' +
-        // Neck column
-        '<path d="M136,78 L164,78 L167,104 L133,104 Z" fill="#2E3646"/>' +
-        // Head contour + ears
-        '<path d="M126,44 C124,25 135,16 150,16 C165,16 176,25 174,44 C177,45 178,51 175,56 C173,68 162,81 150,83 C138,81 127,68 125,56 C122,51 123,45 126,44 Z"/>' +
-        // Sung Jin-Woo style spiky manhwa hair
-        '<path d="M122,46 C117,36 120,22 130,14 L126,18 L136,9 L135,14 L147,6 L149,12 L160,7 L159,13 L171,12 L168,18 C178,22 183,35 178,47 C176,40 173,35 169,32 L167,39 L161,31 L156,41 L150,30 L144,40 L139,31 L133,39 L130,32 C126,36 124,41 122,46 Z" fill="#1E2533" stroke="#64748B" stroke-width="1"/>' +
-        (side === 'FRONT'
-          ? '<path d="M135,48 L144,50 M156,50 L165,48" stroke="#00E5FF" stroke-width="1.6" stroke-linecap="round" opacity="0.85"/>'
-          : '') +
-        // Left & Right Hands
-        '<path d="M59,308 L49,322 L47,338 L53,344 L58,334 L61,346 L68,342 L70,326 L68,310 Z"/>' +
-        '<path d="M241,308 L251,322 L253,338 L247,344 L242,334 L239,346 L232,342 L230,326 L232,310 Z"/>' +
-        // Knee caps / joints
-        '<ellipse cx="116" cy="442" rx="14" ry="13" fill="#2B3342"/>' +
-        '<ellipse cx="184" cy="442" rx="14" ry="13" fill="#2B3342"/>' +
-        // Ankles & Feet
-        '<path d="M101,568 L116,568 L120,598 L124,612 L92,614 L90,604 L99,592 Z"/>' +
-        '<path d="M199,568 L184,568 L180,598 L176,612 L208,614 L210,604 L201,592 Z"/>' +
-      '</g>';
-
-    if (side === 'FRONT') {
-      return '<svg class="vessel-svg" viewBox="0 0 300 635" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Front Muscle Anatomy Map">' +
-        headAndHair +
-
-        // 1. TRAPS (Front Collar Sweeps)
-        '<g ' + g('traps') + '>' +
-          '<path d="M133,88 L100,105 L118,113 L137,102 Z"/>' +
-          '<path d="M167,88 L200,105 L182,113 L163,102 Z"/>' +
-        '</g>' +
-
-        // 2. SHOULDERS (Anterior & Lateral Deltoids)
-        '<g ' + g('shoulders') + '>' +
-          // Left Front + Side Delt
-          '<path d="M100,105 C78,110 68,128 69,154 C74,162 84,165 94,158 C101,142 108,126 115,114 Z"/>' +
-          '<path d="M69,154 C65,140 68,120 82,110 C75,126 75,144 82,162 C76,161 71,158 69,154 Z" opacity="0.88"/>' +
-          // Right Front + Side Delt
-          '<path d="M200,105 C222,110 232,128 231,154 C226,162 216,165 206,158 C199,142 192,126 185,114 Z"/>' +
-          '<path d="M231,154 C235,140 232,120 218,110 C225,126 225,144 218,162 C224,161 229,158 231,154 Z" opacity="0.88"/>' +
-          '<text x="89" y="139" class="vessel-micro-label">Front Delt</text>' +
-          '<text x="211" y="139" class="vessel-micro-label">Front Delt</text>' +
-        '</g>' +
-
-        // 3. CHEST (Upper Clavicular, Mid Sternal, Lower Costal Pectorals)
-        '<g ' + g('chest') + '>' +
-          // Left Upper Chest
-          '<path d="M116,113 L148,113 L148,131 L104,134 C107,124 111,118 116,113 Z"/>' +
-          // Right Upper Chest
-          '<path d="M184,113 L152,113 L152,131 L196,134 C193,124 189,118 184,113 Z"/>' +
-          // Left Mid Chest
-          '<path d="M103,136 L148,133 L148,160 L99,162 C97,152 99,143 103,136 Z"/>' +
-          // Right Mid Chest
-          '<path d="M197,136 L152,133 L152,160 L201,162 C203,152 201,143 197,136 Z"/>' +
-          // Left Lower Chest
-          '<path d="M100,164 L148,162 L146,174 C128,179 110,176 100,164 Z"/>' +
-          // Right Lower Chest
-          '<path d="M200,164 L152,162 L154,174 C172,179 190,176 200,164 Z"/>' +
-          '<text x="126" y="125" class="vessel-micro-label">Upper Chest</text>' +
-          '<text x="174" y="125" class="vessel-micro-label">Upper Chest</text>' +
-          '<text x="125" y="150" class="vessel-micro-label lg">Chest</text>' +
-          '<text x="175" y="150" class="vessel-micro-label lg">Chest</text>' +
-        '</g>' +
-
-        // 4. LATS (Front Wing Flare under armpits)
-        '<g ' + g('lats') + '>' +
-          '<path d="M96,162 L104,176 L102,212 L91,192 Z"/>' +
-          '<path d="M204,162 L196,176 L198,212 L209,192 Z"/>' +
-        '</g>' +
-
-        // 5. TRICEPS (Outer Lateral Head sweep visible on Front View — matches reference image!)
-        '<g ' + g('triceps') + '>' +
-          '<path d="M71,158 L79,163 L75,216 L66,208 C64,190 66,172 71,158 Z"/>' +
-          '<path d="M229,158 L221,163 L225,216 L234,208 C236,190 234,172 229,158 Z"/>' +
-        '</g>' +
-
-        // 6. BICEPS (Long & Short Head on Front View)
-        '<g ' + g('biceps') + '>' +
-          '<path d="M80,162 C88,158 95,162 96,174 C97,192 93,212 85,222 C78,222 75,214 76,196 C76,182 78,170 80,162 Z"/>' +
-          '<path d="M220,162 C212,158 205,162 204,174 C203,192 207,212 215,222 C222,222 225,214 224,196 C224,182 222,170 220,162 Z"/>' +
-          '<text x="86" y="195" class="vessel-micro-label">Biceps</text>' +
-          '<text x="214" y="195" class="vessel-micro-label">Biceps</text>' +
-        '</g>' +
-
-        // 7. FOREARMS (Brachioradialis & Flexors)
-        '<g ' + g('forearms') + '>' +
-          '<path d="M68,218 C76,222 86,224 89,232 C87,258 78,286 69,308 L59,306 C60,280 62,246 68,218 Z"/>' +
-          '<path d="M232,218 C224,222 214,224 211,232 C213,258 222,286 231,308 L241,306 C240,280 238,246 232,218 Z"/>' +
-        '</g>' +
-
-        // 8. OBLIQUES & SERRATUS (Flanks framing the abs — matches reference image!)
-        '<g ' + g('obliques') + '>' +
-          '<path d="M103,176 L124,182 L123,262 L134,296 L112,268 L103,225 Z"/>' +
-          '<path d="M197,176 L176,182 L177,262 L166,296 L188,268 L197,225 Z"/>' +
-        '</g>' +
-
-        // 9. ABS (6-Pack Rectus Abdominis + Lower V-Taper Core)
-        '<g ' + g('abs') + '>' +
-          // Upper Abs
-          '<rect x="127" y="177" width="20" height="22" rx="4"/>' +
-          '<rect x="153" y="177" width="20" height="22" rx="4"/>' +
-          // Mid Abs Row 1
-          '<rect x="126" y="203" width="21" height="22" rx="4"/>' +
-          '<rect x="153" y="203" width="21" height="22" rx="4"/>' +
-          // Mid Abs Row 2
-          '<rect x="127" y="229" width="20" height="22" rx="4"/>' +
-          '<rect x="153" y="229" width="20" height="22" rx="4"/>' +
-          // Lower Abs V-Taper
-          '<path d="M128,255 L148,255 L148,306 L135,294 Z"/>' +
-          '<path d="M172,255 L152,255 L152,306 L165,294 Z"/>' +
-          '<text x="150" y="218" class="vessel-micro-label">Abs</text>' +
-        '</g>' +
-
-        // 10. QUADS (Vastus Lateralis, Rectus Femoris, Vastus Medialis)
-        '<g ' + g('quads') + '>' +
-          // Left Outer Sweep (Vastus Lateralis)
-          '<path d="M108,274 L120,295 L110,418 L95,392 C91,350 96,306 108,274 Z"/>' +
-          // Left Center Quad (Rectus Femoris)
-          '<path d="M122,294 L138,306 L124,426 L112,422 Z"/>' +
-          // Left Inner Teardrop (Vastus Medialis + Adductor)
-          '<path d="M139,308 L147,316 L139,424 C132,430 126,426 125,414 Z"/>' +
-          // Right Outer Sweep (Vastus Lateralis)
-          '<path d="M192,274 L180,295 L190,418 L205,392 C209,350 204,306 192,274 Z"/>' +
-          // Right Center Quad (Rectus Femoris)
-          '<path d="M178,294 L162,306 L176,426 L188,422 Z"/>' +
-          // Right Inner Teardrop (Vastus Medialis + Adductor)
-          '<path d="M161,308 L153,316 L161,424 C168,430 174,426 175,414 Z"/>' +
-          '<text x="116" y="362" class="vessel-micro-label">Quads</text>' +
-          '<text x="184" y="362" class="vessel-micro-label">Quads</text>' +
-        '</g>' +
-
-        // 11. CALVES (Gastrocnemius & Tibialis / Soleus)
-        '<g ' + g('calves') + '>' +
-          // Left Calf (Outer & Inner bellies)
-          '<path d="M100,456 L114,458 L110,566 L101,566 C94,530 93,490 100,456 Z"/>' +
-          '<path d="M116,458 L129,460 C135,492 130,532 117,566 L112,566 Z"/>' +
-          // Right Calf (Outer & Inner bellies)
-          '<path d="M200,456 L186,458 L190,566 L199,566 C206,530 207,490 200,456 Z"/>' +
-          '<path d="M184,458 L171,460 C165,492 170,532 183,566 L188,566 Z"/>' +
-          '<text x="113" y="508" class="vessel-micro-label">Calves</text>' +
-          '<text x="187" y="508" class="vessel-micro-label">Calves</text>' +
-        '</g>' +
-      '</svg>';
+  // Helper to sculpt an anatomical 3D muscle mesh with custom tapering/contouring
+  function createSculptedMesh(THREE, opts, mat, wireMat) {
+    var segW = opts.segW || 22;
+    var segH = opts.segH || 16;
+    var geo;
+    if (opts.type === 'cylinder') {
+      geo = new THREE.CylinderGeometry(
+        opts.rTop !== undefined ? opts.rTop : 1,
+        opts.rBot !== undefined ? opts.rBot : 1,
+        opts.height || 1,
+        segW,
+        segH
+      );
+    } else {
+      geo = new THREE.SphereGeometry(1, segW, segH);
     }
 
-    // BACK ANATOMY VIEW
-    return '<svg class="vessel-svg" viewBox="0 0 300 635" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Back Muscle Anatomy Map">' +
-      headAndHair +
+    var pos = geo.attributes.position;
+    var sx = opts.sx || 0.1;
+    var sy = opts.sy || 0.1;
+    var sz = opts.sz || 0.1;
+    var shapeFn = opts.shapeFn || null;
 
-      // 1. TRAPS (Full Diamond Upper / Mid / Lower Trapezius)
-      '<g ' + g('traps') + '>' +
-        '<path d="M134,84 L166,84 L198,105 L172,132 L150,176 L128,132 L102,105 Z"/>' +
-        '<line x1="150" y1="86" x2="150" y2="172" stroke="rgba(10,17,31,0.65)" stroke-width="1.4"/>' +
-        '<text x="150" y="118" class="vessel-micro-label lg">Traps</text>' +
-      '</g>' +
+    for (var i = 0; i < pos.count; i++) {
+      var vx = pos.getX(i);
+      var vy = pos.getY(i);
+      var vz = pos.getZ(i);
 
-      // 2. SHOULDERS (Rear & Lateral Deltoids)
-      '<g ' + g('shoulders') + '>' +
-        '<path d="M100,106 C79,112 68,128 69,154 L96,154 L112,124 Z"/>' +
-        '<path d="M200,106 C221,112 232,128 231,154 L204,154 L188,124 Z"/>' +
-        '<text x="88" y="138" class="vessel-micro-label">Rear Delt</text>' +
-        '<text x="212" y="138" class="vessel-micro-label">Rear Delt</text>' +
-      '</g>' +
+      if (shapeFn) {
+        var mod = shapeFn(vx, vy, vz);
+        vx = mod[0];
+        vy = mod[1];
+        vz = mod[2];
+      }
 
-      // 3. UPPER BACK (Infraspinatus, Teres Major, Rhomboids)
-      '<g ' + g('upper_back') + '>' +
-        '<path d="M113,126 L128,134 L144,168 L102,168 L97,154 Z"/>' +
-        '<path d="M187,126 L172,134 L156,168 L198,168 L203,154 Z"/>' +
-        '<text x="122" y="154" class="vessel-micro-label">Upper Back</text>' +
-        '<text x="178" y="154" class="vessel-micro-label">Upper Back</text>' +
-      '</g>' +
+      pos.setXYZ(i, vx * sx, vy * sy, vz * sz);
+    }
+    geo.computeVertexNormals();
 
-      // 4. LATS (Latissimus Dorsi V-Taper Wings)
-      '<g ' + g('lats') + '>' +
-        '<path d="M100,170 L145,172 L136,236 L108,224 C98,204 96,186 100,170 Z"/>' +
-        '<path d="M200,170 L155,172 L164,236 L192,224 C202,204 204,186 200,170 Z"/>' +
-        '<text x="122" y="198" class="vessel-micro-label lg">Lats</text>' +
-        '<text x="178" y="198" class="vessel-micro-label lg">Lats</text>' +
-      '</g>' +
+    var mesh = new THREE.Mesh(geo, mat);
+    if (opts.pos) mesh.position.set(opts.pos[0], opts.pos[1], opts.pos[2]);
+    if (opts.rot) mesh.rotation.set(opts.rot[0], opts.rot[1], opts.rot[2]);
 
-      // 5. LOWER BACK (Erector Spinae Pillars)
-      '<g ' + g('lower_back') + '>' +
-        '<path d="M136,222 L149,182 L149,266 L124,262 L114,228 Z"/>' +
-        '<path d="M164,222 L151,182 L151,266 L176,262 L186,228 Z"/>' +
-        '<text x="150" y="246" class="vessel-micro-label">Lower Back</text>' +
-      '</g>' +
+    if (wireMat) {
+      var edgesGeo = new THREE.EdgesGeometry(geo, 16);
+      var wire = new THREE.LineSegments(edgesGeo, wireMat);
+      mesh.add(wire);
+    }
 
-      // 6. TRICEPS (Horseshoe Lateral & Long Head on Back)
-      '<g ' + g('triceps') + '>' +
-        '<path d="M70,156 L95,156 L94,218 L68,214 C65,194 66,174 70,156 Z"/>' +
-        '<path d="M230,156 L205,156 L206,218 L232,214 C235,194 234,174 230,156 Z"/>' +
-        '<text x="82" y="190" class="vessel-micro-label">Triceps</text>' +
-        '<text x="218" y="190" class="vessel-micro-label">Triceps</text>' +
-      '</g>' +
+    return mesh;
+  }
 
-      // 7. FOREARMS (Posterior Extensors)
-      '<g ' + g('forearms') + '>' +
-        '<path d="M68,218 L90,222 L70,308 L59,306 Z"/>' +
-        '<path d="M232,218 L210,222 L230,308 L241,306 Z"/>' +
-      '</g>' +
+  function buildThreeHunterScene() {
+    var THREE = window.THREE;
+    if (!THREE) return null;
 
-      // 8. GLUTES (Gluteus Maximus & Medius)
-      '<g ' + g('glutes') + '>' +
-        '<path d="M112,262 L149,266 L149,326 C126,332 104,320 100,296 C100,280 105,270 112,262 Z"/>' +
-        '<path d="M188,262 L151,266 L151,326 C174,332 196,320 200,296 C200,280 195,270 188,262 Z"/>' +
-        '<text x="126" y="298" class="vessel-micro-label lg">Glutes</text>' +
-        '<text x="174" y="298" class="vessel-micro-label lg">Glutes</text>' +
-      '</g>' +
+    var renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: 'high-performance'
+      });
+    } catch (err) {
+      return null;
+    }
 
-      // 9. HAMSTRINGS (Biceps Femoris & Semitendinosus)
-      '<g ' + g('hamstrings') + '>' +
-        '<path d="M100,322 L124,330 L121,426 L102,422 C94,388 94,352 100,322 Z"/>' +
-        '<path d="M126,330 L146,328 L138,426 L123,426 Z"/>' +
-        '<path d="M200,322 L176,330 L179,426 L198,422 C206,388 206,352 200,322 Z"/>' +
-        '<path d="M174,330 L154,328 L162,426 L177,426 Z"/>' +
-        '<text x="120" y="378" class="vessel-micro-label">Hamstrings</text>' +
-        '<text x="180" y="378" class="vessel-micro-label">Hamstrings</text>' +
-      '</g>' +
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x000000, 0);
 
-      // 10. CALVES (Posterior Gastrocnemius Diamond & Soleus)
-      '<g ' + g('calves') + '>' +
-        '<path d="M99,456 L115,456 L112,566 L101,566 C93,528 92,488 99,456 Z"/>' +
-        '<path d="M117,456 L131,458 C137,490 131,530 118,566 L114,566 Z"/>' +
-        '<path d="M201,456 L185,456 L188,566 L199,566 C207,528 208,488 201,456 Z"/>' +
-        '<path d="M183,456 L169,458 C163,490 169,530 182,566 L186,566 Z"/>' +
-        '<text x="114" y="508" class="vessel-micro-label">Calves</text>' +
-        '<text x="186" y="508" class="vessel-micro-label">Calves</text>' +
-      '</g>' +
-    '</svg>';
-  };
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+    camera.position.set(0, 0.12, 6.2);
+
+    // Tactical Multi-Point Studio Lighting (Front, Back, Rim, Core)
+    var ambient = new THREE.AmbientLight(0x88A4C8, 0.72);
+    scene.add(ambient);
+
+    var keyLight = new THREE.DirectionalLight(0xE2F1FF, 0.95);
+    keyLight.position.set(2.8, 4.2, 4.5);
+    scene.add(keyLight);
+
+    var backLight = new THREE.DirectionalLight(0x90E0EF, 0.78);
+    backLight.position.set(-2.5, 3.2, -4.5);
+    scene.add(backLight);
+
+    var rimCyan = new THREE.PointLight(0x00F0FF, 0.75, 12);
+    rimCyan.position.set(0, -1.6, 2.2);
+    scene.add(rimCyan);
+
+    var topFill = new THREE.DirectionalLight(0x38BDF8, 0.42);
+    topFill.position.set(0, 5.5, 0);
+    scene.add(topFill);
+
+    var rootGroup = new THREE.Group();
+    var bodyGroup = new THREE.Group();
+    rootGroup.add(bodyGroup);
+    scene.add(rootGroup);
+
+    // Base Non-Muscle Structural Materials (Head, Hair, Neck, Hands, Feet, Spine Core)
+    var baseBodyMat = new THREE.MeshStandardMaterial({
+      color: 0x1F2737,
+      roughness: 0.55,
+      metalness: 0.28,
+      emissive: 0x09101D,
+      emissiveIntensity: 0.25
+    });
+    var darkCoreMat = new THREE.MeshStandardMaterial({
+      color: 0x141B26,
+      roughness: 0.65,
+      metalness: 0.35
+    });
+    var hairMat = new THREE.MeshStandardMaterial({
+      color: 0x101622,
+      roughness: 0.45,
+      metalness: 0.35,
+      emissive: 0x061528,
+      emissiveIntensity: 0.2
+    });
+    var eyeGlowMat = new THREE.MeshBasicMaterial({
+      color: 0x00F0FF
+    });
+    var jointRingMat = new THREE.MeshBasicMaterial({
+      color: 0x00E5FF,
+      transparent: true,
+      opacity: 0.35,
+      side: THREE.DoubleSide
+    });
+
+    // --- 1. HOLOGRAPHIC SYSTEM PEDESTAL ---
+    var pedestalGroup = new THREE.Group();
+    pedestalGroup.position.set(0, -2.14, 0);
+
+    var outerRingGeo = new THREE.RingGeometry(0.95, 1.02, 48);
+    var outerRingMat = new THREE.MeshBasicMaterial({ color: 0x00F0FF, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+    var outerRing = new THREE.Mesh(outerRingGeo, outerRingMat);
+    outerRing.rotation.x = -Math.PI / 2;
+    pedestalGroup.add(outerRing);
+
+    var innerRingGeo = new THREE.RingGeometry(0.62, 0.65, 36);
+    var innerRingMat = new THREE.MeshBasicMaterial({ color: 0x38BDF8, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+    var innerRing = new THREE.Mesh(innerRingGeo, innerRingMat);
+    innerRing.rotation.x = -Math.PI / 2;
+    pedestalGroup.add(innerRing);
+
+    var discGeo = new THREE.CircleGeometry(0.95, 48);
+    var discMat = new THREE.MeshBasicMaterial({ color: 0x00E5FF, transparent: true, opacity: 0.08, side: THREE.DoubleSide });
+    var disc = new THREE.Mesh(discGeo, discMat);
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.y = -0.01;
+    pedestalGroup.add(disc);
+
+    rootGroup.add(pedestalGroup);
+
+    // --- 2. BASE SKELETAL / MANNEQUIN CORE (Head, Spiky Hair, Glowing Eyes, Torso Core, Joints, Hands, Feet) ---
+    // Head sculpted cranium + jaw
+    var headMesh = createSculptedMesh(THREE, {
+      sx: 0.21, sy: 0.27, sz: 0.23,
+      pos: [0, 1.66, 0.02],
+      shapeFn: function (x, y, z) {
+        // Taper chin on lower half
+        var jawTaper = y < 0 ? (1 + y * 0.38) : (1 - y * 0.06);
+        var frontBrow = (z > 0 && y > -0.1 && y < 0.35) ? 1.06 : 1.0;
+        return [x * jawTaper, y, z * jawTaper * frontBrow];
+      }
+    }, baseBodyMat);
+    bodyGroup.add(headMesh);
+
+    // Sung Jin-Woo style glowing Hunter eyes (Front of face: z > 0)
+    [-1, 1].forEach(function (s) {
+      var eyeGeo = new THREE.BoxGeometry(0.065, 0.016, 0.02);
+      var eye = new THREE.Mesh(eyeGeo, eyeGlowMat);
+      eye.position.set(s * 0.072, 1.66, 0.235);
+      eye.rotation.z = s * -0.14;
+      eye.rotation.y = s * 0.22;
+      bodyGroup.add(eye);
+    });
+
+    // Stylized Manhwa Spiky Hair Crown
+    var hairCrown = createSculptedMesh(THREE, {
+      sx: 0.235, sy: 0.19, sz: 0.25,
+      pos: [0, 1.77, -0.01],
+      shapeFn: function (x, y, z) {
+        var spike = 1 + 0.12 * Math.sin(x * 9) * Math.cos(z * 9);
+        return [x * spike, y * spike, z * spike];
+      }
+    }, hairMat);
+    bodyGroup.add(hairCrown);
+
+    // Individual hair spikes around crown & bangs
+    var spikeSpecs = [
+      [0, 1.94, 0.08, 0.3, 0, 0],
+      [-0.10, 1.92, 0.06, 0.25, 0, 0.35],
+      [0.10, 1.92, 0.06, 0.25, 0, -0.35],
+      [-0.17, 1.84, 0.02, 0.15, 0, 0.65],
+      [0.17, 1.84, 0.02, 0.15, 0, -0.65],
+      [0, 1.91, -0.12, -0.35, 0, 0],
+      [-0.12, 1.85, -0.14, -0.35, 0, 0.4],
+      [0.12, 1.85, -0.14, -0.35, 0, -0.4],
+      [-0.06, 1.76, 0.22, 0.65, 0, 0.15],
+      [0.05, 1.77, 0.22, 0.65, 0, -0.12]
+    ];
+    spikeSpecs.forEach(function (sp) {
+      var coneGeo = new THREE.ConeGeometry(0.055, 0.18, 6);
+      var cone = new THREE.Mesh(coneGeo, hairMat);
+      cone.position.set(sp[0], sp[1], sp[2]);
+      cone.rotation.set(sp[3], sp[4], sp[5]);
+      bodyGroup.add(cone);
+    });
+
+    // Neck cylinder
+    var neckMesh = createSculptedMesh(THREE, {
+      type: 'cylinder', rTop: 0.115, rBot: 0.14, height: 0.26,
+      sx: 1, sy: 1, sz: 0.92,
+      pos: [0, 1.36, 0]
+    }, baseBodyMat);
+    bodyGroup.add(neckMesh);
+
+    // Inner Thoracic & Lumbar Core (fills gaps between front & back muscle plates)
+    var torsoCore = createSculptedMesh(THREE, {
+      type: 'cylinder', rTop: 0.38, rBot: 0.27, height: 1.18,
+      sx: 1.0, sy: 1.0, sz: 0.62,
+      pos: [0, 0.62, 0]
+    }, darkCoreMat);
+    bodyGroup.add(torsoCore);
+
+    // Pelvis / Hip Core
+    var pelvisCore = createSculptedMesh(THREE, {
+      sx: 0.33, sy: 0.20, sz: 0.20,
+      pos: [0, -0.06, 0]
+    }, darkCoreMat);
+    bodyGroup.add(pelvisCore);
+
+    // Symmetrical Arm Cores, Elbows, Wrists, Hands, Knees, Shins, Ankles & Feet
+    [-1, 1].forEach(function (s) {
+      // Humerus / Forearm inner bone core
+      var upperArmCore = createSculptedMesh(THREE, {
+        type: 'cylinder', rTop: 0.085, rBot: 0.075, height: 0.56,
+        sx: 1, sy: 1, sz: 1,
+        pos: [s * 0.65, 0.68, -0.01],
+        rot: [0, 0, s * -0.17]
+      }, darkCoreMat);
+      bodyGroup.add(upperArmCore);
+
+      // Elbow joint
+      var elbow = createSculptedMesh(THREE, {
+        sx: 0.095, sy: 0.085, sz: 0.09,
+        pos: [s * 0.72, 0.40, -0.01]
+      }, baseBodyMat);
+      bodyGroup.add(elbow);
+
+      // Hand & Fingers
+      var hand = createSculptedMesh(THREE, {
+        sx: 0.068, sy: 0.135, sz: 0.042,
+        pos: [s * 0.87, -0.15, 0.05],
+        rot: [0.08, 0, s * -0.12]
+      }, baseBodyMat);
+      bodyGroup.add(hand);
+
+      // Knee patella & joint
+      var knee = createSculptedMesh(THREE, {
+        sx: 0.125, sy: 0.115, sz: 0.125,
+        pos: [s * 0.255, -1.04, 0.02]
+      }, baseBodyMat);
+      bodyGroup.add(knee);
+
+      // Anterior Shin (Tibialis bone crest)
+      var shinBone = createSculptedMesh(THREE, {
+        type: 'cylinder', rTop: 0.095, rBot: 0.068, height: 0.76,
+        sx: 0.9, sy: 1, sz: 0.92,
+        pos: [s * 0.265, -1.48, 0.01]
+      }, darkCoreMat);
+      bodyGroup.add(shinBone);
+
+      // Foot / Tactical Boot silhouette
+      var foot = createSculptedMesh(THREE, {
+        sx: 0.115, sy: 0.085, sz: 0.23,
+        pos: [s * 0.27, -2.04, 0.07],
+        rot: [0, s * -0.08, 0],
+        shapeFn: function (x, y, z) {
+          var fy = y < 0 ? y * 0.45 : y;
+          var fz = z > 0 ? z * 1.15 : z * 0.75;
+          return [x, fy, fz];
+        }
+      }, baseBodyMat);
+      bodyGroup.add(foot);
+    });
+
+    // --- 3. CREATE MATERIALS & REGISTRY FOR ALL 15 ANATOMICAL MUSCLE GROUPS ---
+    var muscleMaterials = {};
+    var muscleWireMaterials = {};
+    var muscleMeshes = {};
+    var pickableMeshes = [];
+
+    MUSCLES.forEach(function (m) {
+      var mat = new THREE.MeshStandardMaterial({
+        color: 0x2D3545,
+        emissive: 0x1E293B,
+        emissiveIntensity: 0.08,
+        roughness: 0.36,
+        metalness: 0.22
+      });
+      var wireMat = new THREE.LineBasicMaterial({
+        color: 0x4A5568,
+        transparent: true,
+        opacity: 0.28
+      });
+      muscleMaterials[m.id] = mat;
+      muscleWireMaterials[m.id] = wireMat;
+      muscleMeshes[m.id] = [];
+    });
+
+    function addMusclePart(muscleId, opts) {
+      var mat = muscleMaterials[muscleId];
+      var wireMat = muscleWireMaterials[muscleId];
+      var mesh = createSculptedMesh(THREE, opts, mat, wireMat);
+      mesh.userData.muscleId = muscleId;
+      mesh.userData.baseScale = mesh.scale.clone();
+      bodyGroup.add(mesh);
+      muscleMeshes[muscleId].push(mesh);
+      pickableMeshes.push(mesh);
+      return mesh;
+    }
+
+    // =========================================================================
+    // SCULPTING THE 15 ANATOMICAL MUSCLE REGIONS IN 3D
+    // =========================================================================
+
+    // 1. CHEST (Pectoralis Major: Upper Clavicular, Mid Sternal, Lower Costal)
+    [-1, 1].forEach(function (s) {
+      // Upper Clavicular Pectoral
+      addMusclePart('chest', {
+        sx: 0.21, sy: 0.095, sz: 0.115,
+        pos: [s * 0.20, 1.03, 0.19],
+        rot: [-0.18, s * 0.16, s * -0.08],
+        shapeFn: function (x, y, z) {
+          var flatZ = z > 0 ? Math.pow(z, 0.75) : z * 0.5;
+          return [x, y, flatZ];
+        }
+      });
+      // Mid Sternal Pectoral (Main chest plate)
+      addMusclePart('chest', {
+        sx: 0.225, sy: 0.135, sz: 0.135,
+        pos: [s * 0.205, 0.87, 0.215],
+        rot: [0.02, s * 0.14, s * -0.03],
+        shapeFn: function (x, y, z) {
+          // Squared inner sternal border, rounded outer sweep
+          var flatZ = z > 0 ? Math.pow(z, 0.68) : z * 0.45;
+          var syMod = 1 - 0.12 * Math.pow(x, 2);
+          return [x, y * syMod, flatZ];
+        }
+      });
+      // Lower Costal Pectoral
+      addMusclePart('chest', {
+        sx: 0.20, sy: 0.068, sz: 0.11,
+        pos: [s * 0.20, 0.74, 0.20],
+        rot: [0.22, s * 0.14, s * 0.08]
+      });
+    });
+
+    // 2. SHOULDERS (Deltoids: Anterior, Lateral Cap, Posterior)
+    [-1, 1].forEach(function (s) {
+      // Lateral Deltoid Cap (Outer 3D Teardrop)
+      addMusclePart('shoulders', {
+        sx: 0.155, sy: 0.21, sz: 0.165,
+        pos: [s * 0.54, 1.02, 0.0],
+        rot: [0, 0, s * -0.22],
+        shapeFn: function (x, y, z) {
+          // Teardrop taper toward the humerus insertion at y < 0
+          var taper = y < 0 ? (1 + y * 0.45) : 1.05;
+          return [x * taper, y, z * taper];
+        }
+      });
+      // Anterior Deltoid Head (Front)
+      addMusclePart('shoulders', {
+        sx: 0.125, sy: 0.18, sz: 0.125,
+        pos: [s * 0.46, 1.03, 0.11],
+        rot: [0.15, s * 0.25, s * -0.28]
+      });
+      // Posterior Deltoid Head (Back)
+      addMusclePart('shoulders', {
+        sx: 0.13, sy: 0.17, sz: 0.12,
+        pos: [s * 0.46, 1.02, -0.11],
+        rot: [-0.15, s * -0.25, s * -0.28]
+      });
+    });
+
+    // 3. TRAPS (Trapezius: Upper Collar Sweeps + Posterior Diamond Yoke)
+    [-1, 1].forEach(function (s) {
+      // Upper Traps (visible from both Front & Back)
+      addMusclePart('traps', {
+        sx: 0.22, sy: 0.11, sz: 0.13,
+        pos: [s * 0.24, 1.22, -0.02],
+        rot: [0.08, 0, s * -0.42]
+      });
+      // Mid/Lower Diamond Traps on Upper-Mid Back
+      addMusclePart('traps', {
+        sx: 0.14, sy: 0.28, sz: 0.095,
+        pos: [s * 0.09, 0.96, -0.20],
+        rot: [0.06, s * -0.1, s * 0.16],
+        shapeFn: function (x, y, z) {
+          var diamond = 1 - Math.abs(y) * 0.35;
+          return [x * diamond, y, z];
+        }
+      });
+    });
+
+    // 4. BICEPS (Biceps Brachii: Anterior Upper Arm)
+    [-1, 1].forEach(function (s) {
+      addMusclePart('biceps', {
+        sx: 0.105, sy: 0.23, sz: 0.11,
+        pos: [s * 0.63, 0.67, 0.075],
+        rot: [0.06, s * 0.15, s * -0.17],
+        shapeFn: function (x, y, z) {
+          var peak = 1 + 0.18 * Math.cos(y * 1.5);
+          return [x * peak, y, z * peak];
+        }
+      });
+    });
+
+    // 5. TRICEPS (Triceps Brachii: Posterior & Outer Horseshoe Upper Arm)
+    [-1, 1].forEach(function (s) {
+      // Long & Medial Head (Back of arm)
+      addMusclePart('triceps', {
+        sx: 0.11, sy: 0.24, sz: 0.11,
+        pos: [s * 0.65, 0.68, -0.075],
+        rot: [-0.05, 0, s * -0.17]
+      });
+      // Outer Lateral Horseshoe Head (Visible from Front, Side & Back!)
+      addMusclePart('triceps', {
+        sx: 0.075, sy: 0.20, sz: 0.095,
+        pos: [s * 0.71, 0.70, -0.01],
+        rot: [0, 0, s * -0.18]
+      });
+    });
+
+    // 6. FOREARMS (Brachioradialis, Flexors & Extensors)
+    [-1, 1].forEach(function (s) {
+      // Anterior/Lateral Brachioradialis & Flexors
+      addMusclePart('forearms', {
+        sx: 0.10, sy: 0.27, sz: 0.095,
+        pos: [s * 0.79, 0.14, 0.03],
+        rot: [0.09, 0, s * -0.14],
+        shapeFn: function (x, y, z) {
+          // Thick near elbow (y > 0), tapered toward wrist (y < 0)
+          var wristTaper = 0.78 + (y + 1) * 0.22;
+          return [x * wristTaper, y, z * wristTaper];
+        }
+      });
+      // Posterior Extensors
+      addMusclePart('forearms', {
+        sx: 0.085, sy: 0.25, sz: 0.085,
+        pos: [s * 0.80, 0.15, -0.025],
+        rot: [0.09, 0, s * -0.14],
+        shapeFn: function (x, y, z) {
+          var wristTaper = 0.75 + (y + 1) * 0.23;
+          return [x * wristTaper, y, z * wristTaper];
+        }
+      });
+    });
+
+    // 7. ABS (Rectus Abdominis: 8-Pack Segmented Bellies)
+    var abRows = [
+      { y: 0.60, sx: 0.105, sy: 0.068, sz: 0.085, z: 0.205 },
+      { y: 0.44, sx: 0.110, sy: 0.070, sz: 0.090, z: 0.215 },
+      { y: 0.28, sx: 0.105, sy: 0.068, sz: 0.088, z: 0.210 },
+      { y: 0.09, sx: 0.098, sy: 0.105, sz: 0.082, z: 0.195 }
+    ];
+    abRows.forEach(function (row, rIdx) {
+      [-1, 1].forEach(function (s) {
+        addMusclePart('abs', {
+          sx: row.sx, sy: row.sy, sz: row.sz,
+          pos: [s * 0.098, row.y, row.z],
+          rot: [rIdx === 3 ? 0.12 : 0, s * 0.08, 0],
+          shapeFn: function (x, y, z) {
+            var blockZ = z > 0 ? Math.pow(z, 0.72) : z * 0.4;
+            return [x, y, blockZ];
+          }
+        });
+      });
+    });
+
+    // 8. OBLIQUES & SERRATUS (Flanks framing the core)
+    [-1, 1].forEach(function (s) {
+      // Serratus Anterior (Upper Ribcage Fingers)
+      addMusclePart('obliques', {
+        sx: 0.11, sy: 0.16, sz: 0.13,
+        pos: [s * 0.31, 0.56, 0.11],
+        rot: [0.05, s * 0.45, s * 0.12]
+      });
+      // External Oblique V-Taper Flank
+      addMusclePart('obliques', {
+        sx: 0.115, sy: 0.24, sz: 0.145,
+        pos: [s * 0.27, 0.26, 0.09],
+        rot: [0.06, s * 0.42, s * 0.16],
+        shapeFn: function (x, y, z) {
+          var taper = 0.85 + (y + 1) * 0.12;
+          return [x * taper, y, z];
+        }
+      });
+    });
+
+    // 9. LATS (Latissimus Dorsi: Sweeping V-Taper Wings visible Back & Front)
+    [-1, 1].forEach(function (s) {
+      // Main Posterior Lat Wing
+      addMusclePart('lats', {
+        sx: 0.21, sy: 0.34, sz: 0.13,
+        pos: [s * 0.27, 0.62, -0.15],
+        rot: [-0.08, s * -0.28, s * -0.26],
+        shapeFn: function (x, y, z) {
+          // Wide at top (y > 0), tapering toward waist (y < 0)
+          var vTaper = 0.68 + (y + 1) * 0.32;
+          return [x * vTaper, y, z];
+        }
+      });
+      // Lateral Lat Flare (Visible from Front & Side under armpit!)
+      addMusclePart('lats', {
+        sx: 0.10, sy: 0.24, sz: 0.12,
+        pos: [s * 0.39, 0.72, -0.02],
+        rot: [0, 0, s * -0.24]
+      });
+    });
+
+    // 10. UPPER BACK (Rhomboids, Infraspinatus & Teres Major)
+    [-1, 1].forEach(function (s) {
+      addMusclePart('upper_back', {
+        sx: 0.185, sy: 0.175, sz: 0.11,
+        pos: [s * 0.24, 0.94, -0.18],
+        rot: [-0.08, s * -0.22, s * -0.18]
+      });
+    });
+
+    // 11. LOWER BACK (Erector Spinae Lumbar Columns)
+    [-1, 1].forEach(function (s) {
+      addMusclePart('lower_back', {
+        sx: 0.105, sy: 0.28, sz: 0.095,
+        pos: [s * 0.11, 0.28, -0.17],
+        rot: [0.04, s * -0.08, s * 0.06]
+      });
+    });
+
+    // 12. GLUTES (Gluteus Maximus & Medius)
+    [-1, 1].forEach(function (s) {
+      addMusclePart('glutes', {
+        sx: 0.195, sy: 0.215, sz: 0.175,
+        pos: [s * 0.19, -0.14, -0.17],
+        rot: [0.08, s * -0.12, s * -0.05],
+        shapeFn: function (x, y, z) {
+          var roundZ = z < 0 ? Math.pow(Math.abs(z), 0.82) * -1.12 : z * 0.5;
+          return [x, y, roundZ];
+        }
+      });
+    });
+
+    // 13. QUADS (Quadriceps: Rectus Femoris, Vastus Lateralis Sweep, Vastus Medialis Teardrop)
+    [-1, 1].forEach(function (s) {
+      // Rectus Femoris (Center Front Thigh)
+      addMusclePart('quads', {
+        sx: 0.115, sy: 0.42, sz: 0.135,
+        pos: [s * 0.245, -0.56, 0.115],
+        rot: [-0.04, 0, s * -0.03],
+        shapeFn: function (x, y, z) {
+          var taper = 1 - Math.abs(y) * 0.18;
+          return [x * taper, y, z * taper];
+        }
+      });
+      // Vastus Lateralis (Outer Quad Sweep)
+      addMusclePart('quads', {
+        sx: 0.125, sy: 0.43, sz: 0.145,
+        pos: [s * 0.335, -0.54, 0.03],
+        rot: [0, 0, s * -0.06],
+        shapeFn: function (x, y, z) {
+          var sweep = 1 + 0.18 * Math.cos(y * 1.4);
+          return [x * sweep, y, z];
+        }
+      });
+      // Vastus Medialis (Inner Quad Teardrop above Knee)
+      addMusclePart('quads', {
+        sx: 0.11, sy: 0.36, sz: 0.12,
+        pos: [s * 0.175, -0.62, 0.08],
+        rot: [0, 0, s * 0.04],
+        shapeFn: function (x, y, z) {
+          // Bulges lower near the knee (y < 0)
+          var teardrop = y < 0 ? 1.14 : 0.85;
+          return [x * teardrop, y, z * teardrop];
+        }
+      });
+    });
+
+    // 14. HAMSTRINGS (Biceps Femoris & Semitendinosus: Posterior Thigh)
+    [-1, 1].forEach(function (s) {
+      // Lateral Biceps Femoris
+      addMusclePart('hamstrings', {
+        sx: 0.115, sy: 0.39, sz: 0.125,
+        pos: [s * 0.295, -0.60, -0.105],
+        rot: [0.03, 0, s * -0.03]
+      });
+      // Medial Semitendinosus
+      addMusclePart('hamstrings', {
+        sx: 0.11, sy: 0.39, sz: 0.12,
+        pos: [s * 0.195, -0.60, -0.105],
+        rot: [0.03, 0, s * 0.02]
+      });
+    });
+
+    // 15. CALVES (Gastrocnemius Medial/Lateral Diamond Heads & Soleus)
+    [-1, 1].forEach(function (s) {
+      // Upper Gastrocnemius Medial & Lateral Diamond Heads
+      addMusclePart('calves', {
+        sx: 0.088, sy: 0.26, sz: 0.115,
+        pos: [s * 0.22, -1.36, -0.075],
+        rot: [-0.04, 0, s * 0.02],
+        shapeFn: function (x, y, z) {
+          // Diamond bulge in upper half (y > -0.2)
+          var gastroc = y > -0.2 ? 1.15 : 0.72;
+          return [x * gastroc, y, z * gastroc];
+        }
+      });
+      addMusclePart('calves', {
+        sx: 0.092, sy: 0.27, sz: 0.115,
+        pos: [s * 0.31, -1.37, -0.065],
+        rot: [-0.04, 0, s * -0.03],
+        shapeFn: function (x, y, z) {
+          var gastroc = y > -0.2 ? 1.15 : 0.72;
+          return [x * gastroc, y, z * gastroc];
+        }
+      });
+      // Lower Soleus & Anterior Tibialis sweep (visible from Front & Back)
+      addMusclePart('calves', {
+        sx: 0.115, sy: 0.38, sz: 0.105,
+        pos: [s * 0.268, -1.48, 0.015],
+        rot: [0, 0, 0],
+        shapeFn: function (x, y, z) {
+          var ankleTaper = 0.72 + (y + 1) * 0.24;
+          return [x * ankleTaper, y, z * ankleTaper];
+        }
+      });
+    });
+
+    return {
+      THREE: THREE,
+      renderer: renderer,
+      scene: scene,
+      camera: camera,
+      rootGroup: rootGroup,
+      bodyGroup: bodyGroup,
+      pedestalGroup: pedestalGroup,
+      outerRing: outerRing,
+      innerRing: innerRing,
+      muscleMaterials: muscleMaterials,
+      muscleWireMaterials: muscleWireMaterials,
+      muscleMeshes: muscleMeshes,
+      pickableMeshes: pickableMeshes,
+      raycaster: new THREE.Raycaster(),
+      pointerNdc: new THREE.Vector2(),
+      currentYaw: 0,
+      targetYaw: 0,
+      currentPitch: 0.06,
+      targetPitch: 0.06,
+      cameraDist: 6.05,
+      targetDist: 6.05,
+      autoSpin: false,
+      wireframeOverlay: true,
+      isDragging: false,
+      dragMoved: 0,
+      lastX: 0,
+      lastY: 0,
+      rafId: null,
+      mountEl: null,
+      calloutEl: null,
+      angleBadgeEl: null,
+      onSelectMuscle: null
+    };
+  }
+
+  // Shortest-path angle interpolation so rotating between 0 and PI is always smooth
+  function normalizeAngle(a) {
+    while (a > Math.PI) a -= Math.PI * 2;
+    while (a < -Math.PI) a += Math.PI * 2;
+    return a;
+  }
+
+  function setTargetYawShortest(ctx, desiredYaw) {
+    var diff = normalizeAngle(desiredYaw - ctx.currentYaw);
+    ctx.targetYaw = ctx.currentYaw + diff;
+  }
+
+  // Update 3D materials, emissive brightness, wireframe glow, and hypertrophy pump scale
+  function syncThreeMuscleVisuals(ctx, visualsMap, selId) {
+    if (!ctx) return;
+    var THREE = ctx.THREE;
+
+    MUSCLES.forEach(function (m) {
+      var v = visualsMap[m.id] || S.getMuscleVisuals(0);
+      var isSel = m.id === selId;
+      var mat = ctx.muscleMaterials[m.id];
+      var wireMat = ctx.muscleWireMaterials[m.id];
+      if (!mat || !wireMat) return;
+
+      mat.color.set(v.fill);
+      if (isSel) {
+        mat.emissive.set(v.tierIdx > 0 ? v.hiColor : '#00E5FF');
+        mat.emissiveIntensity = Math.max(0.42, v.emissiveIntensity + 0.25);
+        mat.roughness = 0.24;
+      } else {
+        mat.emissive.set(v.tierIdx > 0 ? v.fill : '#111827');
+        mat.emissiveIntensity = v.emissiveIntensity;
+        mat.roughness = v.tierIdx > 0 ? 0.28 : 0.48;
+      }
+
+      if (isSel) {
+        wireMat.color.set('#FFFFFF');
+        wireMat.opacity = 0.92;
+      } else if (v.tierIdx > 0) {
+        wireMat.color.set(v.stroke);
+        wireMat.opacity = ctx.wireframeOverlay ? Math.min(0.82, 0.32 + v.tierIdx * 0.1) : 0.12;
+      } else {
+        wireMat.color.set('#475569');
+        wireMat.opacity = ctx.wireframeOverlay ? 0.24 : 0.06;
+      }
+
+      // Subtle 3D hypertrophy pump scale as muscle sets increase
+      var pump = 1 + (v.tierIdx * 0.012) + (isSel ? 0.025 : 0);
+      var meshes = ctx.muscleMeshes[m.id] || [];
+      for (var i = 0; i < meshes.length; i++) {
+        var mesh = meshes[i];
+        var bs = mesh.userData.baseScale;
+        if (bs) {
+          mesh.scale.set(bs.x * pump, bs.y * pump, bs.z * pump);
+        }
+      }
+    });
+  }
+
+  function startThreeLoop(ctx) {
+    if (!ctx || ctx.rafId) return;
+    var clockStart = performance.now();
+
+    function animate(now) {
+      if (!ctx.mountEl || !document.body.contains(ctx.mountEl)) {
+        ctx.rafId = null;
+        return;
+      }
+      ctx.rafId = requestAnimationFrame(animate);
+
+      var elapsed = (now - clockStart) * 0.001;
+
+      if (ctx.autoSpin && !ctx.isDragging) {
+        ctx.targetYaw += 0.0065;
+      }
+
+      // Smooth damping for 360° rotation and zoom
+      ctx.currentYaw += (ctx.targetYaw - ctx.currentYaw) * 0.14;
+      ctx.currentPitch += (ctx.targetPitch - ctx.currentPitch) * 0.14;
+      ctx.cameraDist += (ctx.targetDist - ctx.cameraDist) * 0.16;
+
+      ctx.bodyGroup.rotation.y = ctx.currentYaw;
+      ctx.bodyGroup.rotation.x = ctx.currentPitch;
+
+      // Subtle breathing idle animation on the Hunter body
+      ctx.bodyGroup.position.y = Math.sin(elapsed * 2.1) * 0.022;
+
+      // Rotate holographic pedestal rings
+      if (ctx.outerRing) ctx.outerRing.rotation.z = elapsed * 0.45;
+      if (ctx.innerRing) ctx.innerRing.rotation.z = -elapsed * 0.7;
+
+      // Pulse the currently selected muscle's emissive glow
+      var selMat = ctx.muscleMaterials[selectedMuscleId];
+      if (selMat) {
+        var pulse = 0.5 + 0.5 * Math.sin(elapsed * 5.0);
+        selMat.emissiveIntensity = 0.34 + pulse * 0.34;
+      }
+
+      ctx.camera.position.z = ctx.cameraDist;
+      ctx.renderer.render(ctx.scene, ctx.camera);
+
+      // Update live compass angle badge
+      if (ctx.angleBadgeEl) {
+        var deg = ((Math.round((ctx.currentYaw * 180) / Math.PI) % 360) + 360) % 360;
+        var facing = (deg >= 315 || deg < 45) ? 'ANTERIOR // FRONT'
+          : (deg >= 135 && deg < 225) ? 'POSTERIOR // BACK'
+          : (deg >= 45 && deg < 135) ? 'LATERAL // LEFT'
+          : 'LATERAL // RIGHT';
+        ctx.angleBadgeEl.textContent = facing + ' (' + deg + '°)';
+      }
+
+      // Project selected muscle 3D focus point to 2D HUD Callout Pin
+      if (ctx.calloutEl && MUSCLE_MAP[selectedMuscleId]) {
+        var selM = MUSCLE_MAP[selectedMuscleId];
+        var fp = selM.focusPos || [0, 0.5, 0];
+        var worldVec = new ctx.THREE.Vector3(fp[0], fp[1], fp[2]);
+        worldVec.applyEuler(ctx.bodyGroup.rotation);
+        worldVec.y += ctx.bodyGroup.position.y;
+        worldVec.project(ctx.camera);
+
+        var rect = ctx.mountEl.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          var sx = (worldVec.x * 0.5 + 0.5) * rect.width;
+          var sy = (-worldVec.y * 0.5 + 0.5) * rect.height;
+          sx = Math.max(76, Math.min(rect.width - 76, sx));
+          sy = Math.max(48, Math.min(rect.height - 62, sy));
+          ctx.calloutEl.style.transform = 'translate3d(' + Math.round(sx) + 'px, ' + Math.round(sy) + 'px, 0)';
+        }
+      }
+    }
+
+    ctx.rafId = requestAnimationFrame(animate);
+  }
+
+  function mountThreeViewport(mountEl, visualsMap, onSelectMuscle) {
+    if (!window.THREE) {
+      mountEl.innerHTML = '<div class="font-mono text-muted" style="padding:40px; text-align:center;">[3D ENGINE INITIALIZING...]</div>';
+      return;
+    }
+
+    if (!threeCtx) {
+      threeCtx = buildThreeHunterScene();
+      if (threeCtx) {
+        var dom = threeCtx.renderer.domElement;
+        dom.className = 'vessel-3d-canvas';
+        dom.style.touchAction = 'none';
+
+        // Pointer / Touch Drag-to-Rotate + Tap-to-Select Raycasting
+        var onPointerDown = function (e) {
+          threeCtx.isDragging = true;
+          threeCtx.dragMoved = 0;
+          threeCtx.lastX = e.clientX;
+          threeCtx.lastY = e.clientY;
+          if (dom.setPointerCapture && e.pointerId !== undefined) {
+            try { dom.setPointerCapture(e.pointerId); } catch (err) {}
+          }
+        };
+
+        var onPointerMove = function (e) {
+          if (!threeCtx.isDragging) return;
+          var dx = e.clientX - threeCtx.lastX;
+          var dy = e.clientY - threeCtx.lastY;
+          threeCtx.lastX = e.clientX;
+          threeCtx.lastY = e.clientY;
+          threeCtx.dragMoved += Math.abs(dx) + Math.abs(dy);
+
+          threeCtx.targetYaw += dx * 0.0115;
+          threeCtx.targetPitch = Math.max(-0.42, Math.min(0.48, threeCtx.targetPitch + dy * 0.0065));
+        };
+
+        var onPointerUp = function (e) {
+          if (!threeCtx.isDragging) return;
+          threeCtx.isDragging = false;
+
+          // If pointer barely moved (< 7px), treat as a 3D Raycast Tap to select a muscle!
+          if (threeCtx.dragMoved < 7 && threeCtx.mountEl) {
+            var rect = dom.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              threeCtx.pointerNdc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+              threeCtx.pointerNdc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+              threeCtx.raycaster.setFromCamera(threeCtx.pointerNdc, threeCtx.camera);
+              var hits = threeCtx.raycaster.intersectObjects(threeCtx.pickableMeshes, false);
+              if (hits && hits.length > 0) {
+                var hitMuscle = hits[0].object && hits[0].object.userData && hits[0].object.userData.muscleId;
+                if (hitMuscle && MUSCLE_MAP[hitMuscle] && threeCtx.onSelectMuscle) {
+                  threeCtx.onSelectMuscle(hitMuscle, false);
+                }
+              }
+            }
+          }
+        };
+
+        dom.addEventListener('pointerdown', onPointerDown);
+        dom.addEventListener('pointermove', onPointerMove);
+        dom.addEventListener('pointerup', onPointerUp);
+        dom.addEventListener('pointercancel', function () { threeCtx.isDragging = false; });
+
+        // Mouse wheel zoom
+        dom.addEventListener('wheel', function (e) {
+          e.preventDefault();
+          var delta = e.deltaY > 0 ? 0.35 : -0.35;
+          threeCtx.targetDist = Math.max(4.3, Math.min(8.0, threeCtx.targetDist + delta));
+        }, { passive: false });
+
+        window.addEventListener('resize', function () {
+          if (threeCtx && threeCtx.mountEl) {
+            resizeThreeViewport(threeCtx);
+          }
+        });
+      }
+    }
+
+    if (!threeCtx) {
+      mountEl.innerHTML = '<div class="font-mono text-muted" style="padding:40px; text-align:center;">[WEBGL 3D CONTEXT UNAVAILABLE]</div>';
+      return;
+    }
+
+    threeCtx.mountEl = mountEl;
+    threeCtx.onSelectMuscle = onSelectMuscle;
+    mountEl.insertBefore(threeCtx.renderer.domElement, mountEl.firstChild);
+
+    resizeThreeViewport(threeCtx);
+    syncThreeMuscleVisuals(threeCtx, visualsMap, selectedMuscleId);
+    startThreeLoop(threeCtx);
+  }
+
+  function resizeThreeViewport(ctx) {
+    if (!ctx || !ctx.mountEl) return;
+    var w = Math.max(260, ctx.mountEl.clientWidth || 360);
+    var h = Math.max(380, ctx.mountEl.clientHeight || 480);
+    ctx.camera.aspect = w / h;
+    ctx.camera.updateProjectionMatrix();
+    ctx.renderer.setSize(w, h, false);
+  }
 
   /* ============================================================================
-     FULL PHYSIQUE / MUSCLE ANATOMY VIEW RENDERER
+      FULL PHYSIQUE / 3D MUSCLE ANATOMY VIEW RENDERER
      ============================================================================ */
-  var activeBodySide = 'BOTH'; // 'FRONT' | 'BACK' | 'BOTH'
-  var selectedMuscleId = 'chest';
-
   S.renderPhysiqueView = function (container) {
     var ml = S.ensureMuscleLog();
+    if (ml.selectedMuscle && MUSCLE_MAP[ml.selectedMuscle]) {
+      selectedMuscleId = ml.selectedMuscle;
+      delete ml.selectedMuscle;
+    }
     var tf = ml.timeframe || '7D';
     var pal = ml.palette || 'spectrum';
     var scores = S.getMuscleScores(tf);
@@ -842,10 +1488,8 @@ window.SYS = window.SYS || {};
     var selM = MUSCLE_MAP[selectedMuscleId];
     var selV = visualsMap[selectedMuscleId];
     var lastDate = (ml.lastTrained && ml.lastTrained[selectedMuscleId]) || 'Never';
-
     var syncPct = Math.round((activeCount / MUSCLES.length) * 100);
 
-    // Legend swatches
     var legendHtml = TIERS.map(function (t, idx) {
       var p = t[pal] || t.spectrum;
       var rangeTxt = idx === 0 ? '0' : (t.maxSets >= 999 ? (t.minSets + '+') : (t.minSets + '–' + t.maxSets));
@@ -856,12 +1500,14 @@ window.SYS = window.SYS || {};
       '</div>';
     }).join('');
 
+    var isAutoSpin = !!(threeCtx && threeCtx.autoSpin);
+
     container.innerHTML =
       '<div class="vessel-layout">' +
         // Top Header Banner
         '<div class="system-panel" style="margin-bottom:14px;">' +
           '<div class="panel-header" style="flex-wrap:wrap; gap:10px; margin-bottom:10px;">' +
-            '<div class="panel-title">' + I('str', 20) + ' [PLAYER VESSEL // MUSCLE ACTIVATION MATRIX]</div>' +
+            '<div class="panel-title">' + I('str', 20) + ' [PLAYER VESSEL // 3D MUSCLE ACTIVATION MATRIX]</div>' +
             '<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">' +
               '<div class="vessel-seg-group" role="group" aria-label="Timeframe">' +
                 '<button type="button" class="vessel-seg-btn' + (tf === 'TODAY' ? ' active' : '') + '" data-tf="TODAY">TODAY</button>' +
@@ -880,54 +1526,76 @@ window.SYS = window.SYS || {};
           // Summary Stats Row
           '<div class="vessel-kpi-row">' +
             '<div class="vessel-kpi-card">' +
-              '<span class="font-mono text-muted" style="font-size:10px;">MUSCLES AWAKENED</span>' +
-              '<strong class="font-mono text-accent" style="font-size:18px;">' + activeCount + ' / ' + MUSCLES.length + ' (' + syncPct + '%)</strong>' +
+              '<div class="vessel-kpi-lbl">MUSCLES AWAKENED</div>' +
+              '<div class="vessel-kpi-val text-accent">' + activeCount + ' / ' + MUSCLES.length + ' (' + syncPct + '%)</div>' +
             '</div>' +
             '<div class="vessel-kpi-card">' +
-              '<span class="font-mono text-muted" style="font-size:10px;">VOLUME LOGGED (' + tf + ')</span>' +
-              '<strong class="font-mono text-gold" style="font-size:18px;">' + totalSets + ' SETS</strong>' +
+              '<div class="vessel-kpi-lbl">VOLUME LOGGED (' + tf + ')</div>' +
+              '<div class="vessel-kpi-val text-gold">' + totalSets + ' SETS</div>' +
             '</div>' +
             '<div class="vessel-kpi-card">' +
-              '<span class="font-mono text-muted" style="font-size:10px;">SELECTED REGION</span>' +
-              '<strong class="font-mono" style="font-size:16px; color:' + selV.textColor + ';">' + selM.short + ' // ' + selV.rank + '</strong>' +
+              '<div class="vessel-kpi-lbl">SELECTED REGION</div>' +
+              '<div class="vessel-kpi-val" style="font-size:16px; color:' + selV.textColor + ';">' + selM.short + ' // ' + selV.rank + '</div>' +
+            '</div>' +
+            '<div class="vessel-kpi-card">' +
+              '<div class="vessel-kpi-lbl">LUMINESCENCE</div>' +
+              '<div class="vessel-kpi-val" style="font-size:16px; color:' + selV.textColor + ';">' + Math.round(selV.brightness * 100) + '% BRIGHTNESS</div>' +
             '</div>' +
           '</div>' +
 
           // Color & Brightness Legend Bar
-          '<div class="vessel-legend-bar">' + legendHtml + '</div>' +
+          '<div class="vessel-legend-bar" style="margin-top:10px;">' + legendHtml + '</div>' +
         '</div>' +
 
-        // Main 2-Column Interactive Grid (Body Map Stage + Muscle Dossier & Quick Logger)
+        // Main 2-Column Interactive Grid (3D WebGL Scanner Stage + Muscle Dossier & Roster)
         '<div class="vessel-main-grid">' +
-          // LEFT: Holographic Anatomical Body Scanner
+          // LEFT: 3D Three.js Holographic Body Scanner
           '<div class="system-panel vessel-scanner-panel">' +
             '<div class="flex-between" style="margin-bottom:10px; flex-wrap:wrap; gap:8px;">' +
-              '<span class="font-mono text-accent" style="font-size:11px; letter-spacing:0.08em;">' + I('radar', 14) + ' TAP ANY MUSCLE REGION TO INSPECT OR TRAIN</span>' +
+              '<span class="font-mono text-accent" style="font-size:11px; letter-spacing:0.06em;">' + I('radar', 14) + ' DRAG TO ROTATE 360° // TAP ANY 3D MUSCLE</span>' +
               '<div class="vessel-seg-group">' +
-                '<button type="button" class="vessel-view-btn' + (activeBodySide === 'BOTH' ? ' active' : '') + '" data-side="BOTH">FRONT + BACK</button>' +
-                '<button type="button" class="vessel-view-btn' + (activeBodySide === 'FRONT' ? ' active' : '') + '" data-side="FRONT">FRONT ONLY</button>' +
-                '<button type="button" class="vessel-view-btn' + (activeBodySide === 'BACK' ? ' active' : '') + '" data-side="BACK">BACK ONLY</button>' +
+                '<button type="button" class="vessel-view-btn" data-cam-yaw="0">FRONT</button>' +
+                '<button type="button" class="vessel-view-btn" data-cam-yaw="0.65">3/4</button>' +
+                '<button type="button" class="vessel-view-btn" data-cam-yaw="1.57">SIDE</button>' +
+                '<button type="button" class="vessel-view-btn" data-cam-yaw="3.1416">BACK</button>' +
+                '<button type="button" class="vessel-view-btn' + (isAutoSpin ? ' active' : '') + '" id="btn-vessel-autospin">SPIN</button>' +
               '</div>' +
             '</div>' +
 
-            '<div class="vessel-stage ' + (activeBodySide === 'BOTH' ? 'dual-stage' : 'single-stage') + '">' +
-              (activeBodySide === 'BOTH' || activeBodySide === 'FRONT'
-                ? '<div class="vessel-figure-wrap">' +
-                    '<div class="vessel-figure-tag">ANTERIOR // FRONT</div>' +
-                    S.renderAnatomySvg('FRONT', visualsMap, selectedMuscleId) +
-                  '</div>'
-                : '') +
-              (activeBodySide === 'BOTH' || activeBodySide === 'BACK'
-                ? '<div class="vessel-figure-wrap">' +
-                    '<div class="vessel-figure-tag">POSTERIOR // BACK</div>' +
-                    S.renderAnatomySvg('BACK', visualsMap, selectedMuscleId) +
-                  '</div>'
-                : '') +
+            // 3D WebGL Stage Container
+            '<div class="vessel-3d-stage" id="vessel-3d-mount">' +
+              // Top-left Live Orientation Telemetry Badge
+              '<div class="vessel-3d-telemetry">' +
+                '<span class="vessel-3d-angle" id="vessel-3d-angle-badge">ANTERIOR // FRONT (0°)</span>' +
+                '<span class="vessel-3d-hint">SWIPE LEFT/RIGHT TO SEE BACK • PINCH/SCROLL TO ZOOM</span>' +
+              '</div>' +
+
+              // Top-right Zoom & Reset Controls
+              '<div class="vessel-3d-zoom-bar">' +
+                '<button type="button" class="vessel-zoom-btn" id="btn-vessel-zoom-in" title="Zoom In">+</button>' +
+                '<button type="button" class="vessel-zoom-btn" id="btn-vessel-zoom-out" title="Zoom Out">-</button>' +
+                '<button type="button" class="vessel-zoom-btn" id="btn-vessel-cam-reset" title="Reset Camera">RST</button>' +
+              '</div>' +
+
+              // Floating 3D-Projected Target Muscle Callout Tag
+              '<div class="vessel-3d-callout" id="vessel-3d-callout" style="border-color:' + selV.fill + ';">' +
+                '<span class="vessel-3d-callout-dot" style="background:' + selV.fill + '; box-shadow:0 0 8px ' + selV.fill + ';"></span>' +
+                '<div>' +
+                  '<div class="vessel-3d-callout-title">' + U.esc(selM.short) + ' <span style="color:' + selV.textColor + ';">// ' + selV.rank + '</span></div>' +
+                  '<div class="vessel-3d-callout-sub">' + selV.sets + ' SETS • ' + Math.round(selV.brightness * 100) + '% LUMEN</div>' +
+                '</div>' +
+              '</div>' +
+
+              // Bottom Quick Rotate & Quick Charge Bar inside 3D Viewport
+              '<div class="vessel-3d-bottom-hud">' +
+                '<button type="button" class="sys-btn sm" id="btn-vessel-flip-180">' + I('reroll', 12) + ' ROTATE 180° (FRONT / BACK)</button>' +
+                '<button type="button" class="sys-btn sm primary btn-log-muscle" data-delta="1">+1 SET (' + selM.short + ')</button>' +
+              '</div>' +
             '</div>' +
           '</div>' +
 
-          // RIGHT: Selected Muscle Dossier + Direct Training & Full Muscle Matrix
-          '<div class="vessel-side-col">' +
+          // RIGHT: Selected Muscle Dossier + Direct Training & Full 15-Muscle Matrix
+          '<div class="vessel-control-col">' +
             // Selected Muscle Card
             '<div class="system-panel" style="margin-bottom:14px; border-color:' + selV.fill + '88;">' +
               '<div class="flex-between" style="margin-bottom:6px; gap:8px; flex-wrap:wrap;">' +
@@ -1006,23 +1674,97 @@ window.SYS = window.SYS || {};
         '</div>' +
       '</div>';
 
-    // Bind interactive events
-    container.querySelectorAll('.vessel-muscle-group').forEach(function (el) {
-      el.addEventListener('click', function () {
-        var mId = el.getAttribute('data-muscle');
-        if (mId && MUSCLE_MAP[mId]) {
-          selectedMuscleId = mId;
+    // Mount the 3D WebGL Viewport
+    var mountEl = container.querySelector('#vessel-3d-mount');
+    if (mountEl) {
+      mountThreeViewport(mountEl, visualsMap, function (clickedMuscleId, rotateToPreferred) {
+        selectedMuscleId = clickedMuscleId;
+        if (rotateToPreferred && threeCtx && MUSCLE_MAP[clickedMuscleId]) {
+          var pref = MUSCLE_MAP[clickedMuscleId].preferredYaw;
+          if (typeof pref === 'number') setTargetYawShortest(threeCtx, pref);
+        }
+        if (S.audio) S.audio.tap();
+        S.renderPhysiqueView(container);
+      });
+      if (threeCtx) {
+        threeCtx.calloutEl = container.querySelector('#vessel-3d-callout');
+        threeCtx.angleBadgeEl = container.querySelector('#vessel-3d-angle-badge');
+      }
+    }
+
+    // Bind camera orientation buttons
+    container.querySelectorAll('[data-cam-yaw]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var yaw = Number(btn.getAttribute('data-cam-yaw'));
+        if (threeCtx && !isNaN(yaw)) {
+          threeCtx.autoSpin = false;
+          setTargetYawShortest(threeCtx, yaw);
+          threeCtx.targetPitch = 0.06;
           if (S.audio) S.audio.tap();
-          S.renderPhysiqueView(container);
+          var spinBtn = container.querySelector('#btn-vessel-autospin');
+          if (spinBtn) spinBtn.classList.remove('active');
         }
       });
     });
 
+    var flipBtn = container.querySelector('#btn-vessel-flip-180');
+    if (flipBtn) {
+      flipBtn.addEventListener('click', function () {
+        if (threeCtx) {
+          threeCtx.autoSpin = false;
+          threeCtx.targetYaw += Math.PI;
+          if (S.audio) S.audio.tap();
+        }
+      });
+    }
+
+    var spinBtn = container.querySelector('#btn-vessel-autospin');
+    if (spinBtn) {
+      spinBtn.addEventListener('click', function () {
+        if (threeCtx) {
+          threeCtx.autoSpin = !threeCtx.autoSpin;
+          spinBtn.classList.toggle('active', threeCtx.autoSpin);
+          if (S.audio) S.audio.tap();
+        }
+      });
+    }
+
+    var zoomInBtn = container.querySelector('#btn-vessel-zoom-in');
+    if (zoomInBtn) {
+      zoomInBtn.addEventListener('click', function () {
+        if (threeCtx) threeCtx.targetDist = Math.max(4.3, threeCtx.targetDist - 0.55);
+      });
+    }
+
+    var zoomOutBtn = container.querySelector('#btn-vessel-zoom-out');
+    if (zoomOutBtn) {
+      zoomOutBtn.addEventListener('click', function () {
+        if (threeCtx) threeCtx.targetDist = Math.min(8.0, threeCtx.targetDist + 0.55);
+      });
+    }
+
+    var camResetBtn = container.querySelector('#btn-vessel-cam-reset');
+    if (camResetBtn) {
+      camResetBtn.addEventListener('click', function () {
+        if (threeCtx) {
+          threeCtx.autoSpin = false;
+          setTargetYawShortest(threeCtx, 0);
+          threeCtx.targetPitch = 0.06;
+          threeCtx.targetDist = 6.05;
+        }
+      });
+    }
+
+    // Bind roster muscle selection (rotates 3D model to show the chosen muscle!)
     container.querySelectorAll('[data-select-muscle]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var mId = btn.getAttribute('data-select-muscle');
         if (mId && MUSCLE_MAP[mId]) {
           selectedMuscleId = mId;
+          if (threeCtx && typeof MUSCLE_MAP[mId].preferredYaw === 'number') {
+            threeCtx.autoSpin = false;
+            setTargetYawShortest(threeCtx, MUSCLE_MAP[mId].preferredYaw);
+          }
           if (S.audio) S.audio.tap();
           S.renderPhysiqueView(container);
         }
@@ -1051,14 +1793,6 @@ window.SYS = window.SYS || {};
       });
     }
 
-    container.querySelectorAll('.vessel-view-btn[data-side]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        activeBodySide = btn.getAttribute('data-side') || 'BOTH';
-        if (S.audio) S.audio.tap();
-        S.renderPhysiqueView(container);
-      });
-    });
-
     container.querySelectorAll('.btn-log-muscle').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var delta = Number(btn.getAttribute('data-delta')) || 0;
@@ -1083,7 +1817,6 @@ window.SYS = window.SYS || {};
     container.querySelectorAll('.btn-quick-exercise').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var ex = btn.getAttribute('data-ex') || selM.name;
-        // Infer secondary muscles from exercise name too
         var inferred = S.inferMusclesFromQuest({ title: ex, category: 'GYM' });
         S.logMuscleSets(selectedMuscleId, 3, ex);
         inferred.forEach(function (secId) {

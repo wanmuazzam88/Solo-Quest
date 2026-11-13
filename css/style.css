@@ -2576,9 +2576,160 @@ div[data-netlify-badge-wrapper] {
 .vessel-scanner-panel {
   position: relative;
   background:
-    radial-gradient(circle at 50% 35%, rgba(0, 240, 255, 0.06) 0%, rgba(4, 8, 16, 0.96) 72%),
+    radial-gradient(circle at 50% 38%, rgba(0, 240, 255, 0.08) 0%, rgba(4, 8, 16, 0.96) 72%),
     repeating-linear-gradient(0deg, rgba(0, 240, 255, 0.025) 0px, rgba(0, 240, 255, 0.025) 1px, transparent 1px, transparent 22px);
   overflow: hidden;
+}
+
+.vessel-3d-stage {
+  position: relative;
+  width: 100%;
+  height: 520px;
+  min-height: 440px;
+  border: 1px solid rgba(0, 240, 255, 0.16);
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(0, 229, 255, 0.07) 0%, rgba(4, 9, 20, 0.88) 70%),
+    linear-gradient(180deg, rgba(8, 16, 32, 0.4) 0%, rgba(3, 6, 14, 0.95) 100%);
+  clip-path: var(--clip-chamfer-sm);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.vessel-3d-stage:active {
+  cursor: grabbing;
+}
+
+.vessel-3d-canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  outline: none;
+}
+
+.vessel-3d-telemetry {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.vessel-3d-angle {
+  display: inline-block;
+  width: fit-content;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent-core);
+  background: rgba(4, 10, 22, 0.82);
+  border: 1px solid rgba(0, 240, 255, 0.32);
+  padding: 3px 8px;
+  clip-path: var(--clip-chamfer-sm);
+}
+
+.vessel-3d-hint {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  background: rgba(4, 8, 18, 0.65);
+  padding: 2px 6px;
+}
+
+.vessel-3d-zoom-bar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 3;
+}
+
+.vessel-zoom-btn {
+  width: 30px;
+  height: 28px;
+  background: rgba(6, 12, 24, 0.88);
+  border: 1px solid rgba(0, 240, 255, 0.28);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  clip-path: var(--clip-chamfer-sm);
+  transition: all 0.15s ease;
+}
+
+.vessel-zoom-btn:hover {
+  border-color: var(--accent-core);
+  color: var(--accent-core);
+  background: rgba(0, 240, 255, 0.15);
+}
+
+.vessel-3d-callout {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background: rgba(5, 10, 22, 0.88);
+  border: 1px solid var(--accent-core);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65);
+  clip-path: var(--clip-chamfer-sm);
+  pointer-events: none;
+  z-index: 2;
+  margin-left: -68px;
+  margin-top: -22px;
+  transition: border-color 0.2s ease;
+}
+
+.vessel-3d-callout-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.vessel-3d-callout-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.vessel-3d-callout-sub {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.vessel-3d-bottom-hud {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.vessel-3d-bottom-hud > button {
+  pointer-events: auto;
+  background: rgba(5, 11, 24, 0.9);
 }
 
 .vessel-stage {
@@ -2720,15 +2871,12 @@ div[data-netlify-badge-wrapper] {
 }
 
 @media (max-width: 560px) {
-  .vessel-stage.dual-stage {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
+  .vessel-3d-stage {
+    height: 455px;
+    min-height: 410px;
   }
-  .vessel-figure-wrap {
-    padding: 6px 2px 8px;
-  }
-  .vessel-svg {
-    max-height: 370px;
+  .vessel-3d-hint {
+    font-size: 8px;
   }
   .vessel-kpi-val {
     font-size: 16px;
