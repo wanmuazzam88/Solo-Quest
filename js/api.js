@@ -1197,9 +1197,6 @@ window.SYS = window.SYS || {};
         if (state.weeklyPlan) {
           shadowsPayload._weekly_plan = state.weeklyPlan;
         }
-        if (state.muscleLog) {
-          shadowsPayload._muscle_log = state.muscleLog;
-        }
         if (state.inventory && state.inventory.updatedAt) {
           shadowsPayload._inv_updated_at = state.inventory.updatedAt;
         }
