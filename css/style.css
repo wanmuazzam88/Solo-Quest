@@ -300,8 +300,8 @@ html, body {
   padding-top: 6px;
   padding-left: max(4px, env(safe-area-inset-left, 0px));
   padding-right: max(4px, env(safe-area-inset-right, 0px));
-  padding-bottom: calc(constant(safe-area-inset-bottom, 0px) + 8px);
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+  padding-bottom: max(8px, calc(constant(safe-area-inset-bottom, 0px) - 12px));
+  padding-bottom: max(8px, calc(env(safe-area-inset-bottom, 0px) - 12px));
   justify-content: space-around;
   align-items: center;
 }
@@ -401,7 +401,7 @@ html, body {
     max-width: 100%;
     margin: 0 auto;
     padding-top: 16px;
-    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(70px + max(0px, env(safe-area-inset-bottom, 0px) - 12px));
     padding-left: max(12px, env(safe-area-inset-left, 0px));
     padding-right: max(12px, env(safe-area-inset-right, 0px));
   }
