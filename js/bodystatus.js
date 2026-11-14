@@ -1540,16 +1540,7 @@ window.SYS = window.SYS || {};
       '<div class="bodystatus-shell" id="bodystatus-shell">' +
         '<div class="bodystatus-stage-panel">' +
           '<div class="panel-header" style="margin-bottom:10px;">' +
-            '<div class="panel-title">' + (S.icon ? S.icon('status', 18) : '') + ' [BODY STATUS // ANATOMICAL SCANNER]</div>' +
-            '<div class="bs-rank-legend font-mono">' +
-              MUSCLE_RANKS.map(function (rk) {
-                var swatchStyle = rk.key === 'DORMANT'
-                  ? 'background:' + rk.color + '; border:1px solid #475569;'
-                  : 'background:' + rk.color + ';';
-                var label = (rk.key === 'DORMANT' ? 'DORMANT' : rk.key) + ' (' + rk.minSets + '+) \u00b7 ' + rk.title;
-                return '<span class="bs-leg-item" title="' + U.esc(rk.rank + ' \u2014 ' + rk.title + ' (' + rk.minSets + '+ sets)') + '"><i style="' + swatchStyle + '"></i>' + U.esc(label) + '</span>';
-              }).join('') +
-            '</div>' +
+            '<div class="panel-title">' + (S.icon ? S.icon('status', 18) : '') + ' BODY STATUS</div>' +
           '</div>' +
 
           '<div class="bs-viewport-wrap" id="bs-viewport-wrap">' +
