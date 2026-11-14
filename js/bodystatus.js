@@ -479,7 +479,7 @@ window.SYS = window.SYS || {};
     threeCtx.loading = true;
     var loader = new THREE.GLTFLoader();
     loader.load(
-      'assets/models/hunter_anatomy.glb?v=3.42',
+      'assets/models/hunter_anatomy.glb?v=3.47',
       function (gltf) {
         threeCtx.loading = false;
         threeCtx.loaded = true;
