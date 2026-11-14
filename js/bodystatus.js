@@ -64,13 +64,13 @@ window.SYS = window.SYS || {};
   };
 
   var MUSCLE_RANKS = [
-    { index: 0, key: 'DORMANT', rank: 'Dormant', badge: 'DORMANT', title: 'Unawakened',     minSets: RANK_THRESHOLDS.DORMANT, color: '#0B0E14', emissive: '#000000', emissiveIntensity: 0.00, roughness: 0.85, metalness: 0.30, css: '#6E85A6' },
-    { index: 1, key: 'E',       rank: 'E-Rank',  badge: 'E-RANK',  title: 'First Spark',    minSets: RANK_THRESHOLDS.E,       color: '#8C5A3C', emissive: '#FF7A3D', emissiveIntensity: 0.08, roughness: 0.60, metalness: 0.70, css: '#8C5A3C' },
-    { index: 2, key: 'D',       rank: 'D-Rank',  badge: 'D-RANK',  title: 'Tempered Iron',  minSets: RANK_THRESHOLDS.D,       color: '#9AA7B8', emissive: '#CFE3FF', emissiveIntensity: 0.12, roughness: 0.40, metalness: 0.85, css: '#9AA7B8' },
-    { index: 3, key: 'C',       rank: 'C-Rank',  badge: 'C-RANK',  title: 'Mana-Infused',   minSets: RANK_THRESHOLDS.C,       color: '#00E5FF', emissive: '#00E5FF', emissiveIntensity: 0.35, roughness: 0.28, metalness: 0.55, css: '#00E5FF' },
-    { index: 4, key: 'B',       rank: 'B-Rank',  badge: 'B-RANK',  title: 'Awakened',       minSets: RANK_THRESHOLDS.B,       color: '#2962FF', emissive: '#2979FF', emissiveIntensity: 0.50, roughness: 0.22, metalness: 0.50, css: '#2962FF' },
-    { index: 5, key: 'A',       rank: 'A-Rank',  badge: 'A-RANK',  title: 'Red Gate Elite', minSets: RANK_THRESHOLDS.A,       color: '#FF1744', emissive: '#FF1744', emissiveIntensity: 0.65, roughness: 0.18, metalness: 0.45, css: '#FF1744' },
-    { index: 6, key: 'S',       rank: 'S-Rank',  badge: 'S-RANK',  title: 'Shadow Monarch', minSets: RANK_THRESHOLDS.S,       color: '#9D4EDD', emissive: '#E0AAFF', emissiveIntensity: 0.90, roughness: 0.12, metalness: 0.40, css: '#9D4EDD' }
+    { index: 0, key: 'DORMANT', rank: 'Dormant', badge: 'DORMANT', title: 'Unawakened',     minSets: RANK_THRESHOLDS.DORMANT, color: '#0B0E14', emissive: '#000000', emissiveIntensity: 0.00, roughness: 0.46, metalness: 0.68, clearcoat: 0.38, clearcoatRoughness: 0.24, envMapIntensity: 1.35, css: '#6E85A6' },
+    { index: 1, key: 'E',       rank: 'E-Rank',  badge: 'E-RANK',  title: 'First Spark',    minSets: RANK_THRESHOLDS.E,       color: '#8C5A3C', emissive: '#FF7A3D', emissiveIntensity: 0.08, roughness: 0.42, metalness: 0.78, clearcoat: 0.52, clearcoatRoughness: 0.18, envMapIntensity: 1.50, css: '#8C5A3C' },
+    { index: 2, key: 'D',       rank: 'D-Rank',  badge: 'D-RANK',  title: 'Tempered Iron',  minSets: RANK_THRESHOLDS.D,       color: '#9AA7B8', emissive: '#CFE3FF', emissiveIntensity: 0.12, roughness: 0.30, metalness: 0.88, clearcoat: 0.66, clearcoatRoughness: 0.14, envMapIntensity: 1.65, css: '#9AA7B8' },
+    { index: 3, key: 'C',       rank: 'C-Rank',  badge: 'C-RANK',  title: 'Mana-Infused',   minSets: RANK_THRESHOLDS.C,       color: '#00E5FF', emissive: '#00E5FF', emissiveIntensity: 0.35, roughness: 0.24, metalness: 0.62, clearcoat: 0.78, clearcoatRoughness: 0.11, envMapIntensity: 1.75, css: '#00E5FF' },
+    { index: 4, key: 'B',       rank: 'B-Rank',  badge: 'B-RANK',  title: 'Awakened',       minSets: RANK_THRESHOLDS.B,       color: '#2962FF', emissive: '#2979FF', emissiveIntensity: 0.50, roughness: 0.20, metalness: 0.58, clearcoat: 0.86, clearcoatRoughness: 0.09, envMapIntensity: 1.85, css: '#2962FF' },
+    { index: 5, key: 'A',       rank: 'A-Rank',  badge: 'A-RANK',  title: 'Red Gate Elite', minSets: RANK_THRESHOLDS.A,       color: '#FF1744', emissive: '#FF1744', emissiveIntensity: 0.65, roughness: 0.16, metalness: 0.52, clearcoat: 0.92, clearcoatRoughness: 0.07, envMapIntensity: 2.00, css: '#FF1744' },
+    { index: 6, key: 'S',       rank: 'S-Rank',  badge: 'S-RANK',  title: 'Shadow Monarch', minSets: RANK_THRESHOLDS.S,       color: '#9D4EDD', emissive: '#E0AAFF', emissiveIntensity: 0.90, roughness: 0.12, metalness: 0.48, clearcoat: 1.00, clearcoatRoughness: 0.05, envMapIntensity: 2.20, css: '#9D4EDD' }
   ];
 
   var RANK_BY_KEY = {};
@@ -789,9 +789,14 @@ window.SYS = window.SYS || {};
     currentTheta: 0.25,
     targetPhi: 1.48,
     currentPhi: 1.48,
-    targetRadius: 2.55,
-    currentRadius: 2.55,
+    targetRadius: 2.72,
+    currentRadius: 2.72,
     lookTarget: null,
+    // Stage & environment refs
+    envTarget: null,
+    ring1: null,
+    ring2: null,
+    manaParticles: null,
     // Interaction state
     isDragging: false,
     pointerDownPos: { x: 0, y: 0 },
@@ -805,6 +810,136 @@ window.SYS = window.SYS || {};
     resizeObserver: null
   };
 
+  function createStudioEnvMap(renderer) {
+    if (!window.THREE || !THREE.PMREMGenerator) return null;
+    try {
+      var pmrem = new THREE.PMREMGenerator(renderer);
+      if (pmrem.compileCubemapShader) pmrem.compileCubemapShader();
+
+      var envScene = new THREE.Scene();
+      envScene.background = new THREE.Color(0x04070f);
+
+      var panels = [
+        { pos: [0, 5.5, 1.2],   rot: [Math.PI / 2, 0, 0],  scale: [7, 2.8, 0.2], color: 0xffffff, mult: 3.4 },
+        { pos: [-4.5, 2.6, 3.2],rot: [0, Math.PI / 3, 0],  scale: [3.2, 5.5, 0.2], color: 0xdbeafe, mult: 2.4 },
+        { pos: [-4.8, 2.2, -2.8],rot:[0, -Math.PI / 3, 0], scale: [2.4, 6.0, 0.2], color: 0x00e5ff, mult: 3.2 },
+        { pos: [4.8, 2.2, -2.8], rot:[0, Math.PI / 3, 0],  scale: [2.4, 6.0, 0.2], color: 0x6366f1, mult: 2.8 },
+        { pos: [0, -4.5, 0],    rot: [-Math.PI / 2, 0, 0], scale: [8, 8, 0.2],   color: 0x0c192c, mult: 0.9 }
+      ];
+
+      var boxGeo = new THREE.BoxGeometry(1, 1, 1);
+      var mats = [];
+      panels.forEach(function (p) {
+        var c = new THREE.Color(p.color).multiplyScalar(p.mult);
+        var mat = new THREE.MeshBasicMaterial({ color: c });
+        var m = new THREE.Mesh(boxGeo, mat);
+        m.position.set(p.pos[0], p.pos[1], p.pos[2]);
+        m.rotation.set(p.rot[0], p.rot[1], p.rot[2]);
+        m.scale.set(p.scale[0], p.scale[1], p.scale[2]);
+        envScene.add(m);
+        mats.push(mat);
+      });
+
+      var rt = pmrem.fromScene(envScene, 0.04);
+      threeCtx.envTarget = rt;
+      boxGeo.dispose();
+      mats.forEach(function (mt) { mt.dispose(); });
+      pmrem.dispose();
+      return rt.texture;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function createMicroDetailTexture() {
+    if (typeof document === 'undefined' || !window.THREE) return null;
+    try {
+      var canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      var ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.fillStyle = '#808080';
+      ctx.fillRect(0, 0, 128, 128);
+      // Fine brushed metallic / anatomical striation lines + micro grain
+      for (var y = 0; y < 128; y += 2) {
+        var v = (y % 4 === 0) ? 140 : 116;
+        ctx.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
+        ctx.fillRect(0, y, 128, 1);
+      }
+      for (var i = 0; i < 420; i++) {
+        var gx = (i * 73) % 128;
+        var gy = (i * 41) % 128;
+        var gv = 112 + ((i * 29) % 32);
+        ctx.fillStyle = 'rgb(' + gv + ',' + gv + ',' + gv + ')';
+        ctx.fillRect(gx, gy, 2, 1);
+      }
+      var tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(5, 5);
+      return tex;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function ensureMeshUVs(geo) {
+    if (!geo || !geo.attributes || !geo.attributes.position || geo.attributes.uv) return;
+    var pos = geo.attributes.position;
+    var count = pos.count;
+    var uvs = new Float32Array(count * 2);
+    for (var i = 0; i < count; i++) {
+      var x = pos.getX(i);
+      var y = pos.getY(i);
+      var z = pos.getZ(i);
+      var angle = Math.atan2(x, z);
+      uvs[i * 2] = (angle / (Math.PI * 2)) + 0.5;
+      uvs[i * 2 + 1] = y * 1.5;
+    }
+    geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  }
+
+  function createRadialShadowTexture() {
+    if (typeof document === 'undefined' || !window.THREE) return null;
+    try {
+      var canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      var ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      var grad = ctx.createRadialGradient(64, 64, 6, 64, 64, 62);
+      grad.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
+      grad.addColorStop(0.55, 'rgba(2, 6, 14, 0.45)');
+      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 128, 128);
+      return new THREE.CanvasTexture(canvas);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function createParticleSpriteTexture() {
+    if (typeof document === 'undefined' || !window.THREE) return null;
+    try {
+      var canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      var ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      var grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 30);
+      grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+      grad.addColorStop(0.35, 'rgba(0, 229, 255, 0.65)');
+      grad.addColorStop(1, 'rgba(0, 229, 255, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 64, 64);
+      return new THREE.CanvasTexture(canvas);
+    } catch (e) {
+      return null;
+    }
+  }
+
   function ensureThreeCtx() {
     if (threeCtx.initialized) return true;
     if (!window.THREE || !THREE.GLTFLoader) return false;
@@ -813,67 +948,120 @@ window.SYS = window.SYS || {};
     scene.background = new THREE.Color(0x070B14);
 
     var camera = new THREE.PerspectiveCamera(40, 1, 0.1, 40);
-    threeCtx.lookTarget = new THREE.Vector3(0, 0.94, 0);
+    threeCtx.lookTarget = new THREE.Vector3(0, 0.96, 0);
 
     var renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
+    renderer.toneMappingExposure = 1.22;
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     renderer.domElement.style.display = 'block';
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
 
-    // Solo Leveling System Studio Lighting (sculptural contrast for muscle tone)
-    var hemi = new THREE.HemisphereLight(0x9bc4ff, 0x050811, 0.68);
+    // Procedural Studio Environment Map for sharp metallic & clearcoat reflections
+    var envMap = createStudioEnvMap(renderer);
+    if (envMap) scene.environment = envMap;
+
+    // Dramatic Sculpting Lighting (deep muscle crevices + crisp specular rim)
+    var hemi = new THREE.HemisphereLight(0x8ab4f8, 0x020307, 0.24);
     scene.add(hemi);
 
-    var topSculpt = new THREE.DirectionalLight(0xffffff, 1.45);
-    topSculpt.position.set(0.35, 4.4, 1.6);
-    scene.add(topSculpt);
-
-    var keyLight = new THREE.DirectionalLight(0xeef6ff, 1.25);
-    keyLight.position.set(2.2, 2.8, 2.5);
+    var keyLight = new THREE.DirectionalLight(0xf8fbff, 1.85);
+    keyLight.position.set(2.4, 3.6, 2.6);
     scene.add(keyLight);
 
-    var backKey = new THREE.DirectionalLight(0xdbeafe, 1.15);
-    backKey.position.set(-1.6, 3.0, -2.6);
-    scene.add(backKey);
+    var topSculpt = new THREE.DirectionalLight(0xffffff, 1.20);
+    topSculpt.position.set(0.2, 4.8, 1.1);
+    scene.add(topSculpt);
 
-    var cyanRimL = new THREE.DirectionalLight(0x00e5ff, 1.05);
-    cyanRimL.position.set(-3.0, 1.6, 0.4);
+    var cyanRimL = new THREE.DirectionalLight(0x00e5ff, 1.65);
+    cyanRimL.position.set(-3.2, 1.9, -1.6);
     scene.add(cyanRimL);
 
-    var cobaltRimR = new THREE.DirectionalLight(0x2979ff, 0.85);
-    cobaltRimR.position.set(3.0, 1.4, -0.4);
+    var cobaltRimR = new THREE.DirectionalLight(0x6366f1, 1.35);
+    cobaltRimR.position.set(3.2, 1.7, -1.8);
     scene.add(cobaltRimR);
 
-    // Subtle Holographic Floor Grid & Scanner Rings at Y=0
+    var frontFill = new THREE.DirectionalLight(0x93c5fd, 0.38);
+    frontFill.position.set(-1.8, 0.8, 2.4);
+    scene.add(frontFill);
+
+    // Subtle Holographic Floor Grid, Contact Shadow & Rotating Scanner Rings at Y=0
     var grid = new THREE.GridHelper(3.4, 22, 0x00e5ff, 0x0e2a45);
     grid.position.y = 0.001;
     if (Array.isArray(grid.material)) {
-      grid.material.forEach(function (m) { m.transparent = true; m.opacity = 0.22; });
+      grid.material.forEach(function (m) { m.transparent = true; m.opacity = 0.20; });
     } else {
       grid.material.transparent = true;
-      grid.material.opacity = 0.22;
+      grid.material.opacity = 0.20;
     }
     scene.add(grid);
 
-    var ringGeo1 = new THREE.RingGeometry(0.56, 0.585, 72);
-    ringGeo1.rotateX(-Math.PI / 2);
-    var ringMat1 = new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.42, side: THREE.DoubleSide });
-    var ring1 = new THREE.Mesh(ringGeo1, ringMat1);
-    ring1.position.y = 0.003;
-    scene.add(ring1);
+    var shadowTex = createRadialShadowTexture();
+    if (shadowTex) {
+      var shadowGeo = new THREE.PlaneGeometry(1.15, 1.15);
+      shadowGeo.rotateX(-Math.PI / 2);
+      var shadowMat = new THREE.MeshBasicMaterial({
+        map: shadowTex,
+        transparent: true,
+        opacity: 0.72,
+        depthWrite: false
+      });
+      var contactShadow = new THREE.Mesh(shadowGeo, shadowMat);
+      contactShadow.position.y = 0.0015;
+      scene.add(contactShadow);
+    }
 
-    var ringGeo2 = new THREE.RingGeometry(0.76, 0.775, 72);
-    ringGeo2.rotateX(-Math.PI / 2);
-    var ringMat2 = new THREE.MeshBasicMaterial({ color: 0x2979ff, transparent: true, opacity: 0.28, side: THREE.DoubleSide });
-    var ring2 = new THREE.Mesh(ringGeo2, ringMat2);
-    ring2.position.y = 0.002;
-    scene.add(ring2);
+    var ring1Group = new THREE.Group();
+    ring1Group.position.y = 0.003;
+    var ringMat1 = new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.45, side: THREE.DoubleSide });
+    for (var r1i = 0; r1i < 2; r1i++) {
+      var r1Geo = new THREE.RingGeometry(0.56, 0.585, 48, 1, r1i * Math.PI, Math.PI * 0.82);
+      r1Geo.rotateX(-Math.PI / 2);
+      ring1Group.add(new THREE.Mesh(r1Geo, ringMat1));
+    }
+    scene.add(ring1Group);
+    threeCtx.ring1 = ring1Group;
+
+    var ring2Group = new THREE.Group();
+    ring2Group.position.y = 0.002;
+    var ringMat2 = new THREE.MeshBasicMaterial({ color: 0x2979ff, transparent: true, opacity: 0.30, side: THREE.DoubleSide });
+    for (var r2i = 0; r2i < 3; r2i++) {
+      var r2Geo = new THREE.RingGeometry(0.76, 0.775, 48, 1, r2i * ((Math.PI * 2) / 3), Math.PI * 0.48);
+      r2Geo.rotateX(-Math.PI / 2);
+      ring2Group.add(new THREE.Mesh(r2Geo, ringMat2));
+    }
+    scene.add(ring2Group);
+    threeCtx.ring2 = ring2Group;
+
+    // Subtle rising ambient mana particles around the platform
+    var pCount = 32;
+    var pPos = new Float32Array(pCount * 3);
+    for (var pi = 0; pi < pCount; pi++) {
+      var pAng = (pi / pCount) * Math.PI * 2 * 2.7;
+      var pRad = 0.28 + ((pi * 37) % 100) / 100 * 0.56;
+      pPos[pi * 3] = Math.cos(pAng) * pRad;
+      pPos[pi * 3 + 1] = 0.04 + ((pi * 53) % 100) / 100 * 1.98;
+      pPos[pi * 3 + 2] = Math.sin(pAng) * pRad;
+    }
+    var pGeo = new THREE.BufferGeometry();
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+    var pTex = createParticleSpriteTexture();
+    var pMat = new THREE.PointsMaterial({
+      size: 0.036,
+      map: pTex || null,
+      color: 0x00e5ff,
+      transparent: true,
+      opacity: 0.45,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    var manaParticles = new THREE.Points(pGeo, pMat);
+    scene.add(manaParticles);
+    threeCtx.manaParticles = manaParticles;
 
     // Hologram rim outline helper mesh (clones geometry of selected muscle)
     var rimMat = new THREE.MeshBasicMaterial({
@@ -922,21 +1110,35 @@ window.SYS = window.SYS || {};
         root.position.x -= center.x;
         root.position.z -= center.z;
         root.position.y -= box.min.y;
-        threeCtx.lookTarget.set(0, size.y * 0.51, 0);
+        threeCtx.lookTarget.set(0, size.y * 0.53, 0);
+
+        var microTex = createMicroDetailTexture();
+        var MuscleMatCtor = THREE.MeshPhysicalMaterial || THREE.MeshStandardMaterial;
 
         root.traverse(function (obj) {
           if (!obj.isMesh) return;
           var name = obj.name || '';
           if (MUSCLE_MAP[name]) {
-            // Ensure unique independent material per muscle
-            obj.material = new THREE.MeshStandardMaterial({
+            ensureMeshUVs(obj.geometry);
+            // Collector-grade clearcoat physical material per muscle
+            var matOpts = {
               name: 'Mat_' + name,
-              color: new THREE.Color(0x111622),
-              metalness: 0.62,
-              roughness: 0.25,
+              color: new THREE.Color(0x0B0E14),
+              metalness: 0.68,
+              roughness: 0.46,
               emissive: new THREE.Color(0x000000),
-              emissiveIntensity: 0.0
-            });
+              emissiveIntensity: 0.0,
+              envMapIntensity: 1.35
+            };
+            if (THREE.MeshPhysicalMaterial) {
+              matOpts.clearcoat = 0.38;
+              matOpts.clearcoatRoughness = 0.24;
+            }
+            if (microTex) {
+              matOpts.bumpMap = microTex;
+              matOpts.bumpScale = 0.0022;
+            }
+            obj.material = new MuscleMatCtor(matOpts);
             threeCtx.muscleMeshes[name] = obj;
           } else if (name === 'Head_Shadow') {
             obj.material = new THREE.MeshBasicMaterial({
@@ -955,12 +1157,18 @@ window.SYS = window.SYS || {};
               toneMapped: false
             });
           } else if (name === 'Body_Core') {
-            obj.material = new THREE.MeshStandardMaterial({
+            var shellOpts = {
               name: 'Mat_Body_Shell',
               color: new THREE.Color(0x04060b),
-              roughness: 0.45,
-              metalness: 0.25
-            });
+              roughness: 0.28,
+              metalness: 0.75,
+              envMapIntensity: 1.4
+            };
+            if (THREE.MeshPhysicalMaterial) {
+              shellOpts.clearcoat = 0.65;
+              shellOpts.clearcoatRoughness = 0.16;
+            }
+            obj.material = new MuscleMatCtor(shellOpts);
           }
         });
 
@@ -1004,6 +1212,13 @@ window.SYS = window.SYS || {};
       mesh.material.color.set(colorHex);
       mesh.material.roughness = r.roughness;
       mesh.material.metalness = r.metalness;
+      if (typeof mesh.material.clearcoat === 'number') {
+        mesh.material.clearcoat = r.clearcoat * (1 - st.desaturation * 0.6);
+        mesh.material.clearcoatRoughness = r.clearcoatRoughness;
+      }
+      if (typeof mesh.material.envMapIntensity === 'number') {
+        mesh.material.envMapIntensity = r.envMapIntensity * (1 - st.desaturation * 0.4);
+      }
 
       if (st.nearBreakthrough && r.key === 'DORMANT') {
         mesh.material.emissive.set(MUSCLE_RANKS[1].emissive);
@@ -1208,7 +1423,7 @@ window.SYS = window.SYS || {};
       var diff = ((target - cur + Math.PI) % twoPi + twoPi) % twoPi - Math.PI;
       return cur + diff;
     }
-    var rSnap = getResponsiveRadius(2.45);
+    var rSnap = getResponsiveRadius(2.60);
     switch (preset) {
       case 'FRONT':
         threeCtx.targetTheta = nearestAngle(0);
@@ -1234,7 +1449,7 @@ window.SYS = window.SYS || {};
       default:
         threeCtx.targetTheta = nearestAngle(0.25);
         threeCtx.targetPhi = 1.48;
-        threeCtx.targetRadius = getResponsiveRadius(2.55);
+        threeCtx.targetRadius = getResponsiveRadius(2.72);
         break;
     }
     document.querySelectorAll('[data-cam-snap]').forEach(function (b) {
@@ -1293,6 +1508,17 @@ window.SYS = window.SYS || {};
       threeCtx.lastFrameTs = nowPerf;
       threeCtx.animTime += dt;
       var tSec = threeCtx.animTime;
+      if (threeCtx.ring1) threeCtx.ring1.rotation.y += 0.18 * dt;
+      if (threeCtx.ring2) threeCtx.ring2.rotation.y -= 0.12 * dt;
+      if (threeCtx.manaParticles && threeCtx.manaParticles.geometry && threeCtx.manaParticles.geometry.attributes.position) {
+        var mpAttr = threeCtx.manaParticles.geometry.attributes.position;
+        var mpArr = mpAttr.array;
+        for (var mpi = 1; mpi < mpArr.length; mpi += 3) {
+          mpArr[mpi] += 0.08 * dt;
+          if (mpArr[mpi] > 2.05) mpArr[mpi] = 0.02;
+        }
+        mpAttr.needsUpdate = true;
+      }
       var animList = threeCtx.animList;
       for (var ai = 0; ai < animList.length; ai++) {
         var entry = animList[ai];
@@ -1601,7 +1827,7 @@ window.SYS = window.SYS || {};
         resizeRenderer();
         if (!threeCtx.hasSizedOnce) {
           threeCtx.hasSizedOnce = true;
-          threeCtx.targetRadius = threeCtx.currentRadius = getResponsiveRadius(2.55);
+          threeCtx.targetRadius = threeCtx.currentRadius = getResponsiveRadius(2.72);
         }
         startAnimLoop();
         if (threeCtx.loaded) {
